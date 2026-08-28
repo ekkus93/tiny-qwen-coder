@@ -102,9 +102,7 @@ def _validate_keys(
     unknown = sorted(set(mapping) - required)
     missing = sorted(required - set(mapping))
     if unknown:
-        raise DatasetSourceConfigError(
-            f"{context} contains unknown field(s): {', '.join(unknown)}"
-        )
+        raise DatasetSourceConfigError(f"{context} contains unknown field(s): {', '.join(unknown)}")
     if missing:
         raise DatasetSourceConfigError(
             f"{context} is missing required field(s): {', '.join(missing)}"
