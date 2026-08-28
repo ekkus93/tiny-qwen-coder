@@ -1,0 +1,14 @@
+schema_version: 1
+id: olmo-starcoder-python-instruct
+language: python
+adapter: tiny_qwen_coder.data.olmo_python:load_olmo_python_instruct
+dataset:
+  repository: OLMo-Coding/starcoder-python-instruct
+  revision: 5bcafbc00100ec7cf1e6e5a9e353dc2f4eaad9fc
+  split: train
+license:
+  name: Apache-2.0
+  url: https://www.apache.org/licenses/LICENSE-2.0
+selection:
+  field: metadata.extension
+  equals: python3

@@ -66,6 +66,7 @@ class SourceProvenance:
     split: str | None = None
     record_id: str | None = None
     url: str | None = None
+    source_metadata: tuple[tuple[str, str], ...] = ()
 
     def __post_init__(self) -> None:
         _require_non_empty(self.source_id, field_name="source id")
@@ -73,6 +74,15 @@ class SourceProvenance:
         _require_optional_non_empty(self.split, field_name="source split")
         _require_optional_non_empty(self.record_id, field_name="source record id")
         _require_optional_non_empty(self.url, field_name="source url")
+        metadata_keys: list[str] = []
+        for key, value in self.source_metadata:
+            _require_non_empty(key, field_name="source metadata key")
+            _require_non_empty(value, field_name="source metadata value")
+            metadata_keys.append(key)
+        if len(metadata_keys) != len(set(metadata_keys)):
+            raise ValueError("source metadata must not repeat keys")
+        if tuple(sorted(self.source_metadata)) != self.source_metadata:
+            raise ValueError("source metadata must be sorted by key")
 
 
 @dataclass(frozen=True, slots=True)

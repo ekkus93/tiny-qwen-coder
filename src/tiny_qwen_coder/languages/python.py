@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import NoReturn
 
 from tiny_qwen_coder.data.records import NormalizedTrainingRecord, ValidationResult
-from tiny_qwen_coder.languages.loading import PRIMARY_VALIDATOR_ID
+from tiny_qwen_coder.languages.loading import PRIMARY_VALIDATOR_ID, load_language_plugin
+from tiny_qwen_coder.languages.spec import LanguageComponentRef, StaticLanguagePlugin
+
+_PYTHON_CONFIG_PATH = Path("configs/languages/python.yaml")
+_OLMO_SOURCE_CONFIG_PATH = Path("configs/data/python/olmo_starcoder_python_instruct.yaml")
 
 
 def validate_python_record(record: NormalizedTrainingRecord) -> ValidationResult:
@@ -27,3 +32,21 @@ def execute_python() -> NoReturn:
     """Fail clearly until Phase 6 wires Python evaluation to the constrained harness."""
 
     raise NotImplementedError("Python execution is implemented by the Phase 6 evaluators")
+
+
+def load_python_plugin(
+    config_path: Path = _PYTHON_CONFIG_PATH,
+    olmo_source_config_path: Path = _OLMO_SOURCE_CONFIG_PATH,
+) -> StaticLanguagePlugin:
+    """Load the concrete Python plugin with currently implemented data adapters."""
+
+    from tiny_qwen_coder.data.source_config import load_dataset_source_config
+
+    source = load_dataset_source_config(olmo_source_config_path)
+    config = load_language_plugin(config_path).spec.config
+    if source.language != config.id:
+        raise ValueError(
+            f"source language {source.language!r} does not match Python config {config.id!r}"
+        )
+    adapter = LanguageComponentRef(id=source.id, import_ref=source.adapter)
+    return load_language_plugin(config_path, data_adapters=(adapter,))
