@@ -32,11 +32,7 @@ _CONTAINER_TMP = "/tmp"
 _SANDBOX_UID = 65534
 _SANDBOX_GID = 65534
 _COPY_AND_EXEC_SCRIPT = (
-    "set -eu; "
-    "cp -R /input/. /workspace/; "
-    "chmod -R u+rwX /workspace; "
-    "cd /workspace; "
-    'exec "$@"'
+    'set -eu; cp -R /input/. /workspace/; chmod -R u+rwX /workspace; cd /workspace; exec "$@"'
 )
 
 
@@ -348,10 +344,7 @@ def _oci_run_command(
         "--mount",
         f"type=bind,src={input_directory},dst={_CONTAINER_INPUT},readonly",
         "--tmpfs",
-        (
-            f"{_CONTAINER_WORKSPACE}:rw,nosuid,nodev,size="
-            f"{limits.workspace_mebibytes}m,mode=1777"
-        ),
+        (f"{_CONTAINER_WORKSPACE}:rw,nosuid,nodev,size={limits.workspace_mebibytes}m,mode=1777"),
         "--tmpfs",
         f"{_CONTAINER_TMP}:rw,noexec,nosuid,nodev,size={limits.temp_mebibytes}m,mode=1777",
         "--env",
@@ -537,15 +530,9 @@ class ConstrainedExecutionHarness:
             else:
                 return_code = process.returncode
                 if return_code is None:  # pragma: no cover - process.wait() contract
-                    raise ExecutionHarnessError(
-                        "OCI runtime returned without a process exit code"
-                    )
+                    raise ExecutionHarnessError("OCI runtime returned without a process exit code")
                 exit_code = return_code
-                status = (
-                    ExecutionStatus.SUCCEEDED
-                    if exit_code == 0
-                    else ExecutionStatus.FAILED
-                )
+                status = ExecutionStatus.SUCCEEDED if exit_code == 0 else ExecutionStatus.FAILED
 
             return ExecutionResult(
                 status=status,
