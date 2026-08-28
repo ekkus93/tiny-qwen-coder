@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -127,6 +128,28 @@ def _record(
 def test_shortfall_fill_must_use_primary_configured_source() -> None:
     with pytest.raises(PythonP0CorpusError, match=r"primary \(first\) configured source"):
         _config(fill=_MAGICODER_ID)
+
+
+def test_builder_requires_plugin_adapter_registration_match() -> None:
+    sources = _source_configs()
+    sources[_MAGICODER_ID] = replace(
+        sources[_MAGICODER_ID],
+        adapter="tiny_qwen_coder.data.magicoder_python:iter_magicoder_python",
+    )
+    streams = {
+        _MAGICODER_ID: lambda _source, _language: iter(()),
+        _OLMO_ID: lambda _source, _language: iter(()),
+    }
+
+    with pytest.raises(PythonP0CorpusError, match="plugin adapter registration"):
+        build_python_p0_corpus(
+            _config(),
+            plugin=load_python_plugin(),
+            tokenizer=FakeTokenizer(),
+            target=_target(),
+            source_configs=sources,
+            stream_factories=streams,
+        )
 
 
 @pytest.mark.parametrize(
