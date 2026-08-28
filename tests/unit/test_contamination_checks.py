@@ -210,8 +210,7 @@ def test_detects_exact_normalized_prompt_copy_and_exact_solution_copy() -> None:
         ("exact_solution_match", "p1"),
     }
     hashes = {
-        normalized_record_fingerprint(item).record_sha256
-        for item in (prompt_copy, solution_copy)
+        normalized_record_fingerprint(item).record_sha256 for item in (prompt_copy, solution_copy)
     }
     assert {item.training_record_sha256 for item in summary.findings} == hashes
 
