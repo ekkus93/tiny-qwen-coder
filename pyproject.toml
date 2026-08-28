@@ -3,7 +3,24 @@ name = "tiny-qwen-coder"
 version = "0.1.0"
 description = "Interchangeable LoRA language adapters for Qwen3.5-0.8B coding specialization."
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "accelerate",
+    "datasets",
+    "peft",
+    "torch",
+    "transformers",
+    "trl",
+]
+
+[project.scripts]
+tiny-qwen-coder-versions = "tiny_qwen_coder.versions:main"
+
+[dependency-groups]
+dev = [
+    "mypy",
+    "pytest",
+    "ruff",
+]
 
 [build-system]
 requires = ["uv_build>=0.10.0,<0.11.0"]

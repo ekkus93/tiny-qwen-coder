@@ -21,12 +21,12 @@ Goal: establish a reproducible, language-neutral Python project with quality gat
 
 ## P0-001 — Initialize Python project
 
-- [ ] Create `pyproject.toml`.
-- [ ] Use `uv` for environment/dependency management.
-- [ ] Define supported Python version.
-- [ ] Create `src/tiny_qwen_coder/`.
-- [ ] Create `tests/`.
-- [ ] Generate and commit `uv.lock`.
+- [x] Create `pyproject.toml`.
+- [x] Use `uv` for environment/dependency management.
+- [x] Define supported Python version.
+- [x] Create `src/tiny_qwen_coder/`.
+- [x] Create `tests/`.
+- [x] Generate and commit `uv.lock`.
 
 Acceptance criteria:
 
@@ -35,14 +35,14 @@ Acceptance criteria:
 
 ## P0-002 — Add core dependencies
 
-- [ ] Add PyTorch.
-- [ ] Add Transformers.
-- [ ] Add Datasets.
-- [ ] Add PEFT.
-- [ ] Add TRL.
-- [ ] Add Accelerate.
-- [ ] Add test/lint/type-check dependencies.
-- [ ] Pin through `uv.lock`.
+- [x] Add PyTorch.
+- [x] Add Transformers.
+- [x] Add Datasets.
+- [x] Add PEFT.
+- [x] Add TRL.
+- [x] Add Accelerate.
+- [x] Add test/lint/type-check dependencies.
+- [x] Pin through `uv.lock`.
 
 Acceptance criteria:
 
