@@ -9,7 +9,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import StrEnum
 
-from tiny_qwen_coder.data.filtering import normalize_record_text
+from tiny_qwen_coder.data.filtering import normalize_record_text, normalize_training_text
 from tiny_qwen_coder.data.records import NormalizedTrainingRecord, TrainingMessage
 
 _SCHEMA_VERSION = 1
@@ -164,6 +164,42 @@ def _message_payload(messages: tuple[TrainingMessage, ...]) -> list[dict[str, st
     return [{"role": message.role, "content": message.content} for message in messages]
 
 
+def normalized_prompt_sha256(messages: tuple[TrainingMessage, ...]) -> str:
+    """Hash one normalized prompt history using the canonical P3 prompt payload."""
+
+    if not messages:
+        raise DeduplicationError("prompt history must contain at least one message")
+    try:
+        normalized_messages = tuple(
+            TrainingMessage(role=message.role, content=normalize_training_text(message.content))
+            for message in messages
+        )
+    except UnicodeEncodeError as error:
+        raise DeduplicationError("prompt contains text that is not UTF-8 encodable") from error
+    return _canonical_json_sha256(
+        {
+            "schema_version": _SCHEMA_VERSION,
+            "messages": _message_payload(normalized_messages),
+        }
+    )
+
+
+def normalized_response_sha256(content: str) -> str:
+    """Hash one normalized assistant response using the canonical P3 response payload."""
+
+    try:
+        normalized_content = normalize_training_text(content)
+    except UnicodeEncodeError as error:
+        raise DeduplicationError("response contains text that is not UTF-8 encodable") from error
+    return _canonical_json_sha256(
+        {
+            "schema_version": _SCHEMA_VERSION,
+            "role": "assistant",
+            "content": normalized_content,
+        }
+    )
+
+
 def normalized_record_fingerprint(record: NormalizedTrainingRecord) -> RecordContentFingerprint:
     """Hash the P3-004-normalized prompt history and final assistant response.
 
@@ -184,17 +220,8 @@ def normalized_record_fingerprint(record: NormalizedTrainingRecord) -> RecordCon
             "record must end with an assistant response; run P3-004 filtering first"
         )
 
-    prompt_payload = {
-        "schema_version": _SCHEMA_VERSION,
-        "messages": _message_payload(normalized.messages[:-1]),
-    }
-    response_payload = {
-        "schema_version": _SCHEMA_VERSION,
-        "role": "assistant",
-        "content": normalized.messages[-1].content,
-    }
-    prompt_sha256 = _canonical_json_sha256(prompt_payload)
-    response_sha256 = _canonical_json_sha256(response_payload)
+    prompt_sha256 = normalized_prompt_sha256(normalized.messages[:-1])
+    response_sha256 = normalized_response_sha256(normalized.messages[-1].content)
     record_sha256 = _canonical_json_sha256(
         {
             "schema_version": _SCHEMA_VERSION,
