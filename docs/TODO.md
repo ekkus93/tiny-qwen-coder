@@ -98,12 +98,12 @@ Acceptance criteria:
 
 ## P0-006 — Add README bootstrap documentation
 
-- [ ] Explain the one-base/many-adapters architecture.
-- [ ] Explain Python-first scope.
-- [ ] Explain planned TypeScript/Rust adapters.
-- [ ] Document environment setup.
-- [ ] Explain CPU development versus GPU training.
-- [ ] Link `docs/SPEC.md` and `docs/TODO.md`.
+- [x] Explain the one-base/many-adapters architecture.
+- [x] Explain Python-first scope.
+- [x] Explain planned TypeScript/Rust adapters.
+- [x] Document environment setup.
+- [x] Explain CPU development versus GPU training.
+- [x] Link `docs/SPEC.md` and `docs/TODO.md`.
 
 Acceptance criteria:
 
