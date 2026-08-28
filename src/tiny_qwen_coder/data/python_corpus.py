@@ -123,9 +123,7 @@ class PythonP0CorpusResult:
             raise PythonP0CorpusError("source statistics must follow configured source order")
         if sum(item.accepted for item in self.source_stats) != len(self.accepted_records):
             raise PythonP0CorpusError("source accepted counts must equal accepted record count")
-        rejection_order = tuple(
-            (item.stage.value, item.reason) for item in self.rejection_counts
-        )
+        rejection_order = tuple((item.stage.value, item.reason) for item in self.rejection_counts)
         if rejection_order != tuple(sorted(rejection_order)):
             raise PythonP0CorpusError("rejection counts must use stable stage/reason order")
 
@@ -156,11 +154,45 @@ def _validation_failure_reasons(record: NormalizedTrainingRecord) -> tuple[str, 
     metadata = record.validation
     if metadata is None:
         return ("missing_validation_metadata",)
-    return tuple(
-        f"{result.validator_id}:{result.detail or 'failed'}"
-        for result in metadata.results
-        if not result.passed
+
+    failures: list[str] = []
+    for result in metadata.results:
+        if result.passed:
+            continue
+        detail = result.detail.split(";", maxsplit=1)[0] if result.detail else "failed"
+        failures.append(f"{result.validator_id}:{detail}")
+    return tuple(failures)
+
+
+def _validate_record_source(
+    record: NormalizedTrainingRecord,
+    *,
+    source: DatasetSourceConfig,
+    language: str,
+) -> None:
+    if record.language != language:
+        raise PythonP0CorpusError(
+            f"source {source.id!r} yielded record language {record.language!r}; expected {language!r}"
+        )
+
+    provenance = record.provenance
+    identity_fields = (
+        ("source_id", provenance.source_id, source.dataset.repository),
+        ("revision", provenance.revision, source.dataset.revision),
+        ("split", provenance.split, source.dataset.split),
     )
+    for field_name, actual, expected in identity_fields:
+        if actual != expected:
+            raise PythonP0CorpusError(
+                f"source {source.id!r} yielded mismatched provenance {field_name}: "
+                f"{actual!r} != {expected!r}"
+            )
+    if provenance.license != source.license:
+        raise PythonP0CorpusError(
+            f"source {source.id!r} yielded license metadata that does not match its pinned config"
+        )
+    if provenance.record_id is None:
+        raise PythonP0CorpusError(f"source {source.id!r} yielded a record without record_id")
 
 
 def _process_candidate(
@@ -298,6 +330,7 @@ def build_python_p0_corpus(
         accepted = accepted_by_source[budget.id]
 
         for record in stream_factory(source, plugin.spec.config):
+            _validate_record_source(record, source=source, language=config.language)
             scanned += 1
             candidate, stage, reasons = _process_candidate(
                 record,
