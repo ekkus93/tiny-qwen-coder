@@ -111,12 +111,12 @@ Acceptance criteria:
 
 ## P0-007 — Add bounded GitHub Actions CI
 
-- [ ] `uv sync --frozen`.
-- [ ] Format check.
-- [ ] Lint.
-- [ ] Type check.
-- [ ] CPU-safe tests.
-- [ ] Avoid required full-model download/training.
+- [x] `uv sync --frozen`.
+- [x] Format check.
+- [x] Lint.
+- [x] Type check.
+- [x] CPU-safe tests.
+- [x] Avoid required full-model download/training.
 
 Acceptance criteria:
 
