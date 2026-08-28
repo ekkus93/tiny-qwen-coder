@@ -13,6 +13,21 @@ from tiny_qwen_coder.evaluation.contamination import (
     ProtectedBenchmarkExample,
     check_training_contamination,
 )
+from tiny_qwen_coder.evaluation.execution import (
+    ConstrainedExecutionHarness,
+    ExecutionCleanupError,
+    ExecutionFile,
+    ExecutionHarnessError,
+    ExecutionHarnessUnavailableError,
+    ExecutionLimits,
+    ExecutionRequest,
+    ExecutionRequestError,
+    ExecutionResult,
+    ExecutionStatus,
+    OciRuntime,
+    OciRuntimeSpec,
+    discover_oci_runtime,
+)
 from tiny_qwen_coder.evaluation.protected_benchmarks import (
     ProtectedBenchmark,
     ProtectedBenchmarkRegistrationError,
@@ -23,6 +38,19 @@ from tiny_qwen_coder.evaluation.protected_benchmarks import (
 )
 
 __all__ = [
+    "ConstrainedExecutionHarness",
+    "ExecutionCleanupError",
+    "ExecutionFile",
+    "ExecutionHarnessError",
+    "ExecutionHarnessUnavailableError",
+    "ExecutionLimits",
+    "ExecutionRequest",
+    "ExecutionRequestError",
+    "ExecutionResult",
+    "ExecutionStatus",
+    "OciRuntime",
+    "OciRuntimeSpec",
+    "discover_oci_runtime",
     "EXACT_PROMPT_CHECK_ID",
     "EXACT_SOLUTION_CHECK_ID",
     "HIGH_OVERLAP_CHECK_ID",
