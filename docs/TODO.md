@@ -143,13 +143,13 @@ Acceptance criteria:
 
 ## P1-002 — Define language config schema
 
-- [ ] Stable language ID.
-- [ ] aliases/extensions.
-- [ ] repository-detection signals.
-- [ ] system prompt/version.
-- [ ] data-source config references.
-- [ ] evaluation config references.
-- [ ] language-specific validator/executor hooks.
+- [x] Stable language ID.
+- [x] aliases/extensions.
+- [x] repository-detection signals.
+- [x] system prompt/version.
+- [x] data-source config references.
+- [x] evaluation config references.
+- [x] language-specific validator/executor hooks.
 
 Acceptance criteria:
 
