@@ -186,10 +186,10 @@ Acceptance criteria:
 
 ## P1-005 — Implement deterministic seeding
 
-- [ ] Python random.
-- [ ] NumPy if used.
-- [ ] PyTorch CPU/GPU.
-- [ ] document unavoidable nondeterminism.
+- [x] Python random.
+- [x] NumPy if used.
+- [x] PyTorch CPU/GPU.
+- [x] document unavoidable nondeterminism.
 
 Acceptance criteria:
 

@@ -9,6 +9,7 @@ _PACKAGES = (
     "torch",
     "transformers",
     "datasets",
+    "numpy",
     "peft",
     "trl",
     "accelerate",

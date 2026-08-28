@@ -18,6 +18,8 @@ from uuid import uuid4
 import torch
 import yaml
 
+from tiny_qwen_coder.reproducibility import SeedError, validate_seed
+
 RunKind: TypeAlias = Literal["training", "evaluation"]
 
 _MANIFEST_SCHEMA_VERSION = 1
@@ -26,6 +28,7 @@ _LANGUAGE_PATTERN = re.compile(r"^[a-z][a-z0-9_-]*$")
 _TRACKED_DISTRIBUTIONS = (
     "accelerate",
     "datasets",
+    "numpy",
     "peft",
     "pyyaml",
     "tiny-qwen-coder",
@@ -92,6 +95,7 @@ class DependencyVersions:
 
     accelerate: str
     datasets: str
+    numpy: str
     peft: str
     pyyaml: str
     tiny_qwen_coder: str
@@ -159,6 +163,10 @@ class RunManifest:
             )
         _require_non_empty(self.run_id, field_name="run_id")
         _require_language(self.language)
+        try:
+            validate_seed(self.seed)
+        except SeedError as exc:
+            raise ManifestError(str(exc)) from exc
         if self.run_kind == "training" and self.adapter.adapter_id is None:
             raise ManifestError("training manifests require an adapter identity")
         try:
@@ -218,6 +226,7 @@ def collect_dependency_versions() -> DependencyVersions:
     return DependencyVersions(
         accelerate=versions["accelerate"],
         datasets=versions["datasets"],
+        numpy=versions["numpy"],
         peft=versions["peft"],
         pyyaml=versions["pyyaml"],
         tiny_qwen_coder=versions["tiny-qwen-coder"],

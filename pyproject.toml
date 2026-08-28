@@ -6,6 +6,7 @@ requires-python = ">=3.11"
 dependencies = [
     "accelerate",
     "datasets",
+    "numpy",
     "peft",
     "pyyaml",
     "torch",

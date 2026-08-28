@@ -30,6 +30,7 @@ def _dependencies() -> DependencyVersions:
     return DependencyVersions(
         accelerate="1",
         datasets="2",
+        numpy="2.4",
         peft="3",
         pyyaml="4",
         tiny_qwen_coder="5",
@@ -102,8 +103,25 @@ def test_training_manifest_contains_complete_provenance() -> None:
         "family": "language",
     }
     assert payload["seed"] == 1729
+    assert payload["dependencies"]["numpy"] == "2.4"
     assert payload["dependencies"]["transformers"] == "7"
     assert payload["host"]["gpus"][0]["total_memory_bytes"] == 16 * 1024**3
+
+
+def test_manifest_rejects_seed_outside_project_range() -> None:
+    with pytest.raises(ManifestError, match="seed must be between 0 and"):
+        create_run_manifest(
+            run_kind="training",
+            base_model=_base(),
+            language="python",
+            adapter=AdapterIdentity(family="language", adapter_id="language/python/p0"),
+            seed=-1,
+            run_id="invalid-seed",
+            created_at=datetime(2026, 8, 28, 8, 30, tzinfo=UTC),
+            git=GitMetadata(sha=_FAKE_GIT_SHA, dirty=False),
+            dependencies=_dependencies(),
+            host=_host(),
+        )
 
 
 def test_training_manifest_rejects_missing_adapter_identity() -> None:

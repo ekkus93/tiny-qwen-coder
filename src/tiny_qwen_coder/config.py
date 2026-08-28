@@ -16,6 +16,8 @@ from typing import Literal, TypeAlias, cast
 
 import yaml
 
+from tiny_qwen_coder.reproducibility import SeedError, validate_seed
+
 _SCHEMA_VERSION = 1
 _LANGUAGE_ID_PATTERN = re.compile(r"^[a-z][a-z0-9_-]*$")
 
@@ -46,6 +48,13 @@ def _require_language_id(value: str) -> None:
 def _require_non_empty(value: str, *, field_name: str) -> None:
     if not value.strip():
         raise ConfigError(f"{field_name} must not be empty")
+
+
+def _require_seed(seed: int) -> None:
+    try:
+        validate_seed(seed)
+    except SeedError as exc:
+        raise ConfigError(str(exc)) from exc
 
 
 def _require_positive(value: int | float, *, field_name: str) -> None:
@@ -168,6 +177,7 @@ class DataPreparationConfig:
     def __post_init__(self) -> None:
         _require_schema_version(self.schema_version)
         _require_language_id(self.language)
+        _require_seed(self.seed)
         if not self.source_configs:
             raise ConfigError("source_configs must contain at least one reference")
         _require_non_empty(self.output_dir, field_name="output_dir")
@@ -243,6 +253,7 @@ class LoraTrainingConfig:
     def __post_init__(self) -> None:
         _require_schema_version(self.schema_version)
         _require_language_id(self.language)
+        _require_seed(self.seed)
         for field_name, value in (
             ("base_config", self.base_config),
             ("dataset_manifest", self.dataset_manifest),
@@ -317,6 +328,7 @@ class EvaluationConfig:
     def __post_init__(self) -> None:
         _require_schema_version(self.schema_version)
         _require_language_id(self.language)
+        _require_seed(self.seed)
         _require_non_empty(self.base_config, field_name="base_config")
         _require_non_empty(self.output_dir, field_name="output_dir")
         if self.adapter_id is not None:

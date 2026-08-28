@@ -1040,6 +1040,39 @@ Every training/evaluation run MUST record enough metadata to reconstruct the exp
 
 A run SHALL NOT be considered reproducible merely because a shell command appears in chat history.
 
+### 23.1 Deterministic seeding contract
+
+The project-wide seed MUST be an integer in the inclusive range `0..2^32-1`, which is
+compatible with Python, NumPy's legacy global RNG, PyTorch, and common dataset tooling.
+Before stochastic data preparation, training, or evaluation begins, the shared seeding
+utility MUST:
+
+- seed Python `random`;
+- seed NumPy;
+- seed PyTorch CPU RNGs;
+- seed all CUDA-visible PyTorch devices when CUDA is available;
+- enable PyTorch deterministic algorithms in fail-closed mode;
+- disable cuDNN benchmarking and enable deterministic cuDNN behavior;
+- set a deterministic cuBLAS workspace configuration; and
+- set `PYTHONHASHSEED` for child processes.
+
+Dataset shuffle/split helpers MUST use an isolated RNG initialized from the configured seed
+so their output is unaffected by unrelated consumption of the process-global RNG. PyTorch
+DataLoader/sampler code SHOULD use the project's seeded `torch.Generator` and worker seeding
+hook rather than relying on implicit worker RNG state.
+
+Deterministic seeding does **not** promise bitwise-identical results across arbitrary
+environments. Remaining sources of nondeterminism or numerical variation include different
+GPU architectures, drivers, CUDA/cuDNN/PyTorch versions, distributed reduction order,
+third-party kernels, and operations for which PyTorch has no deterministic implementation.
+The project therefore records environment and dependency metadata in run manifests. When
+PyTorch identifies a requested operation as nondeterministic while deterministic algorithms
+are enabled, execution SHOULD fail rather than silently accept nondeterminism.
+
+`PYTHONHASHSEED` is fixed when a Python interpreter starts. Setting it inside a running
+process only controls child processes; callers that require deterministic hash iteration in
+the parent interpreter MUST launch Python with the desired `PYTHONHASHSEED` already set.
+
 ---
 
 ## 24. Experiment artifact layout
