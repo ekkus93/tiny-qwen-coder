@@ -432,12 +432,14 @@ Goal: build evaluation infrastructure reusable across languages before Python fi
 
 ## P4-001 — Create protected benchmark registry
 
-- [ ] Register protected datasets per language.
-- [ ] Prevent accidental use by normal training configs.
+- [x] Register protected datasets per language.
+- [x] Prevent accidental use by normal training configs.
 
 Acceptance criteria:
 
 - Synthetic attempts to select protected benchmarks for SFT fail clearly.
+
+Implementation note: `ProtectedBenchmarkRegistry` atomically binds each language plugin's declared protected benchmark IDs to exact upstream dataset identities/revisions and protected source-config selectors. SFT selectors are globally protected across languages, and `run_dataset_pipeline` fails closed when declarations are unregistered or a protected selector is used for training. CPU-only synthetic tests cover normal sources, direct dataset IDs, protected config paths, cross-language bypass attempts, registration mismatch/collision behavior, deterministic lookup, pipeline-boundary enforcement, and clear rejection errors.
 
 ## P4-002 — Add contamination checks
 
