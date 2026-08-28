@@ -28,6 +28,16 @@ from tiny_qwen_coder.evaluation.execution import (
     OciRuntimeSpec,
     discover_oci_runtime,
 )
+from tiny_qwen_coder.evaluation.results import (
+    EvaluationErrorCategory,
+    EvaluationResult,
+    EvaluationResultError,
+    EvaluationStageStatus,
+    EvaluationTestSummary,
+    GenerationStats,
+    create_evaluation_result,
+    evaluation_result_json,
+)
 from tiny_qwen_coder.evaluation.protected_benchmarks import (
     ProtectedBenchmark,
     ProtectedBenchmarkRegistrationError,
@@ -38,6 +48,14 @@ from tiny_qwen_coder.evaluation.protected_benchmarks import (
 )
 
 __all__ = [
+    "EvaluationErrorCategory",
+    "EvaluationResult",
+    "EvaluationResultError",
+    "EvaluationStageStatus",
+    "EvaluationTestSummary",
+    "GenerationStats",
+    "create_evaluation_result",
+    "evaluation_result_json",
     "ConstrainedExecutionHarness",
     "ExecutionCleanupError",
     "ExecutionFile",
