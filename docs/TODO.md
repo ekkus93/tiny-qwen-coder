@@ -131,11 +131,11 @@ Goal: make the shared base-model identity immutable and make all experiments con
 
 ## P1-001 — Define canonical base-model config
 
-- [ ] Add `configs/base/qwen35-0.8b.yaml`.
-- [ ] Record repository `Qwen/Qwen3.5-0.8B`.
-- [ ] Resolve/pin exact Hugging Face revision before canonical training.
-- [ ] Record tokenizer revision policy.
-- [ ] Record precision policy.
+- [x] Add `configs/base/qwen35-0.8b.yaml`.
+- [x] Record repository `Qwen/Qwen3.5-0.8B`.
+- [x] Resolve/pin exact Hugging Face revision before canonical training.
+- [x] Record tokenizer revision policy.
+- [x] Record precision policy.
 
 Acceptance criteria:
 
