@@ -1,5 +1,11 @@
 """Programming-language specifications and registry services."""
 
+from tiny_qwen_coder.languages.registry import (
+    LanguageRegistrationError,
+    LanguageRegistry,
+    LanguageRegistryError,
+    UnknownLanguageError,
+)
 from tiny_qwen_coder.languages.schema import (
     ConfigReferences,
     LanguageConfig,
@@ -21,9 +27,13 @@ __all__ = [
     "LanguageConfig",
     "LanguageHookReferences",
     "LanguagePlugin",
+    "LanguageRegistrationError",
+    "LanguageRegistry",
+    "LanguageRegistryError",
     "LanguageSpec",
     "ProtectedBenchmarkRef",
     "RepositoryDetectionSignals",
     "StaticLanguagePlugin",
     "SystemPromptSpec",
+    "UnknownLanguageError",
 ]

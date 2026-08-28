@@ -332,10 +332,10 @@ Acceptance criteria:
 
 ## P3-002 — Implement language registry
 
-- [ ] Register language by ID.
-- [ ] Resolve aliases.
-- [ ] reject unknown languages clearly.
-- [ ] support listing registered languages.
+- [x] Register language by ID.
+- [x] Resolve aliases.
+- [x] reject unknown languages clearly.
+- [x] support listing registered languages.
 
 Acceptance criteria:
 

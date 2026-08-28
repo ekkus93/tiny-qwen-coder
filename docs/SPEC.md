@@ -123,6 +123,14 @@ The execution hook in a `LanguageSpec` MUST match the executor declared by its `
 
 `LanguagePlugin` is the minimal protocol consumed by the future language registry and shared pipelines: a plugin exposes one immutable `LanguageSpec`. `StaticLanguagePlugin` is the default declarative implementation. P3-002 owns production registration and alias resolution, P3-003 owns the normalized training-record schema, P4-001 owns protected-benchmark access control, and P4-004 owns the common evaluation-result schema. P3-001 MUST NOT embed those later implementations into the plugin contract.
 
+### 2.6 Language registry
+
+`LanguageRegistry` is the single shared lookup boundary for language plugins. Canonical IDs and aliases occupy one namespace: registration MUST reject any canonical-ID/alias or alias/alias collision before mutating registry state. Registration is therefore atomic and MUST NOT silently replace an existing plugin.
+
+Language selection is exact and configuration-driven. The registry MUST resolve either the canonical language ID or one of the aliases declared by that plugin's `LanguageConfig`; it MUST NOT perform case folding, whitespace trimming, fuzzy matching, or language-specific `if`/`elif` dispatch. Unknown selections fail clearly and include the deterministically sorted set of registered canonical IDs.
+
+Registry listing is sorted by canonical language ID and is independent of registration order. P3-002 defines registration and lookup only; production Python/TypeScript/Rust plugin instances are introduced by their language-specific tasks rather than hard-coded into the registry implementation.
+
 ---
 
 ## 3. Goals
