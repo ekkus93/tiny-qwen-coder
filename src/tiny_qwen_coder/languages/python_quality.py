@@ -74,9 +74,7 @@ _PYTHON2_PATTERNS: tuple[tuple[PythonQualityReason, re.Pattern[str]], ...] = (
     ),
     (
         PythonQualityReason.PYTHON2_EXCEPT_SYNTAX,
-        re.compile(
-            r"(?m)^[ \t]*except[ \t]+[^:\n]+,[ \t]*[A-Za-z_][A-Za-z0-9_]*[ \t]*:"
-        ),
+        re.compile(r"(?m)^[ \t]*except[ \t]+[^:\n]+,[ \t]*[A-Za-z_][A-Za-z0-9_]*[ \t]*:"),
     ),
     (
         PythonQualityReason.PYTHON2_RAISE_SYNTAX,
@@ -118,8 +116,7 @@ def _source_declares_python2(record: NormalizedTrainingRecord) -> bool:
     metadata = dict(record.provenance.source_metadata)
     values = (metadata.get(key) for key in ("metadata.extension", "language", "lang"))
     return any(
-        value is not None and value.strip().lower() in _PYTHON2_METADATA_VALUES
-        for value in values
+        value is not None and value.strip().lower() in _PYTHON2_METADATA_VALUES for value in values
     )
 
 
