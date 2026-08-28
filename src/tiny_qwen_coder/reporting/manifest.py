@@ -20,7 +20,11 @@ import yaml
 
 from tiny_qwen_coder.identities import (
     AdapterIdentity as AdapterIdentity,
+)
+from tiny_qwen_coder.identities import (
     BaseModelIdentity as BaseModelIdentity,
+)
+from tiny_qwen_coder.identities import (
     ManifestError as ManifestError,
 )
 from tiny_qwen_coder.reproducibility import SeedError, validate_seed
