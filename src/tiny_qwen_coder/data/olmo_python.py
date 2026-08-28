@@ -90,9 +90,7 @@ def _validate_source_contract(source: DatasetSourceConfig, language: LanguageCon
             f"expected dataset repository {_OLMO_REPOSITORY!r}; got {source.dataset.repository!r}"
         )
     if source.selection.field != _OLMO_SELECTION_FIELD:
-        raise OlmoPythonLoaderError(
-            f"OLMo Python selection must use {_OLMO_SELECTION_FIELD!r}"
-        )
+        raise OlmoPythonLoaderError(f"OLMo Python selection must use {_OLMO_SELECTION_FIELD!r}")
     if source.selection.equals != _OLMO_SELECTION_VALUE:
         raise OlmoPythonLoaderError(
             f"OLMo Python selection must retain {_OLMO_SELECTION_VALUE!r} rows"

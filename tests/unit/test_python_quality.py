@@ -78,9 +78,7 @@ def test_complete_valid_standalone_python_passes_ast_validation(assistant: str) 
 
 
 def test_complete_invalid_standalone_python_records_stable_syntax_rejection() -> None:
-    result = validate_python_quality(
-        _record("def broken(value)\n    return value\n")
-    )
+    result = validate_python_quality(_record("def broken(value)\n    return value\n"))
 
     assert result.passed is False
     assert _reason(result) == f"reason={PythonQualityReason.SYNTAX_ERROR.value}"
@@ -150,7 +148,7 @@ def test_python2_source_metadata_is_rejected_before_code_heuristics() -> None:
             PythonQualityReason.NOT_APPLICABLE_UNLABELED_FENCE,
         ),
         (
-            "```json\n{\"language\": \"python\"}\n```",
+            '```json\n{"language": "python"}\n```',
             PythonQualityReason.NOT_APPLICABLE_NON_PYTHON_FENCE,
         ),
         (
