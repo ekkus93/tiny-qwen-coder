@@ -107,9 +107,7 @@ def test_loader_uses_pinned_revision_and_filters_by_lang() -> None:
 
     records = load_magicoder_python(source, language, dataset_loader=loader)
 
-    assert loader.calls == [
-        ("ise-uiuc/Magicoder-OSS-Instruct-75K", _REVISION, "train", True)
-    ]
+    assert loader.calls == [("ise-uiuc/Magicoder-OSS-Instruct-75K", _REVISION, "train", True)]
     assert len(records) == 1
     record = records[0]
     assert record.language == "python"
