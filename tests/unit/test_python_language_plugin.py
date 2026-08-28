@@ -42,7 +42,7 @@ def _record(*, language: str, assistant: str = "print('ok')") -> NormalizedTrain
 
 def _resolve(import_ref: str) -> object:
     module_name, attribute = import_ref.split(":", maxsplit=1)
-    return getattr(importlib.import_module(module_name), attribute)
+    return cast(object, getattr(importlib.import_module(module_name), attribute))
 
 
 def test_python_config_is_concrete_versioned_and_python3_specific() -> None:
