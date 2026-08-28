@@ -1,0 +1,15 @@
+schema_version: 1
+id: magicoder-oss-instruct-75k
+language: python
+adapter: tiny_qwen_coder.data.magicoder_python:load_magicoder_python
+
+dataset:
+  repository: ise-uiuc/Magicoder-OSS-Instruct-75K
+  revision: 5f839b1f368a76b161028bb9edff055db34022b2
+  split: train
+license:
+  name: MIT
+  url: https://opensource.org/license/mit
+selection:
+  field: lang
+  equals: python

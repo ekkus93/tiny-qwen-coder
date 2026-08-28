@@ -11,6 +11,7 @@ from tiny_qwen_coder.languages.spec import LanguageComponentRef, StaticLanguageP
 
 _PYTHON_CONFIG_PATH = Path("configs/languages/python.yaml")
 _OLMO_SOURCE_CONFIG_PATH = Path("configs/data/python/olmo_starcoder_python_instruct.yaml")
+_MAGICODER_SOURCE_CONFIG_PATH = Path("configs/data/python/magicoder_oss_instruct_75k.yaml")
 
 
 def validate_python_record(record: NormalizedTrainingRecord) -> ValidationResult:
@@ -37,16 +38,23 @@ def execute_python() -> NoReturn:
 def load_python_plugin(
     config_path: Path = _PYTHON_CONFIG_PATH,
     olmo_source_config_path: Path = _OLMO_SOURCE_CONFIG_PATH,
+    magicoder_source_config_path: Path = _MAGICODER_SOURCE_CONFIG_PATH,
 ) -> StaticLanguagePlugin:
     """Load the concrete Python plugin with currently implemented data adapters."""
 
     from tiny_qwen_coder.data.source_config import load_dataset_source_config
 
-    source = load_dataset_source_config(olmo_source_config_path)
+    sources = (
+        load_dataset_source_config(olmo_source_config_path),
+        load_dataset_source_config(magicoder_source_config_path),
+    )
     config = load_language_plugin(config_path).spec.config
-    if source.language != config.id:
-        raise ValueError(
-            f"source language {source.language!r} does not match Python config {config.id!r}"
-        )
-    adapter = LanguageComponentRef(id=source.id, import_ref=source.adapter)
-    return load_language_plugin(config_path, data_adapters=(adapter,))
+    for source in sources:
+        if source.language != config.id:
+            raise ValueError(
+                f"source language {source.language!r} does not match Python config {config.id!r}"
+            )
+    adapters = tuple(
+        LanguageComponentRef(id=source.id, import_ref=source.adapter) for source in sources
+    )
+    return load_language_plugin(config_path, data_adapters=adapters)
