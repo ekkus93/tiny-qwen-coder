@@ -1,0 +1,34 @@
+schema_version: 1
+id: python
+aliases:
+  - py
+extensions:
+  - .py
+repository_detection:
+  files:
+    - pyproject.toml
+    - uv.lock
+    - requirements.txt
+    - setup.py
+    - setup.cfg
+    - Pipfile
+  directories: []
+  globs:
+    - "**/*.py"
+    - "requirements*.txt"
+system_prompt:
+  version: python-v1
+  text: >-
+    You are a Python 3 software engineering assistant. Produce correct,
+    idiomatic Python that satisfies the user's requirements. Preserve requested
+    interfaces and constraints, prefer the standard library when appropriate,
+    and keep explanations concise unless the user asks for more detail.
+config_refs:
+  data_sources:
+    - configs/data/python/olmo_starcoder_python_instruct.yaml
+    - configs/data/python/magicoder_oss_instruct_75k.yaml
+  evaluation:
+    - configs/eval/python.yaml
+hooks:
+  validator: tiny_qwen_coder.languages.python:validate_python_record
+  executor: tiny_qwen_coder.languages.python:execute_python
