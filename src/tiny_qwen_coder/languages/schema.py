@@ -10,9 +10,7 @@ import re
 from dataclasses import dataclass
 
 _LANGUAGE_ID_PATTERN = re.compile(r"^[a-z][a-z0-9_-]*$")
-_HOOK_REFERENCE_PATTERN = re.compile(
-    r"^[A-Za-z_][A-Za-z0-9_.]*:[A-Za-z_][A-Za-z0-9_.]*$"
-)
+_HOOK_REFERENCE_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]*:[A-Za-z_][A-Za-z0-9_.]*$")
 
 
 def _require_non_empty(value: str, *, field_name: str) -> None:
@@ -91,9 +89,7 @@ class LanguageHookReferences:
             ("executor", self.executor),
         ):
             if not _HOOK_REFERENCE_PATTERN.fullmatch(value):
-                raise ValueError(
-                    f"{field_name} must use 'package.module:attribute' syntax"
-                )
+                raise ValueError(f"{field_name} must use 'package.module:attribute' syntax")
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,9 +109,7 @@ class LanguageConfig:
         if self.schema_version != 1:
             raise ValueError("unsupported language config schema version")
         if not _LANGUAGE_ID_PATTERN.fullmatch(self.id):
-            raise ValueError(
-                "language id must match ^[a-z][a-z0-9_-]*$ for stable lookup"
-            )
+            raise ValueError("language id must match ^[a-z][a-z0-9_-]*$ for stable lookup")
 
         _require_unique(self.aliases, field_name="aliases")
         _require_unique(self.extensions, field_name="extensions")
