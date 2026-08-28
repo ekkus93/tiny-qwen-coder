@@ -65,9 +65,7 @@ def test_suite_cases_are_deterministic_and_language_neutral() -> None:
     assert all("python" not in case.prompt.lower() for case in suite.cases)
     assert all("typescript" not in case.prompt.lower() for case in suite.cases)
     assert all("rust" not in case.prompt.lower() for case in suite.cases)
-    assert regression_suite_json(suite) == regression_suite_json(
-        load_regression_suite(_SUITE_PATH)
-    )
+    assert regression_suite_json(suite) == regression_suite_json(load_regression_suite(_SUITE_PATH))
 
 
 def test_complete_passing_response_set_scores_perfectly() -> None:
@@ -114,17 +112,15 @@ def test_exact_text_rejects_extra_content() -> None:
 
 def test_json_scoring_is_semantic_but_requires_standalone_json() -> None:
     suite = load_frozen_general_tool_regression_suite()
-    case = next(
-        case for case in suite.cases if case.id == "json_structured_output.person_record"
-    )
+    case = next(case for case in suite.cases if case.id == "json_structured_output.person_record")
 
     assert evaluate_regression_response(case, '{"name":"Ada","active":true}').passed is True
     assert evaluate_regression_response(case, '{"active":true,"name":"Ada"}').passed is True
     fenced = '```json\n{"name":"Ada","active":true}\n```'
     assert evaluate_regression_response(case, fenced).passed is False
-    assert evaluate_regression_response(
-        case, '{"name":"Ada","active":true,"extra":1}'
-    ).passed is False
+    assert (
+        evaluate_regression_response(case, '{"name":"Ada","active":true,"extra":1}').passed is False
+    )
 
 
 def test_tool_call_scoring_requires_exact_wrapper_selection_and_arguments() -> None:

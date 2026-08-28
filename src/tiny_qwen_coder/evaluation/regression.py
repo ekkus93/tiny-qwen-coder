@@ -403,9 +403,7 @@ def score_regression_suite(
     category_scores = tuple(
         RegressionCategoryScore(
             category=category,
-            passed=sum(
-                result.passed for result in case_results if result.category is category
-            ),
+            passed=sum(result.passed for result in case_results if result.category is category),
             total=sum(1 for result in case_results if result.category is category),
         )
         for category in RegressionCategory
