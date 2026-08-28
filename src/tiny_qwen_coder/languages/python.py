@@ -1,0 +1,29 @@
+"""Python language hooks used by the declarative Python plugin config."""
+
+from __future__ import annotations
+
+from typing import NoReturn
+
+from tiny_qwen_coder.data.records import NormalizedTrainingRecord, ValidationResult
+from tiny_qwen_coder.languages.loading import PRIMARY_VALIDATOR_ID
+
+
+def validate_python_record(record: NormalizedTrainingRecord) -> ValidationResult:
+    """Verify that a normalized record is labeled for the Python plugin.
+
+    Syntax and Python-version quality checks intentionally belong to P5-004.
+    """
+
+    if record.language == "python":
+        return ValidationResult(validator_id=PRIMARY_VALIDATOR_ID, passed=True)
+    return ValidationResult(
+        validator_id=PRIMARY_VALIDATOR_ID,
+        passed=False,
+        detail=f"expected record language 'python'; got {record.language!r}",
+    )
+
+
+def execute_python() -> NoReturn:
+    """Fail clearly until Phase 6 wires Python evaluation to the constrained harness."""
+
+    raise NotImplementedError("Python execution is implemented by the Phase 6 evaluators")
