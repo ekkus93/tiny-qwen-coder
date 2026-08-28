@@ -139,6 +139,14 @@ Registry listing is sorted by canonical language ID and is independent of regist
 
 P3-003 validates schema identity, language/component identifiers, known message roles, and provenance/license/validation structure only. Empty prompt/response content and malformed conversation semantics remain representable at this layer so P3-004 can reject them with explicit reason accounting. Source-specific OLMo, Magicoder, and future dataset loaders MUST normalize their native rows into this shared record rather than adding source-specific fields to downstream training code.
 
+### 2.8 Generic required-content filtering
+
+`filter_required_content` is the language-neutral structural/content gate applied to normalized records before tokenizer-aware length filtering or language-specific validation. It accepts an optional single leading system message followed by one or more alternating user/assistant turns and requires the conversation to end with an assistant response. Empty or whitespace-only user messages are rejected as `empty_prompt`; empty or whitespace-only assistant messages are rejected as `empty_response`; invalid turn structure is rejected as `malformed_record`. A record may carry multiple rejection reasons, and reports count each reason deterministically while retaining compact source/record provenance for rejected inputs.
+
+Text normalization is intentionally conservative. Message strings MUST be strictly UTF-8 encodable; unpaired surrogate code points are rejected as `invalid_text_encoding`. A leading Unicode BOM may be removed and CRLF/CR line endings are canonicalized to LF. The filter MUST NOT trim otherwise meaningful whitespace, apply Unicode NFC/NFKC normalization, repair invalid text with replacement characters, or perform language-specific rewriting because those transformations could alter source-code semantics.
+
+P3-004 does not tokenize, truncate, deduplicate, inspect programming-language syntax, or apply benchmark/test execution. Those responsibilities remain with P3-005 and later tasks.
+
 ---
 
 ## 3. Goals

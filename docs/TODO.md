@@ -355,11 +355,11 @@ Acceptance criteria:
 
 ## P3-004 — Implement generic required-content filtering
 
-- [ ] Empty prompt rejection.
-- [ ] Empty response rejection.
-- [ ] malformed record rejection.
-- [ ] safe line-ending/encoding normalization.
-- [ ] rejection reason accounting.
+- [x] Empty prompt rejection.
+- [x] Empty response rejection.
+- [x] malformed record rejection.
+- [x] safe line-ending/encoding normalization.
+- [x] rejection reason accounting.
 
 Acceptance criteria:
 
