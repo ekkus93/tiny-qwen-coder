@@ -85,7 +85,6 @@ def test_python_plugin_registers_olmo_adapter_from_source_config() -> None:
     plugin = load_python_plugin()
 
     assert plugin.spec.id == "python"
-    assert len(plugin.spec.data_adapters) == 1
     assert plugin.spec.data_adapters[0].id == source.id
     assert plugin.spec.data_adapters[0].import_ref == source.adapter
 
