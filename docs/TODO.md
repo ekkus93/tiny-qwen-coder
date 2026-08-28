@@ -214,12 +214,12 @@ Goal: understand the actual Qwen3.5 architecture and establish a robust adapter 
 
 ## P2-001 — Implement model inspection utility
 
-- [ ] Add `scripts/inspect_model.py`.
-- [ ] Report model class and parameter count.
-- [ ] Distinguish text backbone, vision encoder, and multimodal/projector modules.
-- [ ] Enumerate module hierarchy relevant to LoRA.
-- [ ] Report tokenizer/chat-template metadata.
-- [ ] Record exact upstream revision.
+- [x] Add `scripts/inspect_model.py`.
+- [x] Report model class and parameter count.
+- [x] Distinguish text backbone, vision encoder, and multimodal/projector modules.
+- [x] Enumerate module hierarchy relevant to LoRA.
+- [x] Report tokenizer/chat-template metadata.
+- [x] Record exact upstream revision.
 
 Acceptance criteria:
 

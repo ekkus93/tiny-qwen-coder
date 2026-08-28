@@ -1,10 +1,37 @@
 """Shared base-model loading and inspection services."""
 
-from __future__ import annotations
+from tiny_qwen_coder.model.inspection import (
+    ComponentSummary,
+    InspectionError,
+    InspectionTarget,
+    LinearModuleRecord,
+    ModelInspectionReport,
+    ModelMetadata,
+    TokenizerMetadata,
+    build_inspection_report,
+    enumerate_linear_modules,
+    inspect_model,
+    inspect_tokenizer,
+    inspection_report_json,
+    inspection_report_text,
+    load_inspection_target,
+    load_model_for_inspection,
+)
 
-from typing import NoReturn
-
-
-def inspect_model() -> NoReturn:
-    """Run the generic model-inspection command once P2-001 implements it."""
-    raise SystemExit("Model inspection is scaffolded; implementation is tracked by P2-001.")
+__all__ = [
+    "ComponentSummary",
+    "InspectionError",
+    "InspectionTarget",
+    "LinearModuleRecord",
+    "ModelInspectionReport",
+    "ModelMetadata",
+    "TokenizerMetadata",
+    "build_inspection_report",
+    "enumerate_linear_modules",
+    "inspect_model",
+    "inspect_tokenizer",
+    "inspection_report_json",
+    "inspection_report_text",
+    "load_inspection_target",
+    "load_model_for_inspection",
+]
