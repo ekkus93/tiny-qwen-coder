@@ -348,9 +348,29 @@ Unknown fields are rejected at every schema level. Python, TypeScript, Rust, and
 
 ### 6.3 Compatibility checks
 
-A runtime MUST refuse or loudly warn before activating an adapter when any required compatibility field conflicts with the loaded base.
+Adapter activation MUST be fail-closed. Compatibility is evaluated against explicit loaded-base evidence, not model names or user intent.
 
-At minimum, exact base revision mismatch MUST be treated as incompatible by default.
+The strict compatibility validator compares, in deterministic order:
+
+1. exact base-model repository;
+2. exact immutable base revision;
+3. exact tokenizer repository;
+4. exact immutable tokenizer revision;
+5. chat-template identifier;
+6. chat-template SHA-256 when the adapter manifest records one;
+7. existence of every resolved LoRA target in the observed Linear-module inventory;
+8. language-adapter target scope against the P2-002 language-LoRA allowlist; and
+9. for `bias=none`, the expected LoRA A/B trainable-parameter count recomputed from rank plus observed module geometry.
+
+Exact base revision mismatch is always incompatible. There is no floating-revision fallback. Base repository mismatch is independently incompatible, so `Qwen/Qwen3.5-4B` and `Qwen/Qwen3.5-4B-Base` remain separate compatibility families even if another field happens to match.
+
+Chat-template identifiers MUST match. If an adapter manifest contains a chat-template SHA-256, the target MUST expose the same hash; a missing target hash is treated as unverifiable and therefore incompatible. If the adapter manifest omits the optional hash, exact tokenizer repository/revision plus matching template identifier are sufficient for schema-version-1 compatibility.
+
+Compatibility architecture evidence is built from the P2-001 model-inspection report and the P2-002 PEFT target-discovery report. Every resolved manifest target MUST exist in that observed inventory. For adapters whose family is `language`, every target MUST also have been classified by P2-002 as a default language-LoRA target. This rejects accidental activation of a nominal language adapter that reaches vision, multimodal-projector, output-head, or otherwise excluded modules. A future explicitly different adapter family MAY define a different scope policy.
+
+For the canonical `bias=none` policy, the validator recomputes the expected LoRA trainable parameter count as `rank * (in_features + out_features)` for every resolved target and rejects inconsistent manifest metadata. Other bias modes remain structurally valid manifests, but schema-version-1 compatibility does not claim an independent trainable-count proof for them.
+
+`validate_adapter_compatibility()` returns a deterministic machine-readable report containing ordered incompatibility reasons. `require_adapter_compatible()` raises `AdapterCompatibilityError` whenever any reason is present and is the activation-boundary API. Synthetic incompatible manifests MUST therefore fail identically across repeated runs.
 
 ### 6.4 Adapter storage
 

@@ -267,11 +267,11 @@ Acceptance criteria:
 
 ## P2-005 — Implement compatibility validator
 
-- [ ] Compare adapter base repository.
-- [ ] Compare exact base revision.
-- [ ] Compare tokenizer/template identity where required.
-- [ ] Validate expected LoRA architecture metadata.
-- [ ] Fail closed on base revision mismatch by default.
+- [x] Compare adapter base repository.
+- [x] Compare exact base revision.
+- [x] Compare tokenizer/template identity where required.
+- [x] Validate expected LoRA architecture metadata.
+- [x] Fail closed on base revision mismatch by default.
 
 Acceptance criteria:
 

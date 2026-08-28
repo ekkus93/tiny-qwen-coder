@@ -10,6 +10,17 @@ from tiny_qwen_coder.adapters.all_linear import (
     validate_all_linear_main,
     validate_literal_all_linear,
 )
+from tiny_qwen_coder.adapters.compatibility import (
+    AdapterCompatibilityError,
+    AdapterCompatibilityReport,
+    AdapterCompatibilityTarget,
+    CompatibilityIssue,
+    CompatibleLinearModule,
+    build_compatibility_target,
+    compatibility_report_json,
+    require_adapter_compatible,
+    validate_adapter_compatibility,
+)
 from tiny_qwen_coder.adapters.manifest import (
     AdapterBaseIdentity,
     AdapterLoraMetadata,
@@ -40,6 +51,9 @@ from tiny_qwen_coder.adapters.targets import (
 
 __all__ = [
     "AdapterBaseIdentity",
+    "AdapterCompatibilityError",
+    "AdapterCompatibilityReport",
+    "AdapterCompatibilityTarget",
     "AdapterLoraMetadata",
     "AdapterManifest",
     "AdapterManifestError",
@@ -50,6 +64,8 @@ __all__ = [
     "AllLinearValidationError",
     "AllLinearValidationReport",
     "ChatTemplateIdentity",
+    "CompatibilityIssue",
+    "CompatibleLinearModule",
     "DatasetManifestReference",
     "PeftTargetDiscoveryReport",
     "TargetCategorySummary",
@@ -62,12 +78,16 @@ __all__ = [
     "all_linear_report_json",
     "all_linear_report_text",
     "build_all_linear_validation_report",
+    "build_compatibility_target",
+    "compatibility_report_json",
     "discover_peft_targets",
     "discover_peft_targets_main",
     "load_adapter_manifest",
     "parse_adapter_manifest",
     "peft_target_report_json",
     "peft_target_report_text",
+    "require_adapter_compatible",
+    "validate_adapter_compatibility",
     "validate_all_linear_main",
     "validate_literal_all_linear",
 ]
