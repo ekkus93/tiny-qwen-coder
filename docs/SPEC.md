@@ -147,6 +147,14 @@ Text normalization is intentionally conservative. Message strings MUST be strict
 
 P3-004 does not tokenize, truncate, deduplicate, inspect programming-language syntax, or apply benchmark/test execution. Those responsibilities remain with P3-005 and later tasks.
 
+### 2.9 Tokenizer-aware length filtering
+
+`filter_by_token_length` measures each normalized conversation only after rendering it through the selected tokenizer's explicit chat template with `add_generation_prompt=False` and `truncation=False`. The canonical helper loads the exact tokenizer repository and immutable revision from `configs/base/qwen35-4b.yaml`; its report records that target identity, tokenizer class, and SHA-256 of the chat template used for measurement.
+
+`LengthFilterConfig` defines configurable inclusive minimum and maximum token counts. The Phase 3 default maximum is 2,048 tokens, matching the measured P2-008 training-memory preflight. P3-005 deliberately supports only the explicit `reject` truncation policy: underlength and overlength examples are rejected with their full measured token counts and compact provenance. The tokenizer MUST NOT silently truncate an example. Any future truncation strategy requires a separately named policy, implementation, and tests before it can be selected.
+
+Length reports retain deterministic rejection counts plus exact input and accepted token-length histograms. They also record minimum, maximum, mean, and nearest-rank p50/p90/p95/p99 statistics. Filtering is programming-language independent; source-specific validation, deduplication, and splitting remain later Phase 3 responsibilities.
+
 ---
 
 ## 3. Goals

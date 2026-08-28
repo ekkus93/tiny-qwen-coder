@@ -367,10 +367,10 @@ Acceptance criteria:
 
 ## P3-005 — Implement tokenizer-aware length filtering
 
-- [ ] Use canonical Qwen tokenizer/template.
-- [ ] Record token-length distribution.
-- [ ] configurable min/max.
-- [ ] explicit truncation policy only.
+- [x] Use canonical Qwen tokenizer/template.
+- [x] Record token-length distribution.
+- [x] configurable min/max.
+- [x] explicit truncation policy only.
 
 Acceptance criteria:
 
