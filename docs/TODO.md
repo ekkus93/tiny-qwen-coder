@@ -51,15 +51,15 @@ Acceptance criteria:
 
 ## P0-003 — Establish language-neutral repository layout
 
-- [ ] Add `configs/base/`.
-- [ ] Add `configs/languages/`.
-- [ ] Add `configs/data/`.
-- [ ] Add `configs/train/`.
-- [ ] Add `configs/eval/`.
-- [ ] Add `configs/runtime/`.
-- [ ] Add package modules for model, adapters, languages, data, training, evaluation, runtime, and reporting.
-- [ ] Add thin scripts for model inspection, data preparation, training, evaluation, inference, and serving.
-- [ ] Add `tests/unit/`, `tests/integration/`, and `tests/fixtures/`.
+- [x] Add `configs/base/`.
+- [x] Add `configs/languages/`.
+- [x] Add `configs/data/`.
+- [x] Add `configs/train/`.
+- [x] Add `configs/eval/`.
+- [x] Add `configs/runtime/`.
+- [x] Add package modules for model, adapters, languages, data, training, evaluation, runtime, and reporting.
+- [x] Add thin scripts for model inspection, data preparation, training, evaluation, inference, and serving.
+- [x] Add `tests/unit/`, `tests/integration/`, and `tests/fixtures/`.
 
 Acceptance criteria:
 
