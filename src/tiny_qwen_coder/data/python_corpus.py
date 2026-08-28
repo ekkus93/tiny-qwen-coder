@@ -287,6 +287,14 @@ def build_python_p0_corpus(
     expected_ids = {source.id for source in config.sources}
     if set(source_configs) != expected_ids:
         raise PythonP0CorpusError("source_configs must exactly match configured source IDs")
+    adapter_refs = {
+        component.id: component.import_ref for component in plugin.spec.data_adapters
+    }
+    for source_id, source in source_configs.items():
+        if adapter_refs.get(source_id) != source.adapter:
+            raise PythonP0CorpusError(
+                f"plugin adapter registration does not match source {source_id!r}"
+            )
 
     length_config = LengthFilterConfig(
         min_tokens=config.min_tokens,
