@@ -319,12 +319,12 @@ Goal: build reusable infrastructure before embedding Python-specific assumptions
 
 ## P3-001 — Define `LanguageSpec`/language plugin interface
 
-- [ ] Stable ID and aliases.
-- [ ] extensions/signals.
-- [ ] data adapters.
-- [ ] validators.
-- [ ] protected benchmarks.
-- [ ] execution/evaluation hooks.
+- [x] Stable ID and aliases.
+- [x] extensions/signals.
+- [x] data adapters.
+- [x] validators.
+- [x] protected benchmarks.
+- [x] execution/evaluation hooks.
 
 Acceptance criteria:
 

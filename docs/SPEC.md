@@ -113,6 +113,16 @@ or an equivalent configuration-driven API.
 
 Language-specific behavior belongs in declarative configuration and well-defined language plugins/adapters, while generic data preparation, LoRA training, run tracking, evaluation orchestration, artifact generation, and serving logic remain shared.
 
+### 2.5 Language plugin contract
+
+`LanguageConfig` is the declarative source of truth for a programming language's stable ID, aliases, file extensions, repository-detection signals, system prompt, config references, and primary validator/executor import references. Runtime language support MUST layer on top of that configuration rather than duplicate those identity fields.
+
+`LanguageSpec` defines the shared runtime capability surface. It references one `LanguageConfig` and may declare stable component references for data adapters, validators, protected benchmarks, execution, and evaluation. Runtime code components use a stable lowercase component ID plus an explicit `package.module:attribute` import reference. Protected benchmarks declare stable IDs only at this layer; access control and benchmark registration remain the responsibility of the later protected-benchmark registry.
+
+The execution hook in a `LanguageSpec` MUST match the executor declared by its `LanguageConfig`. When runtime validators are declared, they MUST include the primary validator declared by the config. Data-adapter, protected-benchmark, and evaluation collections MAY be empty while a language plugin is being implemented in stages; later tasks populate them without changing the common interface.
+
+`LanguagePlugin` is the minimal protocol consumed by the future language registry and shared pipelines: a plugin exposes one immutable `LanguageSpec`. `StaticLanguagePlugin` is the default declarative implementation. P3-002 owns production registration and alias resolution, P3-003 owns the normalized training-record schema, P4-001 owns protected-benchmark access control, and P4-004 owns the common evaluation-result schema. P3-001 MUST NOT embed those later implementations into the plugin contract.
+
 ---
 
 ## 3. Goals

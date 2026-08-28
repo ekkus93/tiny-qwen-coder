@@ -7,11 +7,23 @@ from tiny_qwen_coder.languages.schema import (
     RepositoryDetectionSignals,
     SystemPromptSpec,
 )
+from tiny_qwen_coder.languages.spec import (
+    LanguageComponentRef,
+    LanguagePlugin,
+    LanguageSpec,
+    ProtectedBenchmarkRef,
+    StaticLanguagePlugin,
+)
 
 __all__ = [
     "ConfigReferences",
+    "LanguageComponentRef",
     "LanguageConfig",
     "LanguageHookReferences",
+    "LanguagePlugin",
+    "LanguageSpec",
+    "ProtectedBenchmarkRef",
     "RepositoryDetectionSignals",
+    "StaticLanguagePlugin",
     "SystemPromptSpec",
 ]
