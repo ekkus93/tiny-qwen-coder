@@ -29,6 +29,7 @@ from tiny_qwen_coder.data.records import (
     ValidationResult,
 )
 from tiny_qwen_coder.data.splitting import DeduplicatedDatasetSplit, split_deduplicated_records
+from tiny_qwen_coder.evaluation.protected_benchmarks import ProtectedBenchmarkRegistry
 from tiny_qwen_coder.languages.spec import LanguageComponentRef, LanguagePlugin
 from tiny_qwen_coder.model.inspection import InspectionTarget
 from tiny_qwen_coder.reporting.dataset_manifest import (
@@ -188,12 +189,14 @@ def run_dataset_pipeline(
     target: InspectionTarget,
     validator_resolver: ValidatorResolver = resolve_language_validator,
     contamination: ContaminationSummary | None = None,
+    protected_benchmarks: ProtectedBenchmarkRegistry | None = None,
     repo_root: Path = Path("."),
     git: GitMetadata | None = None,
 ) -> DatasetPipelineResult:
     """Run the common Phase 3 pipeline over already-normalized upstream records.
 
-    Stage order is fixed and auditable:
+    Protected-benchmark registration and SFT source access are checked before
+    any record processing. Stage order is then fixed and auditable:
 
     1. generic required-content normalization/filtering (P3-004),
     2. language-plugin validation evidence,
@@ -207,6 +210,13 @@ def run_dataset_pipeline(
     """
 
     _validate_pipeline_config(config, plugin)
+    benchmark_registry = (
+        protected_benchmarks
+        if protected_benchmarks is not None
+        else ProtectedBenchmarkRegistry()
+    )
+    benchmark_registry.assert_plugin_registration_matches(plugin)
+    benchmark_registry.assert_sft_config_allowed(config)
     records = tuple(input_records)
     content_filter = filter_required_content(records)
     validated_records = apply_language_validators(

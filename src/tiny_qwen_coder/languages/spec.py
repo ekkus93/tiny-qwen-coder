@@ -49,9 +49,9 @@ class LanguageComponentRef:
 class ProtectedBenchmarkRef:
     """Language-owned protected benchmark identity.
 
-    Registration and train/evaluation access control are implemented later by
-    the protected benchmark registry.  P3-001 only establishes the language
-    plugin's declaration surface.
+    P4-001 binds this stable plugin-owned ID to an exact protected dataset
+    registration. Normal SFT data preparation must fail closed when that
+    registration is missing or selected as training input.
     """
 
     id: str
