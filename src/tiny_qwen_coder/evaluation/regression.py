@@ -359,7 +359,7 @@ def evaluate_regression_response(case: RegressionCase, response: str) -> Regress
             detail = "response was not exactly one <tool_call> JSON block"
         else:
             try:
-                actual: object = json.loads(match.group(1))
+                actual_tool_call: object = json.loads(match.group(1))
             except json.JSONDecodeError:
                 passed = False
                 detail = "tool-call payload was not valid JSON"
@@ -368,7 +368,7 @@ def evaluate_regression_response(case: RegressionCase, response: str) -> Regress
                     case.expectation.value,
                     context="stored tool-call expectation",
                 )
-                passed = actual == expected
+                passed = actual_tool_call == expected
                 detail = None if passed else "tool name or arguments did not match expectation"
     return RegressionCaseResult(
         case_id=case.id,
