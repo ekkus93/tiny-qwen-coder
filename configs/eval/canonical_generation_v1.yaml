@@ -1,0 +1,14 @@
+schema_version: 1
+settings_id: canonical_evaluation
+settings_version: 1
+frozen: true
+seed: 1729
+generation:
+  decoding_strategy: greedy
+  temperature: 0
+  top_p: 1
+  top_k: 0
+  max_new_tokens: 512
+  stop_policy: eos_or_max_new_tokens
+  prompt_version: canonical-evaluation-prompt-v1
+  chat_template_version: Qwen/Qwen3.5-4B@851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a:checkpoint
