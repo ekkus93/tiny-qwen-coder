@@ -1,0 +1,133 @@
+schema_version: 1
+suite_id: general_tool_regression
+suite_version: 1
+frozen: true
+cases:
+  - id: instruction_following.exact_ack
+    category: instruction_following
+    prompt: >-
+      Reply with exactly the uppercase token ACK and nothing else.
+    expectation:
+      kind: exact_text
+      value: ACK
+
+  - id: instruction_following.three_words
+    category: instruction_following
+    prompt: >-
+      Reply with exactly these three lowercase words separated by single spaces:
+      red green blue
+    expectation:
+      kind: exact_text
+      value: red green blue
+
+  - id: json_structured_output.person_record
+    category: json_structured_output
+    prompt: >-
+      Return only valid JSON with exactly two keys: "name" set to "Ada" and
+      "active" set to true. Do not use Markdown fences or add commentary.
+    expectation:
+      kind: json
+      value:
+        name: Ada
+        active: true
+
+  - id: json_structured_output.number_list
+    category: json_structured_output
+    prompt: >-
+      Return only valid JSON with exactly one key named "values" whose value is
+      the array [2, 4, 6]. Do not use Markdown fences or add commentary.
+    expectation:
+      kind: json
+      value:
+        values: [2, 4, 6]
+
+  - id: simple_reasoning.arithmetic
+    category: simple_reasoning
+    prompt: >-
+      A drawer contains 17 screws. Five are removed and then eight are added.
+      Reply with only the final number of screws.
+    expectation:
+      kind: exact_text
+      value: "20"
+
+  - id: simple_reasoning.ordering
+    category: simple_reasoning
+    prompt: >-
+      Mira is older than Theo. Theo is older than Lin. Who is youngest?
+      Reply with only the person's name.
+    expectation:
+      kind: exact_text
+      value: Lin
+
+  - id: shell_reasoning.current_directory
+    category: shell_reasoning
+    prompt: >-
+      In a POSIX shell, which command prints the current working directory?
+      Reply with only the command and no explanation.
+    expectation:
+      kind: exact_text
+      value: pwd
+
+  - id: shell_reasoning.pipeline_count
+    category: shell_reasoning
+    prompt: >-
+      Choose the POSIX shell command that counts lines containing the literal
+      word ERROR in app.log. Reply with only A, B, or C.
+      A: grep -F ERROR app.log | wc -l
+      B: wc -l app.log | grep -F ERROR
+      C: cat ERROR | wc app.log
+    expectation:
+      kind: exact_text
+      value: A
+
+  - id: git_reasoning.stage_all
+    category: git_reasoning
+    prompt: >-
+      Which Git command stages tracked modifications, deletions, and untracked
+      files in the current working tree? Reply with only the command.
+    expectation:
+      kind: exact_text
+      value: git add -A
+
+  - id: git_reasoning.inspect_unstaged
+    category: git_reasoning
+    prompt: >-
+      Choose the Git command that shows unstaged working-tree changes relative
+      to the index. Reply with only A, B, or C.
+      A: git diff
+      B: git diff --cached
+      C: git status --porcelain=v2 -z
+    expectation:
+      kind: exact_text
+      value: A
+
+  - id: tool_call.formatting
+    category: tool_call
+    prompt: >-
+      You have one tool named calculator_add that adds two integers. To call a
+      tool, output exactly one block in this format and no other text:
+      <tool_call>{"name":"TOOL_NAME","arguments":{"a":INTEGER,"b":INTEGER}}</tool_call>
+      Use the tool to add 17 and 25.
+    expectation:
+      kind: tool_call
+      value:
+        name: calculator_add
+        arguments:
+          a: 17
+          b: 25
+
+  - id: tool_call.selection
+    category: tool_call
+    prompt: >-
+      Available tools are weather_lookup(city), calculator_add(a,b), and
+      file_read(path). To call a tool, output exactly one block in this format
+      and no other text:
+      <tool_call>{"name":"TOOL_NAME","arguments":{...}}</tool_call>
+      Find the sum of 9 and 14.
+    expectation:
+      kind: tool_call
+      value:
+        name: calculator_add
+        arguments:
+          a: 9
+          b: 14
