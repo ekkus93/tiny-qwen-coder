@@ -227,12 +227,12 @@ Acceptance criteria:
 
 ## P2-002 — Discover PEFT target modules
 
-- [ ] Enumerate linear/projection modules.
-- [ ] Identify full-attention projections.
-- [ ] Identify MLP projections.
-- [ ] Identify hybrid/DeltaNet-specific modules.
-- [ ] Exclude vision-encoder/projector modules from language LoRA targets by default.
-- [ ] Define selective-target candidate from observed names.
+- [x] Enumerate linear/projection modules.
+- [x] Identify full-attention projections.
+- [x] Identify MLP projections.
+- [x] Identify hybrid/DeltaNet-specific modules.
+- [x] Exclude vision-encoder/projector modules from language LoRA targets by default.
+- [x] Define selective-target candidate from observed names.
 
 Acceptance criteria:
 
