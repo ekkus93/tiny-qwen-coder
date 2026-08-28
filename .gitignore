@@ -150,7 +150,7 @@ activemq-data/
 # Environments
 .env
 .envrc
-.venv
+.venv/
 env/
 venv/
 ENV/
@@ -216,3 +216,28 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Tiny Qwen Coder: local model and Hugging Face caches
+.huggingface/
+.hf/
+huggingface-cache/
+hf-cache/
+
+# Tiny Qwen Coder: generated datasets and experiment artifacts
+/data/
+/artifacts/
+/outputs/
+/checkpoints/
+/runs/
+
+# Tiny Qwen Coder: benchmark/evaluation scratch space and logs
+/benchmark-sandboxes/
+/eval-sandboxes/
+/evaluation-sandboxes/
+/logs/
+
+# Tiny Qwen Coder: generated model/adapter binaries
+*.safetensors
+*.pt
+*.pth
+*.ckpt

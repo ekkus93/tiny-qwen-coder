@@ -69,12 +69,12 @@ Acceptance criteria:
 
 ## P0-004 — Add `.gitignore`
 
-- [ ] Ignore `.venv/` and Python caches.
-- [ ] Ignore local Hugging Face caches.
-- [ ] Ignore generated `data/`.
-- [ ] Ignore generated `artifacts/`.
-- [ ] Ignore `outputs/` adapters/checkpoints.
-- [ ] Ignore benchmark sandboxes/logs.
+- [x] Ignore `.venv/` and Python caches.
+- [x] Ignore local Hugging Face caches.
+- [x] Ignore generated `data/`.
+- [x] Ignore generated `artifacts/`.
+- [x] Ignore `outputs/` adapters/checkpoints.
+- [x] Ignore benchmark sandboxes/logs.
 
 Acceptance criteria:
 
