@@ -13,7 +13,9 @@ from tiny_qwen_coder.data.deduplication import (
     RecordContentFingerprint,
     SourceRecordIdentity,
     deduplicate_exact_records,
+    normalized_prompt_sha256,
     normalized_record_fingerprint,
+    normalized_response_sha256,
     source_record_identity,
 )
 from tiny_qwen_coder.data.filtering import (
@@ -120,7 +122,9 @@ __all__ = [
     "load_canonical_tokenizer",
     "normalize_record_text",
     "normalize_training_text",
+    "normalized_prompt_sha256",
     "normalized_record_fingerprint",
+    "normalized_response_sha256",
     "prepare_data",
     "resolve_language_validator",
     "run_dataset_pipeline",
