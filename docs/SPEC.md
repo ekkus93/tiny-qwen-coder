@@ -131,6 +131,14 @@ Language selection is exact and configuration-driven. The registry MUST resolve 
 
 Registry listing is sorted by canonical language ID and is independent of registration order. P3-002 defines registration and lookup only; production Python/TypeScript/Rust plugin instances are introduced by their language-specific tasks rather than hard-coded into the registry implementation.
 
+### 2.7 Normalized training-record contract
+
+`NormalizedTrainingRecord` is the canonical language-neutral record consumed by the generic dataset pipeline. Each record carries a schema version, one programming-language ID, an ordered tuple of `TrainingMessage` objects using only `system`, `user`, and `assistant` roles, immutable upstream provenance, required license metadata, and optional validation evidence. Multi-turn conversations are represented by additional ordered messages rather than source-specific fields.
+
+`SourceProvenance` preserves the upstream source ID and exact recorded revision plus optional split, record ID, and source URL. `LicenseMetadata` preserves the upstream license name plus optional license URL and attribution. Validation evidence is represented as one or more stable validator IDs with pass/fail status and optional diagnostic detail; duplicate validator IDs are invalid.
+
+P3-003 validates schema identity, language/component identifiers, known message roles, and provenance/license/validation structure only. Empty prompt/response content and malformed conversation semantics remain representable at this layer so P3-004 can reject them with explicit reason accounting. Source-specific OLMo, Magicoder, and future dataset loaders MUST normalize their native rows into this shared record rather than adding source-specific fields to downstream training code.
+
 ---
 
 ## 3. Goals

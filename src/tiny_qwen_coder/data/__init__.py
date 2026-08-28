@@ -4,12 +4,34 @@ from __future__ import annotations
 
 from typing import NoReturn
 
+from tiny_qwen_coder.data.records import (
+    LicenseMetadata,
+    MessageRole,
+    NormalizedTrainingRecord,
+    SourceProvenance,
+    TrainingMessage,
+    ValidationMetadata,
+    ValidationResult,
+    single_turn_messages,
+)
 from tiny_qwen_coder.data.splitting import (
     TrainValidationSplit,
     deterministic_train_validation_split,
 )
 
-__all__ = ["TrainValidationSplit", "deterministic_train_validation_split", "prepare_data"]
+__all__ = [
+    "LicenseMetadata",
+    "MessageRole",
+    "NormalizedTrainingRecord",
+    "SourceProvenance",
+    "TrainingMessage",
+    "TrainValidationSplit",
+    "ValidationMetadata",
+    "ValidationResult",
+    "deterministic_train_validation_split",
+    "prepare_data",
+    "single_turn_messages",
+]
 
 
 def prepare_data() -> NoReturn:

@@ -343,11 +343,11 @@ Acceptance criteria:
 
 ## P3-003 — Define normalized training-record schema
 
-- [ ] messages/system-user-assistant representation.
-- [ ] language.
-- [ ] source ID/revision.
-- [ ] provenance/license metadata.
-- [ ] optional validation metadata.
+- [x] messages/system-user-assistant representation.
+- [x] language.
+- [x] source ID/revision.
+- [x] provenance/license metadata.
+- [x] optional validation metadata.
 
 Acceptance criteria:
 
