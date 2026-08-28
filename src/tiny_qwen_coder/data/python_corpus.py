@@ -172,7 +172,7 @@ def _validate_record_source(
 ) -> None:
     if record.language != language:
         raise PythonP0CorpusError(
-            f"source {source.id!r} yielded record language {record.language!r}; expected {language!r}"
+            f"source {source.id!r} yielded language {record.language!r}; expected {language!r}"
         )
 
     provenance = record.provenance
