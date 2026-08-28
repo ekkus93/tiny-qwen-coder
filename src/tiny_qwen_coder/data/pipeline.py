@@ -29,6 +29,11 @@ from tiny_qwen_coder.data.records import (
     ValidationResult,
 )
 from tiny_qwen_coder.data.splitting import DeduplicatedDatasetSplit, split_deduplicated_records
+from tiny_qwen_coder.evaluation.contamination import (
+    HighOverlapConfig,
+    ProtectedBenchmarkExample,
+    check_training_contamination,
+)
 from tiny_qwen_coder.evaluation.protected_benchmarks import ProtectedBenchmarkRegistry
 from tiny_qwen_coder.languages.spec import LanguageComponentRef, LanguagePlugin
 from tiny_qwen_coder.model.inspection import InspectionTarget
@@ -190,6 +195,8 @@ def run_dataset_pipeline(
     validator_resolver: ValidatorResolver = resolve_language_validator,
     contamination: ContaminationSummary | None = None,
     protected_benchmarks: ProtectedBenchmarkRegistry | None = None,
+    protected_examples: Sequence[ProtectedBenchmarkExample] | None = None,
+    contamination_overlap: HighOverlapConfig | None = None,
     repo_root: Path = Path("."),
     git: GitMetadata | None = None,
 ) -> DatasetPipelineResult:
@@ -202,8 +209,9 @@ def run_dataset_pipeline(
     2. language-plugin validation evidence,
     3. full tokenizer-aware length filtering with no truncation (P3-005),
     4. exact deduplication (P3-006),
-    5. linkage-safe deterministic splitting (P3-007), and
-    6. deterministic dataset-manifest generation (P3-008).
+    5. protected-benchmark contamination checks when examples are supplied (P4-002),
+    6. linkage-safe deterministic splitting (P3-007), and
+    7. deterministic dataset-manifest generation (P3-008).
 
     Language-specific source loading and normalization into
     ``NormalizedTrainingRecord`` remain outside this function.
@@ -217,6 +225,12 @@ def run_dataset_pipeline(
     )
     benchmark_registry.assert_plugin_registration_matches(plugin)
     benchmark_registry.assert_sft_config_allowed(config)
+    if contamination is not None and protected_examples is not None:
+        raise DatasetPipelineError(
+            "provide either external contamination evidence or protected_examples, not both"
+        )
+    if contamination_overlap is not None and protected_examples is None:
+        raise DatasetPipelineError("contamination_overlap requires protected_examples")
     records = tuple(input_records)
     content_filter = filter_required_content(records)
     validated_records = apply_language_validators(
@@ -235,6 +249,17 @@ def run_dataset_pipeline(
         ),
     )
     deduplication = deduplicate_exact_records(length_filter.accepted_records)
+    selected_contamination = (
+        check_training_contamination(
+            deduplication.unique_records,
+            protected_examples,
+            language=config.language,
+            registry=benchmark_registry,
+            overlap=contamination_overlap,
+        )
+        if protected_examples is not None
+        else contamination or ContaminationSummary.not_run()
+    )
     split = split_deduplicated_records(
         deduplication,
         validation_fraction=config.validation_fraction,
@@ -247,7 +272,7 @@ def run_dataset_pipeline(
         length_filter=length_filter,
         deduplication=deduplication,
         split=split,
-        contamination=contamination,
+        contamination=selected_contamination,
         repo_root=repo_root,
         git=git,
     )

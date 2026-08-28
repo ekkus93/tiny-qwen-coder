@@ -4,6 +4,15 @@ from __future__ import annotations
 
 from typing import NoReturn
 
+from tiny_qwen_coder.evaluation.contamination import (
+    EXACT_PROMPT_CHECK_ID,
+    EXACT_SOLUTION_CHECK_ID,
+    HIGH_OVERLAP_CHECK_ID,
+    ContaminationCheckError,
+    HighOverlapConfig,
+    ProtectedBenchmarkExample,
+    check_training_contamination,
+)
 from tiny_qwen_coder.evaluation.protected_benchmarks import (
     ProtectedBenchmark,
     ProtectedBenchmarkRegistrationError,
@@ -14,12 +23,19 @@ from tiny_qwen_coder.evaluation.protected_benchmarks import (
 )
 
 __all__ = [
+    "EXACT_PROMPT_CHECK_ID",
+    "EXACT_SOLUTION_CHECK_ID",
+    "HIGH_OVERLAP_CHECK_ID",
+    "ContaminationCheckError",
+    "HighOverlapConfig",
+    "ProtectedBenchmarkExample",
     "ProtectedBenchmark",
     "ProtectedBenchmarkRegistrationError",
     "ProtectedBenchmarkRegistry",
     "ProtectedBenchmarkRegistryError",
     "ProtectedBenchmarkTrainingSelectionError",
     "UnknownProtectedBenchmarkError",
+    "check_training_contamination",
     "evaluate",
 ]
 
