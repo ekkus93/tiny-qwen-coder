@@ -170,15 +170,15 @@ Acceptance criteria:
 
 ## P1-004 — Implement run identity and manifests
 
-- [ ] Stable/generated run ID.
-- [ ] Git commit SHA.
-- [ ] timestamp.
-- [ ] base model/revision.
-- [ ] language.
-- [ ] adapter family/ID.
-- [ ] seed.
-- [ ] dependency versions.
-- [ ] host/GPU metadata.
+- [x] Stable/generated run ID.
+- [x] Git commit SHA.
+- [x] timestamp.
+- [x] base model/revision.
+- [x] language.
+- [x] adapter family/ID.
+- [x] seed.
+- [x] dependency versions.
+- [x] host/GPU metadata.
 
 Acceptance criteria:
 

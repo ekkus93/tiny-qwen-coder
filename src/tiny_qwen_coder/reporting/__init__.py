@@ -1,1 +1,41 @@
 """Run manifests, metrics, environment reports, and experiment reporting services."""
+
+from tiny_qwen_coder.reporting.manifest import (
+    AdapterIdentity,
+    BaseModelIdentity,
+    DependencyVersions,
+    GitMetadata,
+    GpuMetadata,
+    HostMetadata,
+    ManifestError,
+    RunManifest,
+    collect_dependency_versions,
+    collect_git_metadata,
+    collect_host_metadata,
+    create_run_manifest,
+    emit_evaluation_run_manifest,
+    emit_training_run_manifest,
+    load_base_model_identity,
+    manifest_json,
+    write_run_manifest,
+)
+
+__all__ = [
+    "AdapterIdentity",
+    "BaseModelIdentity",
+    "DependencyVersions",
+    "GitMetadata",
+    "GpuMetadata",
+    "HostMetadata",
+    "ManifestError",
+    "RunManifest",
+    "collect_dependency_versions",
+    "collect_git_metadata",
+    "collect_host_metadata",
+    "create_run_manifest",
+    "emit_evaluation_run_manifest",
+    "emit_training_run_manifest",
+    "load_base_model_identity",
+    "manifest_json",
+    "write_run_manifest",
+]
