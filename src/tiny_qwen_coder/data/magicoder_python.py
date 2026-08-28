@@ -168,9 +168,7 @@ def load_magicoder_python(
     records: list[NormalizedTrainingRecord] = []
     for raw_row in rows:
         row = _expect_mapping(raw_row, field_name="dataset row")
-        selected_language = _expect_str(
-            row, source.selection.field, field_name="row.lang"
-        )
+        selected_language = _expect_str(row, source.selection.field, field_name="row.lang")
         if selected_language != source.selection.equals:
             continue
         records.append(_normalize_row(row, source=source, language=language))
