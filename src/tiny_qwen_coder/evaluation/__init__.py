@@ -36,6 +36,23 @@ from tiny_qwen_coder.evaluation.protected_benchmarks import (
     ProtectedBenchmarkTrainingSelectionError,
     UnknownProtectedBenchmarkError,
 )
+from tiny_qwen_coder.evaluation.regression import (
+    RegressionCase,
+    RegressionCaseResult,
+    RegressionCategory,
+    RegressionCategoryScore,
+    RegressionExpectation,
+    RegressionExpectationKind,
+    RegressionSuite,
+    RegressionSuiteError,
+    RegressionSuiteScore,
+    evaluate_regression_response,
+    load_frozen_general_tool_regression_suite,
+    load_regression_suite,
+    regression_suite_json,
+    regression_suite_sha256,
+    score_regression_suite,
+)
 from tiny_qwen_coder.evaluation.results import (
     EvaluationErrorCategory,
     EvaluationResult,
@@ -48,6 +65,21 @@ from tiny_qwen_coder.evaluation.results import (
 )
 
 __all__ = [
+    "RegressionCase",
+    "RegressionCaseResult",
+    "RegressionCategory",
+    "RegressionCategoryScore",
+    "RegressionExpectation",
+    "RegressionExpectationKind",
+    "RegressionSuite",
+    "RegressionSuiteError",
+    "RegressionSuiteScore",
+    "evaluate_regression_response",
+    "load_frozen_general_tool_regression_suite",
+    "load_regression_suite",
+    "regression_suite_json",
+    "regression_suite_sha256",
+    "score_regression_suite",
     "EvaluationErrorCategory",
     "EvaluationResult",
     "EvaluationResultError",
