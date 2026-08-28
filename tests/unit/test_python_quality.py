@@ -179,13 +179,14 @@ def test_generic_validation_attaches_rejection_metadata_without_deleting_record(
     assert len(validated) == 1
     assert validated[0].messages == original.messages
     assert validated[0].provenance == original.provenance
-    assert validated[0].validation is not None
-    assert validated[0].validation.results[0] == ValidationResult(
+    validation = validated[0].validation
+    assert validation is not None
+    assert validation.results[0] == ValidationResult(
         validator_id=PRIMARY_VALIDATOR_ID,
         passed=True,
     )
-    quality = validated[0].validation.results[1]
+    quality = validation.results[1]
     assert quality.validator_id == PYTHON_QUALITY_VALIDATOR_ID
     assert quality.passed is False
     assert _reason(quality) == f"reason={PythonQualityReason.SYNTAX_ERROR.value}"
-    assert validated[0].validation.passed is False
+    assert validation.passed is False
