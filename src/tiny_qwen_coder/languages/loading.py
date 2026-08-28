@@ -178,7 +178,11 @@ def load_language_config(path: Path) -> LanguageConfig:
     return parse_language_config(loaded)
 
 
-def plugin_from_language_config(config: LanguageConfig) -> StaticLanguagePlugin:
+def plugin_from_language_config(
+    config: LanguageConfig,
+    *,
+    data_adapters: tuple[LanguageComponentRef, ...] = (),
+) -> StaticLanguagePlugin:
     """Build the generic static plugin surface declared by one language config."""
 
     return StaticLanguagePlugin(
@@ -188,6 +192,7 @@ def plugin_from_language_config(config: LanguageConfig) -> StaticLanguagePlugin:
                 id=DEFAULT_EXECUTION_HOOK_ID,
                 import_ref=config.hooks.executor,
             ),
+            data_adapters=data_adapters,
             validators=(
                 LanguageComponentRef(
                     id=PRIMARY_VALIDATOR_ID,
@@ -198,7 +203,14 @@ def plugin_from_language_config(config: LanguageConfig) -> StaticLanguagePlugin:
     )
 
 
-def load_language_plugin(path: Path) -> StaticLanguagePlugin:
+def load_language_plugin(
+    path: Path,
+    *,
+    data_adapters: tuple[LanguageComponentRef, ...] = (),
+) -> StaticLanguagePlugin:
     """Load a language config and build its generic static plugin."""
 
-    return plugin_from_language_config(load_language_config(path))
+    return plugin_from_language_config(
+        load_language_config(path),
+        data_adapters=data_adapters,
+    )
