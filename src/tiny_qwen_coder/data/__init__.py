@@ -42,6 +42,15 @@ from tiny_qwen_coder.data.length_filtering import (
     token_length_distribution,
     tokenize_training_record,
 )
+from tiny_qwen_coder.data.pipeline import (
+    DatasetPipelineError,
+    DatasetPipelineResult,
+    LanguageRecordValidator,
+    ValidatorResolver,
+    apply_language_validators,
+    resolve_language_validator,
+    run_dataset_pipeline,
+)
 from tiny_qwen_coder.data.records import (
     LicenseMetadata,
     MessageRole,
@@ -67,6 +76,8 @@ __all__ = [
     "AcceptedTokenLength",
     "ContentRejectionReason",
     "DatasetPartition",
+    "DatasetPipelineError",
+    "DatasetPipelineResult",
     "DatasetSplitMembership",
     "DatasetSplittingError",
     "DeduplicatedDatasetSplit",
@@ -75,6 +86,7 @@ __all__ = [
     "DuplicateReasonCount",
     "DuplicateTrainingRecord",
     "ExactDeduplicationReport",
+    "LanguageRecordValidator",
     "LengthFilterConfig",
     "LengthFilteringError",
     "LengthRejectedTrainingRecord",
@@ -98,6 +110,8 @@ __all__ = [
     "TruncationPolicy",
     "ValidationMetadata",
     "ValidationResult",
+    "ValidatorResolver",
+    "apply_language_validators",
     "deduplicate_exact_records",
     "deterministic_train_validation_split",
     "filter_by_token_length",
@@ -108,6 +122,8 @@ __all__ = [
     "normalize_training_text",
     "normalized_record_fingerprint",
     "prepare_data",
+    "resolve_language_validator",
+    "run_dataset_pipeline",
     "single_turn_messages",
     "source_record_identity",
     "split_deduplicated_records",
@@ -117,5 +133,7 @@ __all__ = [
 
 
 def prepare_data() -> NoReturn:
-    """Run generic data preparation once the Phase 3 pipeline is implemented."""
-    raise SystemExit("Data preparation is scaffolded; implementation is tracked by Phase 3.")
+    """Remain a CLI scaffold until concrete language/source adapters exist."""
+    raise SystemExit(
+        "Dataset pipeline core is implemented; source loading is tracked by language pipeline tasks."
+    )

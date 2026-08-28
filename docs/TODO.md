@@ -413,12 +413,12 @@ Acceptance criteria:
 
 ## P3-009 — Add dataset-pipeline tests
 
-- [ ] normalization.
-- [ ] length filtering.
-- [ ] dedup.
-- [ ] deterministic split.
-- [ ] manifest generation.
-- [ ] plugin-specific validation hook.
+- [x] normalization.
+- [x] length filtering.
+- [x] dedup.
+- [x] deterministic split.
+- [x] manifest generation.
+- [x] plugin-specific validation hook.
 
 Acceptance criteria:
 

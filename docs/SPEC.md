@@ -187,6 +187,18 @@ No prompt or response text is embedded in `dataset-manifest.json`. Instead, inte
 Contamination evidence is represented explicitly as `not_run`, `clean`, or `findings`. An empty findings collection MUST NOT imply a clean corpus unless one or more declared contamination checks actually ran. P3-008 defines storage only; P4-002 owns exact prompt/solution matching and high-overlap detection and will populate these generic finding records later. Every recorded finding must reference a fingerprint present in the prepared corpus.
 
 
+
+### 2.13 Generic dataset pipeline integration
+
+`run_dataset_pipeline` is the common Phase 3 orchestration boundary for records that a language/source adapter has already normalized into `NormalizedTrainingRecord`. The stage order is fixed: P3-004 required-content normalization/filtering, language-plugin validation evidence, P3-005 full tokenizer-aware length filtering, P3-006 exact deduplication, P3-007 linkage-safe deterministic splitting, then P3-008 manifest generation. Source loading and source-format normalization remain language/data-adapter responsibilities and are intentionally not implemented by this generic function.
+
+Language validators are declared through `LanguageSpec.validators` and resolved from their stable `package.module:attribute` references. A validator receives one generic-clean normalized record and MUST return `ValidationResult` whose `validator_id` exactly matches the declaring `LanguageComponentRef.id`; resolution failures, non-callables, exceptions, ID drift, or collisions with pre-existing validation metadata fail closed. Validator results are attached in declaration order as `ValidationMetadata`. A `passed=false` result is evidence, not an implicit generic rejection rule: Phase 3 does not silently discard such records, and later language-specific pipeline tasks must define any validation-based exclusion policy explicitly.
+
+The canonical Phase 3 pipeline requires `min_tokens >= 1`, explicit `truncation_policy=reject`, and `deduplicate=true`, matching the already-frozen P3-005 through P3-008 invariants. The pipeline itself accepts an injected tokenizer/inspection target and optional Git identity, so CPU-only fixtures can exercise the complete generic path without model weights, CUDA, network access, or Hugging Face downloads. The P3-009 fixture proves BOM/line-ending normalization, content and length rejection, exact deduplication, prompt-link-preserving deterministic splitting, manifest generation, dynamic plugin-validator invocation, no silent tokenizer truncation, and deterministic output for the same inputs/config/seed.
+
+The `scripts/prepare_data.py` CLI remains a source-loading scaffold until concrete language data adapters exist; completing the generic pipeline does not fabricate production Python/TypeScript/Rust source loaders ahead of their dedicated phases.
+
+
 ---
 
 ## 3. Goals
