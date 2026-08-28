@@ -15,6 +15,7 @@ dependencies = [
 ]
 
 [project.scripts]
+tiny-qwen-coder-env = "tiny_qwen_coder.reporting.environment:main"
 tiny-qwen-coder-versions = "tiny_qwen_coder.versions:main"
 
 [dependency-groups]

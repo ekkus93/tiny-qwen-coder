@@ -68,6 +68,12 @@ Print the resolved Python and project dependency versions:
 uv run --frozen tiny-qwen-coder-versions
 ```
 
+Print a standalone machine-readable runtime/GPU environment report without loading a model or starting training:
+
+```bash
+uv run --frozen tiny-qwen-coder-env
+```
+
 The project declares Python `>=3.11`; `.python-version` selects Python 3.11 when the requested interpreter is available.
 
 ## Quality gates

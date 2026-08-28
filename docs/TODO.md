@@ -197,10 +197,10 @@ Acceptance criteria:
 
 ## P1-006 — Implement environment report
 
-- [ ] Python version.
-- [ ] PyTorch/CUDA.
-- [ ] Transformers/TRL/PEFT/Datasets/Accelerate.
-- [ ] GPU and VRAM.
+- [x] Python version.
+- [x] PyTorch/CUDA.
+- [x] Transformers/TRL/PEFT/Datasets/Accelerate.
+- [x] GPU and VRAM.
 
 Acceptance criteria:
 

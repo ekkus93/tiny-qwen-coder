@@ -1073,6 +1073,16 @@ are enabled, execution SHOULD fail rather than silently accept nondeterminism.
 process only controls child processes; callers that require deterministic hash iteration in
 the parent interpreter MUST launch Python with the desired `PYTHONHASHSEED` already set.
 
+### 23.2 Standalone environment report
+
+The repository MUST provide a standalone machine-readable environment report that can run
+without loading the Qwen model, preparing a dataset, or starting training. The report MUST
+include the Python interpreter version, PyTorch version, CUDA availability/runtime, cuDNN
+version when available, the core ML dependency versions, host platform metadata, and one
+record per CUDA-visible GPU with its name, compute capability, total VRAM, and current free
+VRAM. The report SHOULD be suitable for preflight diagnostics and for attaching to experiment
+artifacts. `tiny-qwen-coder-env` is the canonical command-line entry point and MUST emit JSON.
+
 ---
 
 ## 24. Experiment artifact layout
