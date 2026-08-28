@@ -165,6 +165,16 @@ When upstream `record_id` is available, source-record identity is the tuple `(so
 
 The deduplication report retains the unique records and their prompt/response/combined fingerprints, each removed record's compact provenance and first-occurrence references, plus deterministic per-reason duplicate statistics. P3-006 does not shuffle or choose split membership; P3-007 consumes the already-deduplicated records. Therefore exact duplicate content cannot be assigned to both train and validation by the downstream splitter.
 
+### 2.11 Deterministic train/validation splitting
+
+`split_deduplicated_records` is the dataset-aware split boundary and MUST consume an `ExactDeduplicationReport`, making exact deduplication structurally precede train/validation membership selection. It uses the existing `DataPreparationConfig.seed` and `validation_fraction`; P3-007 does not introduce a second split configuration surface.
+
+The canonical linkage key is the P3-006 normalized prompt SHA-256. Records with the same normalized prompt but different assistant responses are task variants and MUST be assigned as one indivisible group. Response-only similarity does not create a link because common code or boilerplate responses could otherwise join unrelated tasks. Exact prompt+response duplicates have already been removed by P3-006.
+
+Link groups are first ordered by prompt fingerprint, then shuffled with an isolated `random.Random(seed)` instance. Validation membership is the non-empty shuffled group prefix whose total record count is closest to the requested validation target while leaving at least one complete group for training. This makes membership independent of process-global RNG state and deterministic for the same deduplicated inputs, configuration, and seed. Because group sizes can make the requested fraction unattainable exactly, the split report records both the requested/target validation size and the achieved validation fraction. A corpus containing only one linked prompt group fails closed rather than leaking that task across partitions.
+
+`DeduplicatedDatasetSplit` retains train/validation records, aligned P3-006 fingerprints, and one auditable membership entry per deduplicated record. Its invariants require both exact record fingerprints and normalized prompt fingerprints to be disjoint across train and validation. The earlier generic `deterministic_train_validation_split` helper remains available for non-dataset callers, but Phase 3 dataset preparation MUST use the linkage-aware P3-007 boundary. P3-008 owns serialization of this evidence into the dataset manifest.
+
 ---
 
 ## 3. Goals

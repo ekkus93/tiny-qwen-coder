@@ -388,9 +388,9 @@ Acceptance criteria:
 
 ## P3-007 — Implement deterministic splitting
 
-- [ ] shuffle with configured seed.
-- [ ] split after deduplication.
-- [ ] prevent linked duplicates crossing split.
+- [x] shuffle with configured seed.
+- [x] split after deduplication.
+- [x] prevent linked duplicates crossing split.
 
 Acceptance criteria:
 

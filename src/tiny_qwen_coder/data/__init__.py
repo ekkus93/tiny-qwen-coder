@@ -53,13 +53,23 @@ from tiny_qwen_coder.data.records import (
     single_turn_messages,
 )
 from tiny_qwen_coder.data.splitting import (
+    DatasetPartition,
+    DatasetSplitMembership,
+    DatasetSplittingError,
+    DeduplicatedDatasetSplit,
+    LinkedPromptGroup,
     TrainValidationSplit,
     deterministic_train_validation_split,
+    split_deduplicated_records,
 )
 
 __all__ = [
     "AcceptedTokenLength",
     "ContentRejectionReason",
+    "DatasetPartition",
+    "DatasetSplitMembership",
+    "DatasetSplittingError",
+    "DeduplicatedDatasetSplit",
     "DeduplicationError",
     "DuplicateReason",
     "DuplicateReasonCount",
@@ -71,6 +81,7 @@ __all__ = [
     "LengthRejectionCount",
     "LengthRejectionReason",
     "LicenseMetadata",
+    "LinkedPromptGroup",
     "MessageRole",
     "NormalizedTrainingRecord",
     "RecordContentFingerprint",
@@ -99,6 +110,7 @@ __all__ = [
     "prepare_data",
     "single_turn_messages",
     "source_record_identity",
+    "split_deduplicated_records",
     "token_length_distribution",
     "tokenize_training_record",
 ]
