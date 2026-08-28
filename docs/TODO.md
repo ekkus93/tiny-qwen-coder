@@ -240,9 +240,9 @@ Acceptance criteria:
 
 ## P2-003 — Validate `all-linear` strategy
 
-- [ ] Instantiate PEFT with `target_modules="all-linear"` or supported equivalent.
-- [ ] Record matched modules.
-- [ ] Record trainable parameter count.
+- [x] Instantiate PEFT with `target_modules="all-linear"` or supported equivalent.
+- [x] Record matched modules.
+- [x] Record trainable parameter count.
 
 Acceptance criteria:
 
@@ -843,11 +843,13 @@ Acceptance criteria:
 ## P9-002 — Target-module sweep
 
 - [ ] selective baseline.
-- [ ] `all-linear`/equivalent.
+- [ ] Define a genuinely distinct language-only target candidate, if justified by P2 evidence.
+- [ ] Treat literal PEFT `all-linear` as an explicit multimodal-scope experiment only; otherwise record it as not applicable.
 
 Acceptance criteria:
 
-- Trainable parameters, VRAM, speed, and benchmark deltas compared.
+- Trainable parameters, VRAM, speed, and benchmark deltas are compared for genuinely distinct target sets.
+- Set-equivalent target configurations discovered by P2-003 are not misrepresented as separate experiments.
 
 ## P9-003 — Dataset-size sweep
 

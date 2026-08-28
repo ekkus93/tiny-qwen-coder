@@ -232,7 +232,11 @@ The repository MUST include a model-inspection utility that records:
 - device placement
 - exact model revision
 
-The first selective-target LoRA MAY use discovered attention and MLP projections. A controlled experiment SHALL compare selective targeting against PEFT `target_modules="all-linear"` or an equivalent supported strategy.
+The initial selective-target candidate SHALL use the projection families observed by P2 inspection: full-attention projections, Gated DeltaNet projections, and MLP projections, while excluding the language output head and all vision/multimodal modules.
+
+P2-003 established the canonical-revision behavior of PEFT 0.20.0 `target_modules="all-linear"`: at LoRA rank 16 it matches 346 of 347 observed Linear modules and creates 38,993,920 trainable LoRA parameters. The matches comprise all 248 non-output language-backbone linears plus 96 vision-encoder linears and 2 multimodal-projector linears; PEFT excludes `lm_head` automatically.
+
+Literal PEFT `all-linear` therefore MUST NOT be used as a normal language-adapter target strategy because it violates the text-only specialization contract in Section 5.4. It MAY be used only by an explicitly scope-changing multimodal experiment. On the pinned canonical revision, an `all-linear` strategy scoped to every non-output language-backbone Linear module is set-equivalent to the 248-module P2-002 selective candidate. A later target-module study MUST NOT present those two set-equivalent configurations as distinct experiments; it MUST either define a genuinely distinct language-only target set or explicitly identify literal multimodal `all-linear` as a different-scope experiment.
 
 ---
 
