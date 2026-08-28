@@ -157,11 +157,11 @@ Acceptance criteria:
 
 ## P1-003 — Define training/evaluation/run config schemas
 
-- [ ] Data-preparation schema.
-- [ ] LoRA training schema.
-- [ ] Evaluation schema.
-- [ ] Runtime/adapter-selection schema.
-- [ ] Strict unknown-field handling.
+- [x] Data-preparation schema.
+- [x] LoRA training schema.
+- [x] Evaluation schema.
+- [x] Runtime/adapter-selection schema.
+- [x] Strict unknown-field handling.
 
 Acceptance criteria:
 
