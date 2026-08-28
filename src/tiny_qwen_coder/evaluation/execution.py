@@ -22,7 +22,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path, PurePosixPath
-from typing import BinaryIO
+from typing import BinaryIO, cast
 
 from tiny_qwen_coder.config import ExecutionConfig
 
@@ -490,10 +490,12 @@ class ConstrainedExecutionHarness:
                 _kill_process_group(process)
                 raise ExecutionHarnessError("OCI runtime did not provide output pipes")
 
+            stdout_stream = cast(BinaryIO, process.stdout)
+            stderr_stream = cast(BinaryIO, process.stderr)
             stdout_capture = _BoundedCapture.create(resolved_limits.max_output_bytes)
             stderr_capture = _BoundedCapture.create(resolved_limits.max_output_bytes)
-            stdout_thread = _start_capture_thread(process.stdout, stdout_capture)
-            stderr_thread = _start_capture_thread(process.stderr, stderr_capture)
+            stdout_thread = _start_capture_thread(stdout_stream, stdout_capture)
+            stderr_thread = _start_capture_thread(stderr_stream, stderr_capture)
             started = time.monotonic()
             timed_out = False
             cleanup_error: ExecutionCleanupError | None = None
