@@ -279,10 +279,10 @@ Acceptance criteria:
 
 ## P2-006 — Validate chat-template loss masking
 
-- [ ] Test pinned Qwen chat template.
-- [ ] Verify TRL assistant-only mask behavior.
-- [ ] Add system/user/assistant token test.
-- [ ] Implement tested completion-only fallback if necessary.
+- [x] Test pinned Qwen chat template.
+- [x] Verify TRL assistant-only mask behavior.
+- [x] Add system/user/assistant token test.
+- [x] Implement tested completion-only fallback if necessary.
 
 Acceptance criteria:
 

@@ -940,9 +940,13 @@ Micro-batch and gradient accumulation MUST be selected from actual hardware meas
 
 ### 17.1 Assistant-only loss
 
-The training pipeline SHOULD use TRL assistant-only loss when the pinned Qwen chat template produces a valid assistant token mask.
+P2-006 measured the exact pinned Qwen3.5-4B tokenizer with the frozen TRL stack. The checkpoint chat template does not contain `{% generation %}` / `{% endgeneration %}` markers, so asking Transformers directly for `return_assistant_tokens_mask=True` produces an empty assistant mask. The project MUST NOT use that raw mask for training.
 
-The implementation MUST verify the mask. If unsupported, it MUST use a tested equivalent masking strategy or completion-only representation. It MUST NOT silently train user/system tokens while claiming assistant-only SFT.
+TRL 1.12.0 explicitly supports Qwen3.5 training templates. When `SFTConfig.assistant_only_loss=True` and the checkpoint template lacks generation markers, `SFTTrainer` calls TRL's public `get_training_chat_template()` path and tokenizes with `return_assistant_tokens_mask=True`. The P2-006 canonical validation MUST prove that the resolved training template contains generation markers, selects at least one assistant token, and includes the assistant end-of-turn token in the loss mask.
+
+The project provides `scripts/validate_loss_masking.py` and the shared `tiny_qwen_coder.training.loss_masking` implementation to emit a deterministic token-level proof. Every rendered token is classified as `LOSS` or `IGNORE`, making it possible to verify that system/user context is masked while assistant generation tokens receive loss.
+
+The canonical training path SHALL use the verified TRL assistant-only strategy while the pinned stack continues to satisfy that proof. If a future TRL/tokenizer combination cannot produce a valid assistant mask, the project MAY use its tested completion-only fallback only for a final assistant turn whose generation-prompt tokenization is an exact prefix of the completed conversation. If that prefix boundary cannot be proven, training MUST fail closed rather than silently applying loss to system/user tokens.
 
 ### 17.2 LoRA target discovery
 
