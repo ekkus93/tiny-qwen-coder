@@ -1,7 +1,7 @@
 [project]
 name = "tiny-qwen-coder"
 version = "0.1.0"
-description = "Interchangeable LoRA language adapters for Qwen3.5-0.8B coding specialization."
+description = "Interchangeable LoRA language adapters for Qwen3.5-4B coding specialization."
 requires-python = ">=3.11"
 dependencies = [
     "accelerate",

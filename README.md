@@ -1,11 +1,11 @@
 # Tiny Qwen Coder
 
-Tiny Qwen Coder is a research project for turning a single shared `Qwen/Qwen3.5-0.8B` base model into a family of programming-language specialists by attaching interchangeable LoRA adapters.
+Tiny Qwen Coder is a research project for turning a single shared `Qwen/Qwen3.5-4B` base model into a family of programming-language specialists by attaching interchangeable LoRA adapters.
 
 The base model is intended to remain fixed. Language expertise is packaged separately:
 
 ```text
-Qwen3.5-0.8B
+Qwen3.5-4B
     |
     +-- Python LoRA
     +-- TypeScript LoRA
@@ -20,8 +20,9 @@ The repository is being implemented incrementally from [`docs/TODO.md`](docs/TOD
 
 Current scope:
 
-- one pinned `Qwen/Qwen3.5-0.8B` base model;
-- BF16 LoRA fine-tuning as the initial training method;
+- one pinned `Qwen/Qwen3.5-4B` base model;
+- BF16 LoRA preferred on the 16 GB reference GPU, with 4-bit QLoRA selected if measured training headroom requires it;
+- text/code-only specialization for the multimodal 4B checkpoint, with vision components kept frozen;
 - Python as the first language specialization;
 - TypeScript and Rust adapters after the Python pipeline proves the architecture;
 - explicit regression testing so specialization does not silently destroy general instruction-following or tool-use behavior;
@@ -152,8 +153,8 @@ Required GitHub Actions CI is intended to remain CPU-safe as well.
 
 GPU execution is reserved for work that genuinely needs the model, including:
 
-- canonical `Qwen3.5-0.8B` model-load smoke tests;
-- BF16 VRAM measurements;
+- canonical `Qwen3.5-4B` model-load smoke tests;
+- BF16 LoRA and QLoRA feasibility/VRAM measurements;
 - LoRA smoke training and canonical training runs;
 - base-versus-adapter generation benchmarks;
 - adapter switching/runtime performance measurements;

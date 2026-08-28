@@ -1,6 +1,6 @@
 # Tiny Qwen Coder — TODO
 
-This TODO operationalizes `docs/SPEC.md` into phased, testable work items for a shared `Qwen/Qwen3.5-0.8B` base model with interchangeable programming-language LoRA adapters.
+This TODO operationalizes `docs/SPEC.md` into phased, testable work items for a shared `Qwen/Qwen3.5-4B` base model with interchangeable programming-language LoRA adapters.
 
 Python is the first adapter. TypeScript and Rust follow after the Python pipeline proves the architecture.
 
@@ -131,8 +131,8 @@ Goal: make the shared base-model identity immutable and make all experiments con
 
 ## P1-001 — Define canonical base-model config
 
-- [x] Add `configs/base/qwen35-0.8b.yaml`.
-- [x] Record repository `Qwen/Qwen3.5-0.8B`.
+- [x] Add `configs/base/qwen35-4b.yaml`.
+- [x] Record repository `Qwen/Qwen3.5-4B`.
 - [x] Resolve/pin exact Hugging Face revision before canonical training.
 - [x] Record tokenizer revision policy.
 - [x] Record precision policy.
@@ -216,6 +216,7 @@ Goal: understand the actual Qwen3.5 architecture and establish a robust adapter 
 
 - [ ] Add `scripts/inspect_model.py`.
 - [ ] Report model class and parameter count.
+- [ ] Distinguish text backbone, vision encoder, and multimodal/projector modules.
 - [ ] Enumerate module hierarchy relevant to LoRA.
 - [ ] Report tokenizer/chat-template metadata.
 - [ ] Record exact upstream revision.
@@ -230,6 +231,7 @@ Acceptance criteria:
 - [ ] Identify full-attention projections.
 - [ ] Identify MLP projections.
 - [ ] Identify hybrid/DeltaNet-specific modules.
+- [ ] Exclude vision-encoder/projector modules from language LoRA targets by default.
 - [ ] Define selective-target candidate from observed names.
 
 Acceptance criteria:
@@ -288,13 +290,26 @@ Acceptance criteria:
 
 ## P2-007 — Add canonical model-load smoke test
 
-- [ ] Load Qwen3.5-0.8B in BF16 on compatible GPU.
+- [ ] Load Qwen3.5-4B in BF16 on compatible GPU.
 - [ ] Generate deterministic/simple completion.
 - [ ] Record base-model memory footprint.
 
 Acceptance criteria:
 
 - Canonical base loads/generates successfully with pinned stack.
+
+## P2-008 — Select canonical 4B training memory strategy
+
+- [ ] Run BF16 LoRA forward/backward preflight at sequence length 2,048 and micro-batch 1.
+- [ ] Record peak allocated/reserved VRAM and practical safety headroom.
+- [ ] If BF16 LoRA is not comfortably memory-safe, validate 4-bit QLoRA with BF16 compute.
+- [ ] Record quantization details when used, including 4-bit type, double-quantization policy, and compute dtype.
+- [ ] Freeze the canonical P0 training mode before Phase 7.
+
+Acceptance criteria:
+
+- The 16 GB reference GPU has a measured, reproducible training configuration before the full Python run.
+- BF16 versus QLoRA is selected from evidence rather than assumption.
 
 ---
 
@@ -640,9 +655,9 @@ Acceptance criteria:
 
 ---
 
-# Phase 7 — Python P0 BF16 LoRA
+# Phase 7 — Python P0 LoRA
 
-Goal: produce the first language adapter using a conservative, auditable configuration.
+Goal: produce the first language adapter using the training mode frozen by the 4B GPU memory preflight.
 
 ## P7-001 — Finalize selective LoRA targets
 
@@ -672,7 +687,8 @@ Acceptance criteria:
 Initial candidate:
 
 ```text
-precision               BF16
+training mode           frozen P2-008 selection
+compute dtype           BF16
 sequence length         2048
 LoRA rank               16
 LoRA alpha              32
@@ -700,7 +716,7 @@ Acceptance criteria:
 - [ ] assistant-only masking verified.
 - [ ] LoRA targets match modules.
 - [ ] output path safe.
-- [ ] GPU/BF16 compatibility reported.
+- [ ] GPU/training-mode compatibility reported.
 
 Acceptance criteria:
 
@@ -855,9 +871,10 @@ Acceptance criteria:
 
 - Overfitting/general regression explicitly measured.
 
-## P9-005 — Optional QLoRA comparison
+## P9-005 — BF16 LoRA vs QLoRA comparison
 
-- [ ] Add 4-bit config only after BF16 baseline is stable.
+- [ ] If P0 used BF16 LoRA, add a controlled 4-bit QLoRA comparison.
+- [ ] If P0 used QLoRA, add a BF16 comparison only when measured memory headroom makes it safe.
 - [ ] compare VRAM/speed/quality.
 
 Acceptance criteria:
@@ -1513,7 +1530,7 @@ Acceptance criteria:
 The final system MUST demonstrate:
 
 ```text
-one pinned Qwen3.5-0.8B base model
+one pinned Qwen3.5-4B base model
 +
 small interchangeable Python/TypeScript/Rust LoRA adapters
 ```

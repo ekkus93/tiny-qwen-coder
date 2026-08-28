@@ -3,9 +3,9 @@
 import re
 from pathlib import Path
 
-CONFIG_PATH = Path("configs/base/qwen35-0.8b.yaml")
-EXPECTED_REPOSITORY = "Qwen/Qwen3.5-0.8B"
-EXPECTED_REVISION = "2fc06364715b967f1860aea9cf38778875588b17"
+CONFIG_PATH = Path("configs/base/qwen35-4b.yaml")
+EXPECTED_REPOSITORY = "Qwen/Qwen3.5-4B"
+EXPECTED_REVISION = "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
 
 
 def _config_text() -> str:
@@ -28,12 +28,19 @@ def test_canonical_base_forbids_floating_revisions() -> None:
     assert not re.search(r"revision:\s*(main|master|latest)\s*$", text, re.MULTILINE)
 
 
-def test_tokenizer_and_precision_policies_are_explicit() -> None:
+def test_precision_policy_is_measured_and_frozen() -> None:
     text = _config_text()
 
-    assert "revision_policy: match_model_revision" in text
-    assert "chat_template_source: pinned_checkpoint" in text
     assert "model_load_dtype: bfloat16" in text
-    assert "canonical_lora_training_dtype: bfloat16" in text
-    assert "quantization: none" in text
-    assert "qlora: false" in text
+    assert "lora_compute_dtype: bfloat16" in text
+    assert "training_mode_policy: measure_then_freeze" in text
+    assert "preferred_training_mode: bf16_lora" in text
+    assert "fallback_training_mode: qlora_4bit" in text
+    assert "quantization: conditional" in text
+
+
+def test_text_specialization_freezes_vision_components() -> None:
+    text = _config_text()
+
+    assert "scope: text_code_only" in text
+    assert "freeze_vision_components: true" in text

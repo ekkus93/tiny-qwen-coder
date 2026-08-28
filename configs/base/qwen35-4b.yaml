@@ -1,0 +1,31 @@
+schema_version: 1
+id: qwen35-4b
+role: shared_adapter_base
+
+model:
+  repository: Qwen/Qwen3.5-4B
+  revision: 851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a
+  revision_policy: immutable_commit
+  checkpoint_type: post_trained
+
+tokenizer:
+  repository: Qwen/Qwen3.5-4B
+  revision: 851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a
+  revision_policy: match_model_revision
+  chat_template_source: pinned_checkpoint
+
+specialization:
+  scope: text_code_only
+  freeze_vision_components: true
+
+precision:
+  model_load_dtype: bfloat16
+  lora_compute_dtype: bfloat16
+  training_mode_policy: measure_then_freeze
+  preferred_training_mode: bf16_lora
+  fallback_training_mode: qlora_4bit
+  quantization: conditional
+
+policy:
+  allow_floating_revision: false
+  canonical_language_adapters_share_this_base: true

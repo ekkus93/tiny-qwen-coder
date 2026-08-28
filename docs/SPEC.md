@@ -2,12 +2,12 @@
 
 ## 1. Purpose
 
-`tiny-qwen-coder` is an experimental framework for turning a single pinned `Qwen/Qwen3.5-0.8B` checkpoint into a family of programming-language specialists by attaching interchangeable LoRA adapters.
+`tiny-qwen-coder` is an experimental framework for turning a single pinned `Qwen/Qwen3.5-4B` checkpoint into a family of programming-language specialists by attaching interchangeable LoRA adapters.
 
 The core architecture is:
 
 ```text
-                         Qwen3.5-0.8B
+                         Qwen3.5-4B
                       pinned base model
                              │
              ┌───────────────┼───────────────┐
@@ -25,7 +25,7 @@ Python is the first implementation and proving ground. TypeScript and Rust are p
 
 The primary research question is:
 
-> How effectively can one sub-1B coding-capable base model support multiple specialized programming-language personalities through interchangeable LoRA adapters while preserving general instruction-following, tool-use, and cross-language capability?
+> How effectively can one 4B coding-capable base model support multiple specialized programming-language personalities through interchangeable LoRA adapters while preserving general instruction-following, tool-use, and cross-language capability?
 
 The project MUST emphasize reproducibility, executable evaluation, controlled experiments, adapter compatibility, and explicit regression measurement. Improvements MUST be demonstrated quantitatively rather than inferred from loss curves or subjective examples.
 
@@ -37,8 +37,8 @@ The project MUST emphasize reproducibility, executable evaluation, controlled ex
 
 All production language adapters MUST target the same immutable base-model identity:
 
-- repository: `Qwen/Qwen3.5-0.8B`
-- exact Hugging Face revision/commit: pinned before the first canonical adapter is trained
+- repository: `Qwen/Qwen3.5-4B`
+- exact Hugging Face revision/commit: `851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a`
 - tokenizer revision: identical to the base-model revision unless explicitly documented otherwise
 - chat template: versioned and kept compatible across adapters
 
@@ -119,7 +119,7 @@ Language-specific behavior belongs in declarative configuration and well-defined
 
 ### 3.1 Primary goals
 
-1. Establish one pinned `Qwen/Qwen3.5-0.8B` checkpoint as the canonical base model.
+1. Establish one pinned `Qwen/Qwen3.5-4B` checkpoint as the canonical base model.
 2. Fine-tune a Python LoRA that measurably improves Python code generation and software-engineering performance.
 3. Preserve, as much as practical, the base model's general instruction-following, structured-output, and tool-use behavior.
 4. Build language-neutral dataset, training, evaluation, reporting, and adapter-management infrastructure.
@@ -133,8 +133,8 @@ Language-specific behavior belongs in declarative configuration and well-defined
 ### 3.2 Secondary goals
 
 1. Measure the effect of LoRA rank, target modules, sequence length, dataset size, and training mix.
-2. Compare BF16 LoRA with optional QLoRA only after the BF16 baseline is established.
-3. Compare fine-tuning the post-trained checkpoint with `Qwen/Qwen3.5-0.8B-Base` as a separate controlled research branch.
+2. Measure BF16 LoRA versus 4-bit QLoRA feasibility on the reference 16 GB GPU and freeze one canonical training mode before full adapter training.
+3. Compare fine-tuning the post-trained checkpoint with `Qwen/Qwen3.5-4B-Base` as a separate controlled research branch.
 4. Investigate continued pretraining on permissively licensed source code before SFT.
 5. Investigate verified coding-agent trajectories involving repository inspection, editing, execution, and repair.
 6. Evaluate automatic language detection and adapter selection.
@@ -147,7 +147,7 @@ Language-specific behavior belongs in declarative configuration and well-defined
 
 The initial project is NOT intended to:
 
-1. Perform full-parameter fine-tuning of Qwen3.5-0.8B.
+1. Perform full-parameter fine-tuning of Qwen3.5-4B.
 2. Train a foundation model from scratch.
 3. Maintain a separate full Qwen model copy per programming language.
 4. Merge every LoRA into a standalone full model for normal use.
@@ -158,7 +158,7 @@ The initial project is NOT intended to:
 9. Use GitHub Actions for required GPU training.
 10. Commit model weights, generated datasets, Hugging Face caches, or checkpoints to Git.
 11. Claim OpenCode readiness solely because the model can generate code snippets.
-12. Introduce quantization into the first canonical experiment unless required by a verified compatibility constraint.
+12. Use quantization without a measured memory/compatibility justification or change quantization policy mid-experiment.
 
 ---
 
@@ -168,23 +168,24 @@ The initial project is NOT intended to:
 
 The first canonical language-adapter experiments SHALL use:
 
-- model repository: `Qwen/Qwen3.5-0.8B`
+- model repository: `Qwen/Qwen3.5-4B`
 - role: post-trained shared base checkpoint
-- training precision: BF16 where supported
-- fine-tuning method: LoRA through Hugging Face PEFT/TRL
+- preferred fine-tuning mode: BF16 LoRA through Hugging Face PEFT/TRL when it fits with adequate VRAM headroom
+- fallback fine-tuning mode: 4-bit QLoRA with BF16 compute when BF16 LoRA is not comfortably memory-safe
+- canonical training mode: selected from measured GPU preflight and frozen before the first full adapter training run
 
 The post-trained checkpoint is chosen because the project ultimately targets coding-assistant and coding-agent behavior, not only raw code completion. Existing instruction-following and tool-use behavior is therefore part of the capability baseline that specialization SHOULD preserve.
 
 ### 5.2 Exact revision pinning
 
-Before the first canonical Python training run, the project MUST resolve and pin the exact upstream model commit/revision.
+The canonical Qwen3.5-4B revision is pinned to `851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a`. Changing that SHA is a base-family migration and MUST be explicit because existing adapters are revision-bound.
 
 The canonical base descriptor SHOULD be represented in configuration, for example:
 
 ```yaml
 base_model:
-  repository: Qwen/Qwen3.5-0.8B
-  revision: <exact-hugging-face-commit>
+  repository: Qwen/Qwen3.5-4B
+  revision: 851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a
 ```
 
 Every adapter manifest MUST include at least:
@@ -200,20 +201,24 @@ Every adapter manifest MUST include at least:
 
 ### 5.3 Base-model comparison branch
 
-`Qwen/Qwen3.5-0.8B-Base` SHALL be treated as a separate experiment, not silently substituted for the canonical post-trained base.
+`Qwen/Qwen3.5-4B-Base` SHALL be treated as a separate experiment, not silently substituted for the canonical post-trained base.
 
 A controlled comparison MAY evaluate:
 
-- post-trained Qwen3.5-0.8B + language LoRA
-- Qwen3.5-0.8B-Base + equivalent language LoRA
+- post-trained Qwen3.5-4B + language LoRA
+- Qwen3.5-4B-Base + equivalent language LoRA
 
 The comparison MUST keep dataset, seed, LoRA configuration, evaluation prompts, decoding parameters, and benchmark implementation equivalent as practical.
 
-Adapters trained on `Qwen3.5-0.8B-Base` belong to a separate compatibility family and MUST NOT be advertised as interchangeable with adapters trained on `Qwen3.5-0.8B`.
+Adapters trained on `Qwen3.5-4B-Base` belong to a separate compatibility family and MUST NOT be advertised as interchangeable with adapters trained on `Qwen3.5-4B`.
 
-### 5.4 Architecture awareness
+### 5.4 Text-only specialization on a multimodal checkpoint
 
-Qwen3.5 uses a hybrid architecture rather than only conventional full-attention Transformer blocks. LoRA target-module selection MUST therefore be discovered from the actual loaded model rather than copied blindly from an older Llama/Qwen recipe.
+Qwen3.5-4B is released as a causal language model with a vision encoder. The initial Tiny Qwen Coder adapters are text/code specialists, not vision adapters. Vision-encoder and multimodal/projector components MUST remain frozen and MUST NOT be selected as language-LoRA targets unless a separate experiment explicitly changes that scope. Model inspection MUST distinguish the language backbone from vision/multimodal modules.
+
+### 5.5 Architecture awareness
+
+Qwen3.5-4B uses a hybrid Gated DeltaNet/full-attention architecture rather than only conventional full-attention Transformer blocks. LoRA target-module selection MUST therefore be discovered from the actual loaded model rather than copied blindly from an older Llama/Qwen recipe, and language-adapter target discovery MUST exclude vision/multimodal components by default.
 
 The repository MUST include a model-inspection utility that records:
 
@@ -290,7 +295,7 @@ Adapters are expected to be much smaller than the full model. Normal runtime sto
 
 ```text
 base/
-└── qwen3.5-0.8b/
+└── qwen3.5-4b/
 
 adapters/
 └── language/
@@ -380,11 +385,13 @@ The initial runtime SHOULD prefer explicit selection and deterministic behavior 
 
 The primary development target is a single NVIDIA GPU with approximately 16 GB VRAM.
 
-The project SHOULD prioritize a comfortable BF16 LoRA workflow instead of minimizing VRAM at all costs.
+The project SHOULD test BF16 LoRA first on the reference 16 GB GPU, but MUST NOT assume that a 4B checkpoint leaves enough training headroom. If BF16 LoRA is not comfortably memory-safe at the canonical 2,048-token preflight, P0 SHALL use 4-bit QLoRA with BF16 compute. The choice MUST be based on measured peak VRAM and then frozen for the experiment.
 
 Initial expected configuration:
 
-- BF16 base-model loading
+- BF16 base-model load/generation smoke test
+- BF16 LoRA forward/backward preflight at sequence length 2,048 and micro-batch 1
+- 4-bit QLoRA fallback validation if BF16 LoRA lacks safe headroom
 - gradient checkpointing enabled where compatible
 - sequence length: 2,048 tokens
 - conservative micro-batch selected empirically
@@ -457,7 +464,7 @@ tiny-qwen-coder/
 ├── .gitignore
 ├── configs/
 │   ├── base/
-│   │   └── qwen35-0.8b.yaml
+│   │   └── qwen35-4b.yaml
 │   ├── languages/
 │   │   ├── python.yaml
 │   │   ├── typescript.yaml
@@ -828,10 +835,10 @@ The first canonical adapter SHALL be Python.
 Initial candidate configuration:
 
 ```text
-base model              Qwen/Qwen3.5-0.8B @ pinned revision
+base model              Qwen/Qwen3.5-4B @ pinned revision
 adapter family          language
 language                python
-precision               BF16
+training mode           frozen P2 memory decision (BF16 LoRA preferred; 4-bit QLoRA fallback)
 fine-tuning             LoRA SFT
 sequence length         2048
 LoRA rank               16
@@ -846,7 +853,7 @@ gradient checkpointing  enabled when compatible
 loss                    assistant/completion tokens only
 ```
 
-Micro-batch and gradient accumulation MUST be selected from actual hardware measurements. Micro-batch 4 with gradient accumulation 4 is a reasonable first trial only if it fits comfortably.
+Micro-batch and gradient accumulation MUST be selected from actual hardware measurements. For the 4B checkpoint, the initial BF16 training preflight SHALL start at micro-batch 1 and increase only after measured headroom is established.
 
 ### 17.1 Assistant-only loss
 
@@ -973,7 +980,7 @@ Tiny Qwen Coder runtime
       ┌─────┴─────┐
       │           │
       ▼           ▼
-Qwen3.5-0.8B   adapter manager
+Qwen3.5-4B   adapter manager
       │           │
       └─────┬─────┘
             ▼
@@ -1143,7 +1150,7 @@ The Python milestone succeeds when:
 1. the canonical base revision is pinned;
 2. Python data preparation is deterministic and auditable;
 3. base Python/general/tool baselines are recorded;
-4. BF16 LoRA training completes reproducibly on the target hardware;
+4. the frozen canonical LoRA mode (BF16 LoRA or the measured QLoRA fallback) completes reproducibly on the target hardware;
 5. the adapter materially improves executable Python performance;
 6. general/tool behavior does not catastrophically collapse;
 7. cross-language impact is measured;
@@ -1186,6 +1193,6 @@ Python-specific implementation decisions MUST NOT unnecessarily constrain TypeSc
 
 The central invariant of `tiny-qwen-coder` is:
 
-> **One pinned Qwen3.5-0.8B base model; many small, independently trained, interchangeable programming-language LoRA adapters.**
+> **One pinned Qwen3.5-4B base model; many small, independently trained, interchangeable programming-language LoRA adapters.**
 
 Every major design choice SHOULD be evaluated against that invariant.
