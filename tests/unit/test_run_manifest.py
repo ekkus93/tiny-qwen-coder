@@ -29,6 +29,7 @@ _FAKE_GIT_SHA = "a" * 40
 def _dependencies() -> DependencyVersions:
     return DependencyVersions(
         accelerate="1",
+        bitsandbytes=None,
         datasets="2",
         numpy="2.4",
         peft="3",
@@ -103,6 +104,7 @@ def test_training_manifest_contains_complete_provenance() -> None:
         "family": "language",
     }
     assert payload["seed"] == 1729
+    assert payload["dependencies"]["bitsandbytes"] is None
     assert payload["dependencies"]["numpy"] == "2.4"
     assert payload["dependencies"]["transformers"] == "7"
     assert payload["host"]["gpus"][0]["total_memory_bytes"] == 16 * 1024**3

@@ -13,6 +13,7 @@ _PACKAGES = (
     "peft",
     "trl",
     "accelerate",
+    "bitsandbytes",
     "pytest",
     "ruff",
     "mypy",

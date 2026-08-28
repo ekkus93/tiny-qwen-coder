@@ -21,10 +21,13 @@ specialization:
 precision:
   model_load_dtype: bfloat16
   lora_compute_dtype: bfloat16
-  training_mode_policy: measure_then_freeze
-  preferred_training_mode: bf16_lora
-  fallback_training_mode: qlora_4bit
-  quantization: conditional
+  training_mode_policy: frozen_from_p2_008_measurement
+  canonical_training_mode: qlora_4bit
+  quantization:
+    bits: 4
+    quant_type: nf4
+    double_quant: true
+    compute_dtype: bfloat16
 
 policy:
   allow_floating_revision: false

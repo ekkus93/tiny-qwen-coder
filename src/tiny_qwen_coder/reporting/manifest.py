@@ -27,6 +27,7 @@ _SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 _LANGUAGE_PATTERN = re.compile(r"^[a-z][a-z0-9_-]*$")
 _TRACKED_DISTRIBUTIONS = (
     "accelerate",
+    "bitsandbytes",
     "datasets",
     "numpy",
     "peft",
@@ -94,6 +95,7 @@ class DependencyVersions:
     """Versions of the project and core ML runtime dependencies."""
 
     accelerate: str
+    bitsandbytes: str | None
     datasets: str
     numpy: str
     peft: str
@@ -221,10 +223,14 @@ def collect_dependency_versions() -> DependencyVersions:
         try:
             versions[distribution] = importlib.metadata.version(distribution)
         except importlib.metadata.PackageNotFoundError as exc:
+            if distribution == "bitsandbytes":
+                versions[distribution] = ""
+                continue
             raise ManifestError(f"required distribution is not installed: {distribution}") from exc
 
     return DependencyVersions(
         accelerate=versions["accelerate"],
+        bitsandbytes=versions["bitsandbytes"] or None,
         datasets=versions["datasets"],
         numpy=versions["numpy"],
         peft=versions["peft"],

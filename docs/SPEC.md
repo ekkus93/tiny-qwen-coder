@@ -468,16 +468,17 @@ The initial runtime SHOULD prefer explicit selection and deterministic behavior 
 
 The primary development target is a single NVIDIA GPU with approximately 16 GB VRAM.
 
-The project SHOULD test BF16 LoRA first on the reference 16 GB GPU, but MUST NOT assume that a 4B checkpoint leaves enough training headroom. If BF16 LoRA is not comfortably memory-safe at the canonical 2,048-token preflight, P0 SHALL use 4-bit QLoRA with BF16 compute. The choice MUST be based on measured peak VRAM and then frozen for the experiment.
+P2-008 measured the training footprint on the 16 GB reference GPU and froze P0 to 4-bit QLoRA. BF16 LoRA is not a canonical training mode because its 2,048-token backward pass OOMs even with gradient checkpointing.
 
-Initial expected configuration:
+Canonical configuration:
 
 - BF16 base-model load/generation smoke test
-- BF16 LoRA forward/backward preflight at sequence length 2,048 and micro-batch 1
-- 4-bit QLoRA fallback validation if BF16 LoRA lacks safe headroom
-- gradient checkpointing enabled where compatible
+- 4-bit NF4 QLoRA for adapter training
+- double quantization enabled
+- BF16 quantization compute dtype
+- gradient checkpointing enabled
 - sequence length: 2,048 tokens
-- conservative micro-batch selected empirically
+- micro-batch: 1
 - gradient accumulation used to increase effective batch size
 
 ### 8.2 Memory measurement
@@ -517,7 +518,25 @@ Measured CUDA memory for that validation run:
 - generation peak allocated: 8.554 GiB (9,184,869,376 bytes)
 - generation peak reserved: 8.574 GiB (9,206,497,280 bytes)
 
-These measurements are a base-model inference/load baseline, not a training-memory estimate. P2-008 SHALL separately measure the forward/backward LoRA training footprint at the canonical 2,048-token sequence length.
+These measurements are a base-model inference/load baseline, not a training-memory estimate. P2-008 separately measured the forward/backward LoRA training footprint at the canonical 2,048-token sequence length.
+
+### 8.4 Canonical training-memory decision (P2-008)
+
+P2-008 used rank-16, alpha-32, dropout-0.05 selective language LoRA targets, sequence length 2,048, micro-batch 1, and gradient checkpointing on the same RTX 4070 Ti SUPER. The safety rule was fixed before the fallback result was observed: successful training MUST leave at least the greater of 1.5 GiB or 10% of physical VRAM after peak reserved memory.
+
+BF16 LoRA completed its forward pass but failed during `loss.backward()` with CUDA OOM. PyTorch reported approximately 13.68 GiB allocated with only about 930 MiB free, then failed an additional 1.89 GiB allocation. Allocator tuning is not accepted as evidence of comfortable headroom, so BF16 LoRA is rejected for canonical P0 training.
+
+The fallback used bitsandbytes 0.50.2 with 4-bit NF4 quantization, double quantization enabled, and BF16 compute. The full forward, backward, and AdamW optimizer step completed. Measured values were:
+
+- trainable LoRA parameters: 32,464,896
+- observed bitsandbytes `Linear4bit` modules: 594
+- peak allocated VRAM: 13,569,101,824 bytes (12.637 GiB)
+- peak reserved VRAM: 14,661,189,632 bytes (13.654 GiB)
+- reserved-memory safety headroom: 2,027,028,480 bytes (1.888 GiB)
+- required safety headroom: 1,668,821,812 bytes (1.554 GiB)
+- result: comfortable = true
+
+Therefore the canonical P0 training mode is `qlora_4bit` with NF4, double quantization, BF16 compute, sequence length 2,048, micro-batch 1, and gradient checkpointing. The exact quantization settings are frozen in `configs/base/qwen35-4b.yaml`. Canonical QLoRA GPU environments use the locked `qlora` optional dependency extra.
 
 ---
 

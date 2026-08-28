@@ -27,6 +27,7 @@ _FIXED_TIME = datetime(2026, 8, 28, 9, 0, tzinfo=UTC)
 def _dependencies() -> DependencyVersions:
     return DependencyVersions(
         accelerate="1.0",
+        bitsandbytes=None,
         datasets="2.0",
         numpy="3.0",
         peft="4.0",
@@ -85,6 +86,7 @@ def test_collect_environment_report_contains_required_metadata() -> None:
     assert report.dependencies.peft
     assert report.dependencies.datasets
     assert report.dependencies.accelerate
+    assert report.dependencies.bitsandbytes is None or report.dependencies.bitsandbytes
 
     if torch.cuda.is_available():
         assert report.gpus

@@ -21,7 +21,7 @@ The repository is being implemented incrementally from [`docs/TODO.md`](docs/TOD
 Current scope:
 
 - one pinned `Qwen/Qwen3.5-4B` base model;
-- BF16 LoRA preferred on the 16 GB reference GPU, with 4-bit QLoRA selected if measured training headroom requires it;
+- 4-bit NF4 QLoRA with double quantization and BF16 compute is the measured canonical training mode on the 16 GB reference GPU;
 - text/code-only specialization for the multimodal 4B checkpoint, with vision components kept frozen;
 - Python as the first language specialization;
 - TypeScript and Rust adapters after the Python pipeline proves the architecture;
@@ -54,6 +54,12 @@ Create the project environment exactly from the committed lockfile:
 
 ```bash
 uv sync --frozen
+```
+
+For canonical QLoRA training on a compatible NVIDIA/CUDA host, install the locked optional runtime as well:
+
+```bash
+uv sync --frozen --extra qlora
 ```
 
 Verify the package is importable:
@@ -160,7 +166,7 @@ Required GitHub Actions CI is intended to remain CPU-safe as well.
 GPU execution is reserved for work that genuinely needs the model, including:
 
 - canonical `Qwen3.5-4B` model-load smoke tests;
-- BF16 LoRA and QLoRA feasibility/VRAM measurements;
+- canonical NF4 QLoRA training-memory preflights and training runs;
 - LoRA smoke training and canonical training runs;
 - base-versus-adapter generation benchmarks;
 - adapter switching/runtime performance measurements;

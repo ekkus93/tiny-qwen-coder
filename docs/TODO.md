@@ -300,11 +300,11 @@ Acceptance criteria:
 
 ## P2-008 — Select canonical 4B training memory strategy
 
-- [ ] Run BF16 LoRA forward/backward preflight at sequence length 2,048 and micro-batch 1.
-- [ ] Record peak allocated/reserved VRAM and practical safety headroom.
-- [ ] If BF16 LoRA is not comfortably memory-safe, validate 4-bit QLoRA with BF16 compute.
-- [ ] Record quantization details when used, including 4-bit type, double-quantization policy, and compute dtype.
-- [ ] Freeze the canonical P0 training mode before Phase 7.
+- [x] Run BF16 LoRA forward/backward preflight at sequence length 2,048 and micro-batch 1.
+- [x] Record peak allocated/reserved VRAM and practical safety headroom.
+- [x] If BF16 LoRA is not comfortably memory-safe, validate 4-bit QLoRA with BF16 compute.
+- [x] Record quantization details when used, including 4-bit type, double-quantization policy, and compute dtype.
+- [x] Freeze the canonical P0 training mode before Phase 7.
 
 Acceptance criteria:
 

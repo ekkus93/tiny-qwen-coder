@@ -28,15 +28,19 @@ def test_canonical_base_forbids_floating_revisions() -> None:
     assert not re.search(r"revision:\s*(main|master|latest)\s*$", text, re.MULTILINE)
 
 
-def test_precision_policy_is_measured_and_frozen() -> None:
+def test_precision_policy_is_frozen_to_measured_qlora() -> None:
     text = _config_text()
 
     assert "model_load_dtype: bfloat16" in text
     assert "lora_compute_dtype: bfloat16" in text
-    assert "training_mode_policy: measure_then_freeze" in text
-    assert "preferred_training_mode: bf16_lora" in text
-    assert "fallback_training_mode: qlora_4bit" in text
-    assert "quantization: conditional" in text
+    assert "training_mode_policy: frozen_from_p2_008_measurement" in text
+    assert "canonical_training_mode: qlora_4bit" in text
+    assert "bits: 4" in text
+    assert "quant_type: nf4" in text
+    assert "double_quant: true" in text
+    assert "compute_dtype: bfloat16" in text
+    assert "preferred_training_mode: bf16_lora" not in text
+    assert "fallback_training_mode: qlora_4bit" not in text
 
 
 def test_text_specialization_freezes_vision_components() -> None:
