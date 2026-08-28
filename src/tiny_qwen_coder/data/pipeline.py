@@ -219,9 +219,7 @@ def run_dataset_pipeline(
 
     _validate_pipeline_config(config, plugin)
     benchmark_registry = (
-        protected_benchmarks
-        if protected_benchmarks is not None
-        else ProtectedBenchmarkRegistry()
+        protected_benchmarks if protected_benchmarks is not None else ProtectedBenchmarkRegistry()
     )
     benchmark_registry.assert_plugin_registration_matches(plugin)
     benchmark_registry.assert_sft_config_allowed(config)
