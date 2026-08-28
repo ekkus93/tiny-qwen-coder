@@ -469,6 +469,7 @@ class ConstrainedExecutionHarness:
                 container_name=container_name,
             )
 
+            process: subprocess.Popen[bytes]
             try:
                 process = subprocess.Popen(
                     command,
