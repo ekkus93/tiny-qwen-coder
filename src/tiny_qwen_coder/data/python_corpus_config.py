@@ -70,8 +70,13 @@ class PythonP0CorpusConfig:
             raise PythonP0CorpusError("sources must not repeat source config paths")
         if sum(source.target_accepted for source in self.sources) != self.target_total:
             raise PythonP0CorpusError("source targets must sum exactly to target_total")
-        if self.fill_shortfall_from is not None and self.fill_shortfall_from not in source_ids:
-            raise PythonP0CorpusError("fill_shortfall_from must name one configured source ID")
+        if self.fill_shortfall_from is not None:
+            if self.fill_shortfall_from not in source_ids:
+                raise PythonP0CorpusError("fill_shortfall_from must name one configured source ID")
+            if self.fill_shortfall_from != source_ids[0]:
+                raise PythonP0CorpusError(
+                    "fill_shortfall_from must name the primary (first) configured source"
+                )
         if not self.output_jsonl.strip():
             raise PythonP0CorpusError("output_jsonl must not be empty")
 
