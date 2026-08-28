@@ -290,9 +290,9 @@ Acceptance criteria:
 
 ## P2-007 — Add canonical model-load smoke test
 
-- [ ] Load Qwen3.5-4B in BF16 on compatible GPU.
-- [ ] Generate deterministic/simple completion.
-- [ ] Record base-model memory footprint.
+- [x] Load Qwen3.5-4B in BF16 on compatible GPU.
+- [x] Generate deterministic/simple completion.
+- [x] Record base-model memory footprint.
 
 Acceptance criteria:
 

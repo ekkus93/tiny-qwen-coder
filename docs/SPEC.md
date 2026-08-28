@@ -500,6 +500,25 @@ Every training run MUST record:
 
 No estimated VRAM figure SHALL be treated as a formal acceptance criterion. Actual peak memory MUST be measured.
 
+
+### 8.3 Canonical BF16 base smoke measurement (P2-007)
+
+P2-007 validated the exact pinned `Qwen/Qwen3.5-4B` revision `851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a` with PyTorch `2.13.0+cu130` and Transformers `5.16.1` on `NVIDIA GeForce RTX 4070 Ti SUPER` (compute capability 8.9). All floating model parameters were observed as BF16. Greedy generation was run twice from the same chat-formatted prompt and produced identical token IDs.
+
+Measured CUDA memory for that validation run:
+
+- total VRAM: 15.542 GiB (16,688,218,112 bytes)
+- free VRAM before model load: 14.719 GiB (15,804,071,936 bytes)
+- free VRAM after model load: 6.223 GiB (6,681,460,736 bytes)
+- PyTorch allocated after model load: 8.455 GiB (9,078,560,256 bytes)
+- PyTorch reserved after model load: 8.465 GiB (9,089,056,768 bytes)
+- load peak allocated: 8.455 GiB (9,078,571,008 bytes)
+- load peak reserved: 8.465 GiB (9,089,056,768 bytes)
+- generation peak allocated: 8.554 GiB (9,184,869,376 bytes)
+- generation peak reserved: 8.574 GiB (9,206,497,280 bytes)
+
+These measurements are a base-model inference/load baseline, not a training-memory estimate. P2-008 SHALL separately measure the forward/backward LoRA training footprint at the canonical 2,048-token sequence length.
+
 ---
 
 ## 9. Software stack

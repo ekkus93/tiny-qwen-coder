@@ -1,4 +1,4 @@
-"""Shared base-model loading and inspection services."""
+"""Shared base-model loading, inspection, and smoke-test services."""
 
 from tiny_qwen_coder.model.inspection import (
     ComponentSummary,
@@ -17,6 +17,15 @@ from tiny_qwen_coder.model.inspection import (
     load_inspection_target,
     load_model_for_inspection,
 )
+from tiny_qwen_coder.model.smoke_test import (
+    ModelSmokeTestError,
+    ModelSmokeTestReport,
+    SmokeMemoryReport,
+    model_smoke_report_json,
+    model_smoke_report_text,
+    run_canonical_model_smoke_test,
+    smoke_test_model,
+)
 
 __all__ = [
     "ComponentSummary",
@@ -25,6 +34,9 @@ __all__ = [
     "LinearModuleRecord",
     "ModelInspectionReport",
     "ModelMetadata",
+    "ModelSmokeTestError",
+    "ModelSmokeTestReport",
+    "SmokeMemoryReport",
     "TokenizerMetadata",
     "build_inspection_report",
     "enumerate_linear_modules",
@@ -34,4 +46,8 @@ __all__ = [
     "inspection_report_text",
     "load_inspection_target",
     "load_model_for_inspection",
+    "model_smoke_report_json",
+    "model_smoke_report_text",
+    "run_canonical_model_smoke_test",
+    "smoke_test_model",
 ]
