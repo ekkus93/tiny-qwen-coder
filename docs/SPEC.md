@@ -175,6 +175,18 @@ Link groups are first ordered by prompt fingerprint, then shuffled with an isola
 
 `DeduplicatedDatasetSplit` retains train/validation records, aligned P3-006 fingerprints, and one auditable membership entry per deduplicated record. Its invariants require both exact record fingerprints and normalized prompt fingerprints to be disjoint across train and validation. The earlier generic `deterministic_train_validation_split` helper remains available for non-dataset callers, but Phase 3 dataset preparation MUST use the linkage-aware P3-007 boundary. P3-008 owns serialization of this evidence into the dataset manifest.
 
+
+### 2.12 Prepared-dataset manifest
+
+`DatasetManifest` is the deterministic audit envelope for one prepared training corpus. It consumes the already-produced P3-004 required-content report, P3-005 tokenizer-length report, P3-006 exact-deduplication report, and P3-007 linkage-safe split instead of recomputing those stages. Manifest creation MUST fail closed when stage counts, the configured language, seed, validation fraction, token bounds, truncation policy, or deduplication policy disagree. The canonical P3 manifest therefore proves that one coherent sequence of preparation decisions produced the recorded train/validation corpus.
+
+Source provenance is summarized from the original normalized input records as stable source ID + revision + license identities, with both input and final prepared-record counts. One source ID/revision MUST NOT silently carry conflicting license metadata. Code/config identity consists of the exact Git SHA/dirty state plus the SHA-256 and complete normalized `DataPreparationConfig`; the seed remains explicit at top level as well. The manifest stores every generic content-rejection, length-rejection, and duplicate reason counter, the canonical tokenizer repository/revision/class/chat-template digest, the measured and accepted token-length distributions, the requested/achieved split statistics, and compact P3-007 membership evidence.
+
+No prompt or response text is embedded in `dataset-manifest.json`. Instead, integrity is represented by SHA-256 checksums for the complete ordered input audit payload, the ordered unique-content fingerprint sequence, ordered train and validation content fingerprints, and the compact split-membership evidence. P3-006 record/prompt fingerprints remain visible in each membership entry, allowing split and leakage decisions to be audited without reading the example bodies. `dataset_manifest_json` is stable/sorted and `dataset_manifest_sha256` hashes the exact serialized bytes; `write_dataset_manifest` writes the file atomically.
+
+Contamination evidence is represented explicitly as `not_run`, `clean`, or `findings`. An empty findings collection MUST NOT imply a clean corpus unless one or more declared contamination checks actually ran. P3-008 defines storage only; P4-002 owns exact prompt/solution matching and high-overlap detection and will populate these generic finding records later. Every recorded finding must reference a fingerprint present in the prepared corpus.
+
+
 ---
 
 ## 3. Goals

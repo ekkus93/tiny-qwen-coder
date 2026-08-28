@@ -398,14 +398,14 @@ Acceptance criteria:
 
 ## P3-008 — Implement dataset manifest
 
-- [ ] language.
-- [ ] source IDs/revisions/licenses.
-- [ ] code/config/seed identity.
-- [ ] counts and rejection reasons.
-- [ ] dedup stats.
-- [ ] token stats.
-- [ ] fingerprints/checksums.
-- [ ] contamination findings.
+- [x] language.
+- [x] source IDs/revisions/licenses.
+- [x] code/config/seed identity.
+- [x] counts and rejection reasons.
+- [x] dedup stats.
+- [x] token stats.
+- [x] fingerprints/checksums.
+- [x] contamination findings.
 
 Acceptance criteria:
 
