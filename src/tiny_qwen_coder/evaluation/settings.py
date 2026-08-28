@@ -8,12 +8,9 @@ from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from tiny_qwen_coder.config import (
-    EvaluationConfig,
-    GenerationConfig,
-    load_yaml_mapping,
-    parse_generation_config,
-)
+import yaml
+
+from tiny_qwen_coder.config import EvaluationConfig
 from tiny_qwen_coder.reproducibility import SeedError, validate_seed
 
 _EVALUATION_SETTINGS_SCHEMA_VERSION = 1
@@ -30,6 +27,38 @@ class EvaluationSettingsError(ValueError):
 
 
 @dataclass(frozen=True, slots=True)
+class FrozenGenerationSettings:
+    """Exact decoding and prompt/template settings used for comparisons."""
+
+    decoding_strategy: str
+    temperature: float
+    top_p: float
+    top_k: int
+    max_new_tokens: int
+    stop_policy: str
+    prompt_version: str
+    chat_template_version: str
+
+    def __post_init__(self) -> None:
+        if self.decoding_strategy != "greedy":
+            raise EvaluationSettingsError("decoding_strategy must be greedy")
+        if self.temperature != 0.0:
+            raise EvaluationSettingsError("greedy generation requires temperature=0")
+        if self.top_p != 1.0:
+            raise EvaluationSettingsError("greedy generation requires top_p=1")
+        if self.top_k != 0:
+            raise EvaluationSettingsError("greedy generation requires top_k=0")
+        if self.max_new_tokens <= 0:
+            raise EvaluationSettingsError("max_new_tokens must be greater than zero")
+        if self.stop_policy != "eos_or_max_new_tokens":
+            raise EvaluationSettingsError("stop_policy must be eos_or_max_new_tokens")
+        if not self.prompt_version.strip():
+            raise EvaluationSettingsError("prompt_version must not be empty")
+        if not self.chat_template_version.strip():
+            raise EvaluationSettingsError("chat_template_version must not be empty")
+
+
+@dataclass(frozen=True, slots=True)
 class FrozenEvaluationSettings:
     """One immutable generation protocol used for base/adapter comparisons."""
 
@@ -38,7 +67,7 @@ class FrozenEvaluationSettings:
     settings_version: int
     frozen: bool
     seed: int
-    generation: GenerationConfig
+    generation: FrozenGenerationSettings
 
     def __post_init__(self) -> None:
         if self.schema_version != _EVALUATION_SETTINGS_SCHEMA_VERSION:
@@ -58,8 +87,17 @@ class FrozenEvaluationSettings:
             validate_seed(self.seed)
         except SeedError as exc:
             raise EvaluationSettingsError(str(exc)) from exc
-        if not isinstance(self.generation, GenerationConfig):
-            raise EvaluationSettingsError("generation must be a GenerationConfig")
+
+
+def _strict_mapping(value: object, *, context: str) -> dict[str, object]:
+    if not isinstance(value, Mapping):
+        raise EvaluationSettingsError(f"{context} must be a mapping")
+    result: dict[str, object] = {}
+    for key, item in value.items():
+        if not isinstance(key, str):
+            raise EvaluationSettingsError(f"{context} keys must be strings")
+        result[key] = item
+    return result
 
 
 def _validate_keys(
@@ -87,6 +125,13 @@ def _expect_int(mapping: Mapping[str, object], key: str, *, context: str) -> int
     return value
 
 
+def _expect_float(mapping: Mapping[str, object], key: str, *, context: str) -> float:
+    value = mapping[key]
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise EvaluationSettingsError(f"{context}.{key} must be a number")
+    return float(value)
+
+
 def _expect_str(mapping: Mapping[str, object], key: str, *, context: str) -> str:
     value = mapping[key]
     if not isinstance(value, str) or not value.strip():
@@ -101,13 +146,51 @@ def _expect_bool(mapping: Mapping[str, object], key: str, *, context: str) -> bo
     return value
 
 
+def _parse_generation(value: object) -> FrozenGenerationSettings:
+    context = "evaluation settings.generation"
+    mapping = _strict_mapping(value, context=context)
+    _validate_keys(
+        mapping,
+        required=frozenset(
+            {
+                "decoding_strategy",
+                "temperature",
+                "top_p",
+                "top_k",
+                "max_new_tokens",
+                "stop_policy",
+                "prompt_version",
+                "chat_template_version",
+            }
+        ),
+        context=context,
+    )
+    return FrozenGenerationSettings(
+        decoding_strategy=_expect_str(mapping, "decoding_strategy", context=context),
+        temperature=_expect_float(mapping, "temperature", context=context),
+        top_p=_expect_float(mapping, "top_p", context=context),
+        top_k=_expect_int(mapping, "top_k", context=context),
+        max_new_tokens=_expect_int(mapping, "max_new_tokens", context=context),
+        stop_policy=_expect_str(mapping, "stop_policy", context=context),
+        prompt_version=_expect_str(mapping, "prompt_version", context=context),
+        chat_template_version=_expect_str(
+            mapping,
+            "chat_template_version",
+            context=context,
+        ),
+    )
+
+
 def load_evaluation_settings(path: Path) -> FrozenEvaluationSettings:
     """Load one strict versioned evaluation-settings YAML document."""
 
     try:
-        mapping = load_yaml_mapping(path)
-    except ValueError as exc:
-        raise EvaluationSettingsError(str(exc)) from exc
+        raw: object = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise EvaluationSettingsError(f"could not read evaluation settings {path}: {exc}") from exc
+    except yaml.YAMLError as exc:
+        raise EvaluationSettingsError(f"invalid YAML in evaluation settings {path}: {exc}") from exc
+    mapping = _strict_mapping(raw, context="evaluation settings")
     context = "evaluation settings"
     _validate_keys(
         mapping,
@@ -123,20 +206,13 @@ def load_evaluation_settings(path: Path) -> FrozenEvaluationSettings:
         ),
         context=context,
     )
-    try:
-        generation = parse_generation_config(
-            mapping["generation"],
-            context="evaluation settings.generation",
-        )
-    except ValueError as exc:
-        raise EvaluationSettingsError(str(exc)) from exc
     return FrozenEvaluationSettings(
         schema_version=_expect_int(mapping, "schema_version", context=context),
         settings_id=_expect_str(mapping, "settings_id", context=context),
         settings_version=_expect_int(mapping, "settings_version", context=context),
         frozen=_expect_bool(mapping, "frozen", context=context),
         seed=_expect_int(mapping, "seed", context=context),
-        generation=generation,
+        generation=_parse_generation(mapping["generation"]),
     )
 
 
@@ -192,8 +268,19 @@ def validate_evaluation_config_settings(
         raise EvaluationSettingsError(
             f"evaluation seed {config.seed} does not match frozen seed {settings.seed}"
         )
-    if config.generation != settings.generation:
+    generation = config.generation
+    frozen_generation = settings.generation
+    compared_fields = (
+        ("temperature", generation.temperature, frozen_generation.temperature),
+        ("top_p", generation.top_p, frozen_generation.top_p),
+        ("top_k", generation.top_k, frozen_generation.top_k),
+        ("max_new_tokens", generation.max_new_tokens, frozen_generation.max_new_tokens),
+        ("prompt_version", generation.prompt_version, frozen_generation.prompt_version),
+    )
+    drift = [name for name, actual, expected in compared_fields if actual != expected]
+    if drift:
         raise EvaluationSettingsError(
-            "evaluation generation settings do not match the frozen comparison protocol"
+            "evaluation generation settings do not match the frozen comparison protocol: "
+            + ", ".join(drift)
         )
     return evaluation_settings_sha256(settings)
