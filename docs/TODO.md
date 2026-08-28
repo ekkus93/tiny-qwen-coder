@@ -378,9 +378,9 @@ Acceptance criteria:
 
 ## P3-006 — Implement exact deduplication
 
-- [ ] normalized prompt/response hashes.
-- [ ] source-ID duplicate handling.
-- [ ] duplicate statistics.
+- [x] normalized prompt/response hashes.
+- [x] source-ID duplicate handling.
+- [x] duplicate statistics.
 
 Acceptance criteria:
 

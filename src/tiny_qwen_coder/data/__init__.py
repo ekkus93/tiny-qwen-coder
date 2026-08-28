@@ -4,6 +4,18 @@ from __future__ import annotations
 
 from typing import NoReturn
 
+from tiny_qwen_coder.data.deduplication import (
+    DeduplicationError,
+    DuplicateReason,
+    DuplicateReasonCount,
+    DuplicateTrainingRecord,
+    ExactDeduplicationReport,
+    RecordContentFingerprint,
+    SourceRecordIdentity,
+    deduplicate_exact_records,
+    normalized_record_fingerprint,
+    source_record_identity,
+)
 from tiny_qwen_coder.data.filtering import (
     ContentRejectionReason,
     RejectedTrainingRecord,
@@ -48,6 +60,11 @@ from tiny_qwen_coder.data.splitting import (
 __all__ = [
     "AcceptedTokenLength",
     "ContentRejectionReason",
+    "DeduplicationError",
+    "DuplicateReason",
+    "DuplicateReasonCount",
+    "DuplicateTrainingRecord",
+    "ExactDeduplicationReport",
     "LengthFilterConfig",
     "LengthFilteringError",
     "LengthRejectedTrainingRecord",
@@ -56,10 +73,12 @@ __all__ = [
     "LicenseMetadata",
     "MessageRole",
     "NormalizedTrainingRecord",
+    "RecordContentFingerprint",
     "RejectedTrainingRecord",
     "RejectionReasonCount",
     "RequiredContentFilterReport",
     "SourceProvenance",
+    "SourceRecordIdentity",
     "TokenLengthCount",
     "TokenLengthDistribution",
     "TokenLengthFilterReport",
@@ -68,6 +87,7 @@ __all__ = [
     "TruncationPolicy",
     "ValidationMetadata",
     "ValidationResult",
+    "deduplicate_exact_records",
     "deterministic_train_validation_split",
     "filter_by_token_length",
     "filter_required_content",
@@ -75,8 +95,10 @@ __all__ = [
     "load_canonical_tokenizer",
     "normalize_record_text",
     "normalize_training_text",
+    "normalized_record_fingerprint",
     "prepare_data",
     "single_turn_messages",
+    "source_record_identity",
     "token_length_distribution",
     "tokenize_training_record",
 ]

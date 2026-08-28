@@ -155,6 +155,16 @@ P3-004 does not tokenize, truncate, deduplicate, inspect programming-language sy
 
 Length reports retain deterministic rejection counts plus exact input and accepted token-length histograms. They also record minimum, maximum, mean, and nearest-rank p50/p90/p95/p99 statistics. Filtering is programming-language independent; source-specific validation, deduplication, and splitting remain later Phase 3 responsibilities.
 
+### 2.10 Exact deduplication
+
+`deduplicate_exact_records` is the deterministic deduplication boundary applied after generic content normalization and tokenizer-aware length filtering and before train/validation splitting. Input order is authoritative: the first normalized occurrence is retained and later exact duplicates are removed with auditable provenance.
+
+Content identity is the SHA-256 pair of the normalized prompt history and normalized final assistant response. The prompt history contains every message except the final assistant turn, so system messages and earlier assistant turns in multi-turn examples remain part of the prompt identity. Hashing reuses P3-004's conservative normalization: a leading BOM and CRLF/CR line endings canonicalize before hashing, while otherwise meaningful whitespace remains unchanged. Exact model-visible content is deduplicated independently of source or programming-language metadata because those metadata fields are not passed to the model as training tokens.
+
+When upstream `record_id` is available, source-record identity is the tuple `(source_id, revision, split, record_id)`. Repeating that key with identical normalized content is reported as both an exact-content duplicate and a source-identity duplicate. Reusing the same source-record identity with different normalized content is an integrity error and MUST fail closed rather than silently choose one version. Source identities are tracked for every input, including records already removed as content duplicates of another source.
+
+The deduplication report retains the unique records and their prompt/response/combined fingerprints, each removed record's compact provenance and first-occurrence references, plus deterministic per-reason duplicate statistics. P3-006 does not shuffle or choose split membership; P3-007 consumes the already-deduplicated records. Therefore exact duplicate content cannot be assigned to both train and validation by the downstream splitter.
+
 ---
 
 ## 3. Goals
