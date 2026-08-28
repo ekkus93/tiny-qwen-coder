@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
 from tiny_qwen_coder.data import apply_language_validators
