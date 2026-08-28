@@ -18,7 +18,11 @@ from uuid import uuid4
 import torch
 import yaml
 
-from tiny_qwen_coder.identities import AdapterIdentity, BaseModelIdentity, ManifestError
+from tiny_qwen_coder.identities import (
+    AdapterIdentity as AdapterIdentity,
+    BaseModelIdentity as BaseModelIdentity,
+    ManifestError as ManifestError,
+)
 from tiny_qwen_coder.reproducibility import SeedError, validate_seed
 
 RunKind: TypeAlias = Literal["training", "evaluation"]
