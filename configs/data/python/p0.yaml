@@ -1,0 +1,15 @@
+schema_version: 1
+id: python-p0
+language: python
+target_total: 40000
+min_tokens: 1
+max_tokens: 2048
+sources:
+  - id: olmo-starcoder-python-instruct
+    source_config: configs/data/python/olmo_starcoder_python_instruct.yaml
+    target_accepted: 30000
+  - id: magicoder-oss-instruct-75k
+    source_config: configs/data/python/magicoder_oss_instruct_75k.yaml
+    target_accepted: 10000
+fill_shortfall_from: olmo-starcoder-python-instruct
+output_jsonl: data/python/p0/accepted.jsonl

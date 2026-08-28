@@ -146,6 +146,29 @@ def _normalize_row(
     )
 
 
+def iter_magicoder_python(
+    source: DatasetSourceConfig,
+    language: LanguageConfig,
+    *,
+    dataset_loader: DatasetRowsLoader = _load_huggingface_rows,
+) -> Iterable[NormalizedTrainingRecord]:
+    """Stream normalized rows from the pinned Magicoder source in upstream order."""
+
+    _validate_source_contract(source, language)
+    rows = dataset_loader(
+        source.dataset.repository,
+        revision=source.dataset.revision,
+        split=source.dataset.split,
+        streaming=True,
+    )
+    for raw_row in rows:
+        row = _expect_mapping(raw_row, field_name="dataset row")
+        selected_language = _expect_str(row, source.selection.field, field_name="row.lang")
+        if selected_language != source.selection.equals:
+            continue
+        yield _normalize_row(row, source=source, language=language)
+
+
 def load_magicoder_python(
     source: DatasetSourceConfig,
     language: LanguageConfig,
@@ -153,25 +176,18 @@ def load_magicoder_python(
     max_records: int | None = None,
     dataset_loader: DatasetRowsLoader = _load_huggingface_rows,
 ) -> tuple[NormalizedTrainingRecord, ...]:
-    """Load the pinned Magicoder source and retain only rows labeled ``python``."""
+    """Load a bounded tuple of normalized Magicoder Python records."""
 
-    _validate_source_contract(source, language)
     if max_records is not None and max_records <= 0:
         raise MagicoderPythonLoaderError("max_records must be greater than zero when provided")
 
-    rows = dataset_loader(
-        source.dataset.repository,
-        revision=source.dataset.revision,
-        split=source.dataset.split,
-        streaming=True,
-    )
     records: list[NormalizedTrainingRecord] = []
-    for raw_row in rows:
-        row = _expect_mapping(raw_row, field_name="dataset row")
-        selected_language = _expect_str(row, source.selection.field, field_name="row.lang")
-        if selected_language != source.selection.equals:
-            continue
-        records.append(_normalize_row(row, source=source, language=language))
+    for record in iter_magicoder_python(
+        source,
+        language,
+        dataset_loader=dataset_loader,
+    ):
+        records.append(record)
         if max_records is not None and len(records) >= max_records:
             break
     return tuple(records)
