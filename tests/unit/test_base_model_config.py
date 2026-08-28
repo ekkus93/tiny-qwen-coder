@@ -1,7 +1,7 @@
 """Contract tests for the canonical shared base-model configuration."""
 
-from pathlib import Path
 import re
+from pathlib import Path
 
 CONFIG_PATH = Path("configs/base/qwen35-0.8b.yaml")
 EXPECTED_REPOSITORY = "Qwen/Qwen3.5-0.8B"
