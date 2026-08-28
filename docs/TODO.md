@@ -1,6 +1,8 @@
 # Tiny Qwen Coder — TODO
 
-This TODO operationalizes `docs/SPEC.md` into phased, testable work items.
+This TODO operationalizes `docs/SPEC.md` into phased, testable work items for a shared `Qwen/Qwen3.5-0.8B` base model with interchangeable programming-language LoRA adapters.
+
+Python is the first adapter. TypeScript and Rust follow after the Python pipeline proves the architecture.
 
 Status convention:
 
@@ -9,20 +11,20 @@ Status convention:
 - `[x]` complete
 - `[!]` blocked
 
-Task IDs are stable and SHOULD be referenced in commits and experiment reports.
+Task IDs are stable once implementation begins and SHOULD be referenced in commits and experiment reports.
 
 ---
 
 # Phase 0 — Repository Bootstrap
 
-Goal: establish a reproducible Python project with quality gates before adding model-training logic.
+Goal: establish a reproducible, language-neutral Python project with quality gates before adding model-training logic.
 
 ## P0-001 — Initialize Python project
 
 - [ ] Create `pyproject.toml`.
-- [ ] Use `uv` for environment and dependency management.
-- [ ] Define the supported Python version.
-- [ ] Create the `src/tiny_qwen_coder/` package.
+- [ ] Use `uv` for environment/dependency management.
+- [ ] Define supported Python version.
+- [ ] Create `src/tiny_qwen_coder/`.
 - [ ] Create `tests/`.
 - [ ] Generate and commit `uv.lock`.
 
@@ -31,7 +33,7 @@ Acceptance criteria:
 - `uv sync --frozen` succeeds from a clean checkout.
 - `python -c "import tiny_qwen_coder"` succeeds inside the project environment.
 
-## P0-002 — Add project dependencies
+## P0-002 — Add core dependencies
 
 - [ ] Add PyTorch.
 - [ ] Add Transformers.
@@ -40,52 +42,55 @@ Acceptance criteria:
 - [ ] Add TRL.
 - [ ] Add Accelerate.
 - [ ] Add test/lint/type-check dependencies.
-- [ ] Record dependency versions through `uv.lock`.
+- [ ] Pin through `uv.lock`.
 
 Acceptance criteria:
 
-- The environment resolves from scratch.
-- A dependency-version diagnostic command prints the versions used by an experiment.
+- Environment resolves from scratch.
+- A diagnostic command can report dependency versions.
 
-## P0-003 — Establish repository layout
+## P0-003 — Establish language-neutral repository layout
 
+- [ ] Add `configs/base/`.
+- [ ] Add `configs/languages/`.
 - [ ] Add `configs/data/`.
 - [ ] Add `configs/train/`.
 - [ ] Add `configs/eval/`.
-- [ ] Add `scripts/`.
-- [ ] Add package modules for configuration, data, training, evaluation, and reporting.
+- [ ] Add `configs/runtime/`.
+- [ ] Add package modules for model, adapters, languages, data, training, evaluation, runtime, and reporting.
+- [ ] Add thin scripts for model inspection, data preparation, training, evaluation, inference, and serving.
 - [ ] Add `tests/unit/`, `tests/integration/`, and `tests/fixtures/`.
 
 Acceptance criteria:
 
-- Layout matches the intent of `docs/SPEC.md`.
-- Scripts contain thin entry points and delegate substantive logic to package modules.
+- Layout matches `docs/SPEC.md`.
+- No Python-only script architecture such as `train_python.py` is introduced.
+- Generic scripts delegate substantive logic to package modules.
 
 ## P0-004 — Add `.gitignore`
 
-- [ ] Ignore `.venv/`.
-- [ ] Ignore Python caches.
+- [ ] Ignore `.venv/` and Python caches.
 - [ ] Ignore local Hugging Face caches.
-- [ ] Ignore `data/` generated artifacts.
-- [ ] Ignore `artifacts/` generated artifacts.
-- [ ] Ignore `outputs/` checkpoints/adapters.
-- [ ] Ignore local benchmark sandboxes and logs.
+- [ ] Ignore generated `data/`.
+- [ ] Ignore generated `artifacts/`.
+- [ ] Ignore `outputs/` adapters/checkpoints.
+- [ ] Ignore benchmark sandboxes/logs.
 
 Acceptance criteria:
 
-- A representative local training/evaluation run does not leave large/generated files staged by default.
+- Representative training/evaluation artifacts are not staged by default.
 
-## P0-005 — Add developer quality gates
+## P0-005 — Add quality gates
 
 - [ ] Configure Ruff formatting.
 - [ ] Configure Ruff linting.
-- [ ] Select and configure a static type checker.
+- [ ] Select/configure mypy or pyright.
 - [ ] Configure pytest.
-- [ ] Add a minimal smoke test.
+- [ ] Add package smoke test.
 
 Acceptance criteria:
 
-- Formatting check passes.
+- Format check passes.
 - Lint passes.
 - Type checking passes.
 - Pytest passes.
@@ -93,1238 +98,1452 @@ Acceptance criteria:
 
 ## P0-006 — Add README bootstrap documentation
 
-- [ ] Explain the project objective.
-- [ ] Explain that P0 starts from `Qwen/Qwen3.5-0.8B`.
-- [ ] Explain that the Base checkpoint is a later comparison.
+- [ ] Explain the one-base/many-adapters architecture.
+- [ ] Explain Python-first scope.
+- [ ] Explain planned TypeScript/Rust adapters.
 - [ ] Document environment setup.
-- [ ] Document CPU-only development versus GPU training expectations.
+- [ ] Explain CPU development versus GPU training.
 - [ ] Link `docs/SPEC.md` and `docs/TODO.md`.
 
 Acceptance criteria:
 
-- A new developer can create the environment and run the quality gates using only the README.
+- A new developer can set up the repo and run quality gates from README alone.
 
 ## P0-007 — Add bounded GitHub Actions CI
 
-- [ ] Run `uv sync --frozen`.
-- [ ] Run format check.
-- [ ] Run lint.
-- [ ] Run type checking.
-- [ ] Run CPU-safe tests.
-- [ ] Avoid downloading/training Qwen in required CI.
+- [ ] `uv sync --frozen`.
+- [ ] Format check.
+- [ ] Lint.
+- [ ] Type check.
+- [ ] CPU-safe tests.
+- [ ] Avoid required full-model download/training.
 
 Acceptance criteria:
 
 - CI passes on a clean CPU runner.
-- No required CI job assumes a GPU.
+- Required CI assumes no GPU.
 
 ---
 
-# Phase 1 — Configuration and Reproducibility Foundation
+# Phase 1 — Canonical Base Model and Configuration Contract
 
-Goal: make experiments configuration-driven and auditable.
+Goal: make the shared base-model identity immutable and make all experiments configuration-driven.
 
-## P1-001 — Define configuration schema
+## P1-001 — Define canonical base-model config
 
-- [ ] Define data-preparation configuration.
-- [ ] Define training configuration.
-- [ ] Define evaluation configuration.
-- [ ] Define run/output configuration.
-- [ ] Validate unknown/invalid fields instead of silently ignoring them.
-
-Acceptance criteria:
-
-- Invalid configuration fails with a clear error before expensive work starts.
-- Equivalent config files parse deterministically.
-
-## P1-002 — Implement run identity
-
-- [ ] Generate or accept a stable run ID.
-- [ ] Record Git commit SHA when available.
-- [ ] Record timestamp.
-- [ ] Record host/GPU metadata.
-- [ ] Record dependency versions.
-- [ ] Record seed.
+- [ ] Add `configs/base/qwen35-0.8b.yaml`.
+- [ ] Record repository `Qwen/Qwen3.5-0.8B`.
+- [ ] Resolve/pin exact Hugging Face revision before canonical training.
+- [ ] Record tokenizer revision policy.
+- [ ] Record precision policy.
 
 Acceptance criteria:
 
-- Every training/evaluation run emits a machine-readable manifest with a unique identity.
+- Model identity is represented by repository + exact revision, not model name alone.
 
-## P1-003 — Implement deterministic seeding
+## P1-002 — Define language config schema
 
-- [ ] Seed Python random.
-- [ ] Seed NumPy if used.
-- [ ] Seed PyTorch CPU/GPU.
-- [ ] Configure deterministic behavior where practical.
-- [ ] Document unavoidable nondeterminism.
-
-Acceptance criteria:
-
-- Dataset shuffling/splitting is repeatable with the same seed.
-
-## P1-004 — Implement environment report
-
-- [ ] Record Python version.
-- [ ] Record PyTorch version.
-- [ ] Record CUDA version.
-- [ ] Record Transformers/TRL/PEFT versions.
-- [ ] Record GPU name and total VRAM.
+- [ ] Stable language ID.
+- [ ] aliases/extensions.
+- [ ] repository-detection signals.
+- [ ] system prompt/version.
+- [ ] data-source config references.
+- [ ] evaluation config references.
+- [ ] language-specific validator/executor hooks.
 
 Acceptance criteria:
 
-- The report can be generated without starting a training run.
+- Python, TypeScript, and Rust configs can be represented without changing the schema.
+
+## P1-003 — Define training/evaluation/run config schemas
+
+- [ ] Data-preparation schema.
+- [ ] LoRA training schema.
+- [ ] Evaluation schema.
+- [ ] Runtime/adapter-selection schema.
+- [ ] Strict unknown-field handling.
+
+Acceptance criteria:
+
+- Invalid config fails before expensive work starts.
+- Equivalent config parses deterministically.
+
+## P1-004 — Implement run identity and manifests
+
+- [ ] Stable/generated run ID.
+- [ ] Git commit SHA.
+- [ ] timestamp.
+- [ ] base model/revision.
+- [ ] language.
+- [ ] adapter family/ID.
+- [ ] seed.
+- [ ] dependency versions.
+- [ ] host/GPU metadata.
+
+Acceptance criteria:
+
+- Every training/evaluation run emits a machine-readable manifest.
+
+## P1-005 — Implement deterministic seeding
+
+- [ ] Python random.
+- [ ] NumPy if used.
+- [ ] PyTorch CPU/GPU.
+- [ ] document unavoidable nondeterminism.
+
+Acceptance criteria:
+
+- Dataset shuffle/split is repeatable with the same inputs/seed.
+
+## P1-006 — Implement environment report
+
+- [ ] Python version.
+- [ ] PyTorch/CUDA.
+- [ ] Transformers/TRL/PEFT/Datasets/Accelerate.
+- [ ] GPU and VRAM.
+
+Acceptance criteria:
+
+- Report can be generated without training.
 
 ---
 
-# Phase 2 — Model Inspection and Loading
+# Phase 2 — Model Inspection and Adapter Compatibility Foundation
 
-Goal: inspect the actual Qwen3.5 architecture before committing to LoRA targets.
+Goal: understand the actual Qwen3.5 architecture and establish a robust adapter contract before training.
 
 ## P2-001 — Implement model inspection utility
 
 - [ ] Add `scripts/inspect_model.py`.
-- [ ] Load tokenizer/model metadata.
-- [ ] Report model class.
-- [ ] Report total parameter count.
-- [ ] Report module hierarchy relevant to LoRA.
-- [ ] Report tokenizer/chat-template information.
-- [ ] Record model revision/commit where available.
+- [ ] Report model class and parameter count.
+- [ ] Enumerate module hierarchy relevant to LoRA.
+- [ ] Report tokenizer/chat-template metadata.
+- [ ] Record exact upstream revision.
 
 Acceptance criteria:
 
-- Running the utility on `Qwen/Qwen3.5-0.8B` produces a stable machine-readable and human-readable report.
+- Utility produces human- and machine-readable reports for the canonical base.
 
 ## P2-002 — Discover PEFT target modules
 
 - [ ] Enumerate linear/projection modules.
-- [ ] Identify conventional attention projection names that actually exist.
-- [ ] Identify MLP projections that actually exist.
-- [ ] Identify hybrid/DeltaNet-specific linear modules.
-- [ ] Define a selective-target candidate from observed module names.
+- [ ] Identify full-attention projections.
+- [ ] Identify MLP projections.
+- [ ] Identify hybrid/DeltaNet-specific modules.
+- [ ] Define selective-target candidate from observed names.
 
 Acceptance criteria:
 
-- No LoRA target in P0 is chosen solely by copying a Llama/Qwen recipe without validating it against the loaded model.
+- No canonical target list is copied blindly from another architecture.
 
-## P2-003 — Validate `all-linear` compatibility
+## P2-003 — Validate `all-linear` strategy
 
-- [ ] Build a PEFT configuration using `target_modules="all-linear"` or supported equivalent.
-- [ ] Verify which modules are adapted.
+- [ ] Instantiate PEFT with `target_modules="all-linear"` or supported equivalent.
+- [ ] Record matched modules.
 - [ ] Record trainable parameter count.
-- [ ] Add a unit/integration test around target discovery that does not require full GPU training.
 
 Acceptance criteria:
 
-- Selective and all-linear strategies can be instantiated and compared later.
+- Selective and all-linear strategies can be compared later.
 
-## P2-004 — Validate chat-template loss masking
+## P2-004 — Define adapter-manifest schema
 
-- [ ] Test the pinned tokenizer chat template.
-- [ ] Verify whether TRL `assistant_only_loss=True` yields a valid assistant mask.
-- [ ] Add a test with system/user/assistant tokens.
-- [ ] If unsupported, implement and test the completion-only fallback defined in `SPEC.md`.
-
-Acceptance criteria:
-
-- The project can prove which tokens receive loss.
-- It does not silently train user/system tokens while claiming assistant-only SFT.
-
-## P2-005 — Add model load smoke test
-
-- [ ] Load Qwen3.5-0.8B in BF16 on a compatible GPU.
-- [ ] Generate a deterministic/simple completion.
-- [ ] Record actual base-model memory footprint.
+- [ ] adapter ID.
+- [ ] family.
+- [ ] language.
+- [ ] base repository/revision.
+- [ ] tokenizer/chat-template identity.
+- [ ] training Git SHA/config hash.
+- [ ] dataset manifest IDs.
+- [ ] LoRA hyperparameters/targets.
+- [ ] trainable parameters.
+- [ ] evaluation artifact references.
 
 Acceptance criteria:
 
-- Model loads and generates successfully with the pinned stack.
+- Manifest can represent Python, TypeScript, Rust, and future language adapters.
+
+## P2-005 — Implement compatibility validator
+
+- [ ] Compare adapter base repository.
+- [ ] Compare exact base revision.
+- [ ] Compare tokenizer/template identity where required.
+- [ ] Validate expected LoRA architecture metadata.
+- [ ] Fail closed on base revision mismatch by default.
+
+Acceptance criteria:
+
+- Synthetic incompatible adapter manifests are rejected deterministically.
+
+## P2-006 — Validate chat-template loss masking
+
+- [ ] Test pinned Qwen chat template.
+- [ ] Verify TRL assistant-only mask behavior.
+- [ ] Add system/user/assistant token test.
+- [ ] Implement tested completion-only fallback if necessary.
+
+Acceptance criteria:
+
+- Project can prove which tokens receive loss.
+
+## P2-007 — Add canonical model-load smoke test
+
+- [ ] Load Qwen3.5-0.8B in BF16 on compatible GPU.
+- [ ] Generate deterministic/simple completion.
+- [ ] Record base-model memory footprint.
+
+Acceptance criteria:
+
+- Canonical base loads/generates successfully with pinned stack.
 
 ---
 
-# Phase 3 — Dataset Pipeline
+# Phase 3 — Generic Language and Dataset Framework
 
-Goal: construct a deterministic, auditable Python instruction SFT corpus.
+Goal: build reusable infrastructure before embedding Python-specific assumptions.
 
-## P3-001 — Add upstream dataset adapters
+## P3-001 — Define `LanguageSpec`/language plugin interface
 
-- [ ] Add loader for `OLMo-Coding/starcoder-python-instruct`.
-- [ ] Add loader for `ise-uiuc/Magicoder-OSS-Instruct-75K`.
-- [ ] Normalize source fields behind a common internal schema.
-- [ ] Preserve source IDs and provenance fields.
-
-Acceptance criteria:
-
-- Small streamed/sampled fixtures from each source normalize into the same internal representation.
-
-## P3-002 — Pin/record upstream revisions
-
-- [ ] Record Hugging Face dataset revision or commit information when available.
-- [ ] Fail or warn when a requested pinned revision cannot be resolved.
-- [ ] Store revision information in the dataset manifest.
+- [ ] Stable ID and aliases.
+- [ ] extensions/signals.
+- [ ] data adapters.
+- [ ] validators.
+- [ ] protected benchmarks.
+- [ ] execution/evaluation hooks.
 
 Acceptance criteria:
 
-- A prepared dataset identifies the exact upstream versions used as closely as the upstream API permits.
+- Dummy Python/TypeScript/Rust specs can be registered through the same interface.
 
-## P3-003 — Filter Python 2
+## P3-002 — Implement language registry
 
-- [ ] Use OLMo source metadata to retain Python 3 rows.
-- [ ] Apply equivalent source-specific Python-language/version filters to Magicoder where possible.
-- [ ] Record rejection counts.
-
-Acceptance criteria:
-
-- Known Python 2-tagged examples cannot enter the P0 training set.
-
-## P3-004 — Validate required content
-
-- [ ] Reject empty instructions.
-- [ ] Reject empty responses.
-- [ ] Reject malformed records.
-- [ ] Normalize line endings and obvious encoding artifacts where safe.
-- [ ] Record each rejection reason.
+- [ ] Register language by ID.
+- [ ] Resolve aliases.
+- [ ] reject unknown languages clearly.
+- [ ] support listing registered languages.
 
 Acceptance criteria:
 
-- Every accepted SFT example has a non-empty user instruction and assistant response.
+- Generic commands select language through registry/config rather than `if python` logic spread across modules.
 
-## P3-005 — Implement length filtering
+## P3-003 — Define normalized training-record schema
 
-- [ ] Tokenize with the actual Qwen tokenizer/template.
-- [ ] Record token-length distributions.
-- [ ] Enforce configurable min/max thresholds.
-- [ ] Ensure P0 examples fit the configured 2,048-token training sequence or have an explicit truncation policy.
+- [ ] messages/system-user-assistant representation.
+- [ ] language.
+- [ ] source ID/revision.
+- [ ] provenance/license metadata.
+- [ ] optional validation metadata.
 
 Acceptance criteria:
 
-- No example is silently truncated without the configured policy and reporting.
+- Multiple upstream source formats normalize to one internal representation.
+
+## P3-004 — Implement generic required-content filtering
+
+- [ ] Empty prompt rejection.
+- [ ] Empty response rejection.
+- [ ] malformed record rejection.
+- [ ] safe line-ending/encoding normalization.
+- [ ] rejection reason accounting.
+
+Acceptance criteria:
+
+- Filters operate independently of programming language.
+
+## P3-005 — Implement tokenizer-aware length filtering
+
+- [ ] Use canonical Qwen tokenizer/template.
+- [ ] Record token-length distribution.
+- [ ] configurable min/max.
+- [ ] explicit truncation policy only.
+
+Acceptance criteria:
+
+- No example is silently truncated.
 
 ## P3-006 — Implement exact deduplication
 
-- [ ] Deduplicate exact normalized prompt/response pairs.
-- [ ] Detect duplicate source IDs when applicable.
-- [ ] Record duplicate counts.
+- [ ] normalized prompt/response hashes.
+- [ ] source-ID duplicate handling.
+- [ ] duplicate statistics.
 
 Acceptance criteria:
 
-- Exact duplicate records cannot appear in both train and validation splits.
+- Exact duplicates cannot cross train/validation splits.
 
-## P3-007 — Implement conservative syntax-quality checks
+## P3-007 — Implement deterministic splitting
 
-- [ ] Detect standalone Python responses that can be safely passed to `ast.parse()`.
-- [ ] Record syntax-validity metadata.
-- [ ] Reject clearly broken standalone-code examples under a configurable policy.
-- [ ] Preserve legitimate fragments/diffs/REPL snippets instead of blindly parsing everything as a module.
-
-Acceptance criteria:
-
-- Syntax filtering improves quality without systematically eliminating valid non-module examples.
-
-## P3-008 — Normalize to conversational SFT format
-
-- [ ] Add versioned system prompt.
-- [ ] Map instruction to `user`.
-- [ ] Map solution to `assistant`.
-- [ ] Preserve provenance separately from training messages.
+- [ ] shuffle with configured seed.
+- [ ] split after deduplication.
+- [ ] prevent linked duplicates crossing split.
 
 Acceptance criteria:
 
-- Records can be rendered through the exact Qwen chat template used during training.
+- Same inputs/config/seed produce same membership.
 
-## P3-009 — Build deterministic split logic
+## P3-008 — Implement dataset manifest
 
-- [ ] Shuffle deterministically with configured seed.
-- [ ] Split after deduplication.
-- [ ] Default P0 split to 95/5 unless config changes it.
-- [ ] Ensure source-linked duplicates do not cross split boundaries.
-
-Acceptance criteria:
-
-- Re-running the same revision/config/seed yields the same split membership.
-
-## P3-010 — Create P0 dataset composition
-
-Target:
-
-- approximately 30k accepted OLMo Python3 rows
-- approximately 10k accepted Magicoder Python rows
-- approximately 40k total before 95/5 split
-
-Tasks:
-
-- [ ] Build the source-selection policy.
-- [ ] Apply filtering before final count.
-- [ ] If Magicoder yields fewer accepted Python examples than the target, document the shortfall and fill only according to configured policy.
-
-Acceptance criteria:
-
-- Final counts are reported from actual accepted data, not assumed targets.
-
-## P3-011 — Emit dataset manifest
-
-- [ ] Source IDs and revisions.
-- [ ] Licenses as reported upstream.
-- [ ] seed/config hash.
-- [ ] source row counts.
-- [ ] rejection counts by reason.
-- [ ] accepted counts.
-- [ ] train/validation counts.
+- [ ] language.
+- [ ] source IDs/revisions/licenses.
+- [ ] code/config/seed identity.
+- [ ] counts and rejection reasons.
 - [ ] dedup stats.
-- [ ] token-length stats.
-- [ ] dataset fingerprints/checksums where available.
+- [ ] token stats.
+- [ ] fingerprints/checksums.
+- [ ] contamination findings.
 
 Acceptance criteria:
 
-- Every prepared dataset can be audited without examining the entire generated corpus.
+- Prepared corpus can be audited without reading all examples.
 
-## P3-012 — Add dataset pipeline tests
+## P3-009 — Add dataset-pipeline tests
 
-- [ ] Unit tests for source normalization.
-- [ ] Unit tests for Python 2 exclusion.
-- [ ] Unit tests for length filtering.
-- [ ] Unit tests for deduplication.
-- [ ] Unit tests for split determinism.
-- [ ] Unit tests for syntax-policy edge cases.
-- [ ] End-to-end small-fixture preparation test.
+- [ ] normalization.
+- [ ] length filtering.
+- [ ] dedup.
+- [ ] deterministic split.
+- [ ] manifest generation.
+- [ ] plugin-specific validation hook.
 
 Acceptance criteria:
 
-- CPU-only tests validate the pipeline without downloading the full dataset.
+- CPU-only fixtures validate the generic pipeline.
 
 ---
 
-# Phase 4 — Benchmark Integrity and Baseline Evaluator
+# Phase 4 — Generic Evaluation and Execution Framework
 
-Goal: freeze meaningful evaluation before fine-tuning.
+Goal: build evaluation infrastructure reusable across languages before Python fine-tuning.
 
-## P4-001 — Create evaluation-only dataset registry
+## P4-001 — Create protected benchmark registry
 
-- [ ] Register HumanEval as evaluation-only.
-- [ ] Register MBPP as evaluation-only.
-- [ ] Add mechanism for future protected datasets.
+- [ ] Register protected datasets per language.
+- [ ] Prevent accidental use by normal training configs.
 
 Acceptance criteria:
 
-- Training configuration cannot intentionally select protected datasets without an explicit hard failure or override that is impossible to mistake for a normal run.
+- Synthetic attempts to select protected benchmarks for SFT fail clearly.
 
 ## P4-002 — Add contamination checks
 
-- [ ] Exact normalized prompt matching.
-- [ ] Exact normalized solution/code matching where permitted.
-- [ ] High-overlap/suspicious-match reporting.
-- [ ] Record contamination findings in the dataset manifest.
+- [ ] exact normalized prompt matching.
+- [ ] exact normalized solution/code matching where possible.
+- [ ] suspicious high-overlap reporting.
 
 Acceptance criteria:
 
-- Known exact benchmark copies inserted into a synthetic fixture are detected.
+- Injected benchmark copies in fixtures are detected.
 
-## P4-003 — Implement HumanEval evaluator
+## P4-003 — Implement constrained execution harness
 
-- [ ] Select a maintained benchmark implementation.
-- [ ] Pin version/revision.
-- [ ] Normalize prompt generation.
-- [ ] Execute generated solutions in a constrained environment.
-- [ ] Record per-problem and aggregate results.
-
-Acceptance criteria:
-
-- Repeated runs with deterministic decoding/configuration produce reproducible results within expected framework behavior.
-
-## P4-004 — Implement MBPP evaluator
-
-- [ ] Select a maintained benchmark implementation.
-- [ ] Pin version/revision.
-- [ ] Execute generated solutions against tests in a constrained environment.
-- [ ] Record per-problem and aggregate results.
+- [ ] Disposable work directory/container.
+- [ ] timeout.
+- [ ] CPU/memory bounds where practical.
+- [ ] network off by default.
+- [ ] no host credentials.
+- [ ] stdout/stderr/status capture.
 
 Acceptance criteria:
 
-- Same reporting schema as HumanEval where practical.
+- Deliberately looping/malicious synthetic candidates cannot trivially compromise or indefinitely hang the host.
 
-## P4-005 — Build custom Python evaluation suite
+## P4-004 — Define common evaluation result schema
 
-Cover representative tasks involving:
-
-- [ ] standard-library data transformations
-- [ ] `pathlib`
-- [ ] JSON
-- [ ] regular expressions
-- [ ] dataclasses
-- [ ] typing
-- [ ] iterators/generators
-- [ ] decorators
-- [ ] context managers
-- [ ] exceptions
-- [ ] async/await
-- [ ] subprocess logic
-- [ ] SQLite
-- [ ] pytest-oriented code
+- [ ] problem ID.
+- [ ] language.
+- [ ] generated text/code.
+- [ ] parse/compile status.
+- [ ] tests passed/total.
+- [ ] timeout/error category.
+- [ ] generation stats.
+- [ ] adapter/base identity.
 
 Acceptance criteria:
 
-- Tests are repository-owned, deterministic, executable, and not included in SFT data.
+- Python, TypeScript, and Rust evaluators can emit the same high-level schema.
 
-## P4-006 — Implement safe execution harness
+## P4-005 — Build general/tool regression suite
 
-- [ ] Per-task disposable working directory/container.
-- [ ] Wall-clock timeout.
-- [ ] CPU/memory limits where practical.
-- [ ] Network disabled by default.
-- [ ] No host credentials/secrets.
-- [ ] Capture stdout/stderr/exit status.
-
-Acceptance criteria:
-
-- A deliberately malicious/looping synthetic candidate cannot indefinitely hang or trivially access sensitive host state.
-
-## P4-007 — Add Python result metrics
-
-- [ ] syntax validity
-- [ ] tests passed/total
-- [ ] pass@1
-- [ ] timeout rate
-- [ ] exception category
-- [ ] generated token count
-- [ ] latency/tokens per second where practical
+- [ ] instruction following.
+- [ ] JSON structured output.
+- [ ] simple reasoning.
+- [ ] shell reasoning.
+- [ ] Git reasoning.
+- [ ] tool-call formatting/selection.
 
 Acceptance criteria:
 
-- Metrics are available per problem and in aggregate.
+- Suite is frozen before first canonical Python LoRA evaluation.
 
-## P4-008 — Build general-regression suite
+## P4-006 — Freeze generation/evaluation settings
 
-Include small controlled tests for:
-
-- [ ] instruction following
-- [ ] JSON structured output
-- [ ] simple general reasoning
-- [ ] shell reasoning
-- [ ] Git reasoning
-- [ ] tool/function-call formatting or selection
+- [ ] temperature.
+- [ ] top-p/top-k as applicable.
+- [ ] seed.
+- [ ] max new tokens.
+- [ ] stopping behavior.
+- [ ] prompt/template version.
 
 Acceptance criteria:
 
-- The suite is frozen before the first LoRA evaluation.
-
-## P4-009 — Freeze decoding/evaluation configuration
-
-- [ ] temperature
-- [ ] top-p/top-k as applicable
-- [ ] seed
-- [ ] max new tokens
-- [ ] stop behavior
-- [ ] prompt/template version
-
-Acceptance criteria:
-
-- Baseline and adapter evaluations can use identical settings.
-
-## P4-010 — Run and record untouched-model baseline
-
-- [ ] Evaluate `Qwen/Qwen3.5-0.8B` on HumanEval.
-- [ ] Evaluate on MBPP.
-- [ ] Evaluate custom Python suite.
-- [ ] Evaluate general/tool regression suite.
-- [ ] Record performance/memory metadata.
-
-Acceptance criteria:
-
-- Baseline result artifact is complete and immutable enough to support subsequent comparisons.
+- Base and adapters can be evaluated identically.
 
 ---
 
-# Phase 5 — P0 BF16 LoRA Training
+# Phase 5 — Python Dataset Pipeline
 
-Goal: produce the first measured Python specialization adapter.
+Goal: implement the first language plugin and prepare the canonical Python P0 corpus.
 
-## P5-001 — Implement LoRA training entry point
+## P5-001 — Add Python language config/plugin
 
-- [ ] Add `scripts/train_lora.py`.
-- [ ] Load training configuration.
-- [ ] Load Qwen3.5-0.8B in BF16.
-- [ ] Apply PEFT LoRA.
-- [ ] Load prepared train/validation splits.
-- [ ] Use verified assistant/completion-only loss.
-- [ ] Save adapter checkpoints and metrics.
+- [ ] `python` ID and `.py` extension.
+- [ ] repository detection signals (`pyproject.toml`, `uv.lock`, etc.).
+- [ ] versioned Python system prompt.
+- [ ] Python validator hooks.
 
 Acceptance criteria:
 
-- A tiny synthetic/sampled dataset can complete a smoke-training run.
+- Generic pipeline can select Python entirely through language config/registry.
 
-## P5-002 — Add trainable-parameter audit
+## P5-002 — Add OLMo Python-instruct loader
 
-- [ ] Log total parameters.
-- [ ] Log trainable parameters.
-- [ ] Log trainable percentage.
-- [ ] Log complete matched LoRA target modules.
-- [ ] Assert base parameters are frozen except intentionally trainable PEFT state.
-
-Acceptance criteria:
-
-- The run aborts if unexpected large portions of the base model are trainable.
-
-## P5-003 — Add VRAM instrumentation
-
-- [ ] Reset peak memory before training.
-- [ ] Record peak allocated VRAM.
-- [ ] Record peak reserved VRAM.
-- [ ] Record GPU total VRAM.
+- [ ] Load `OLMo-Coding/starcoder-python-instruct`.
+- [ ] Pin/record upstream revision.
+- [ ] preserve provenance.
+- [ ] retain Python 3 according to source metadata.
 
 Acceptance criteria:
 
-- Run report contains actual peak VRAM rather than an estimate.
+- Small source sample normalizes through generic schema.
 
-## P5-004 — Add throughput instrumentation
+## P5-003 — Add Magicoder Python loader
 
-- [ ] examples/sec
-- [ ] tokens/sec where practical
-- [ ] total wall-clock training time
-- [ ] step time summaries
+- [ ] Load `ise-uiuc/Magicoder-OSS-Instruct-75K`.
+- [ ] pin/record revision.
+- [ ] select Python rows.
+- [ ] preserve provenance.
 
 Acceptance criteria:
 
-- P0 efficiency can be compared with later experiments.
+- Small sample normalizes through generic schema.
 
-## P5-005 — Validate conservative batch configuration
+## P5-004 — Add Python-specific quality checks
+
+- [ ] Python 2 exclusion.
+- [ ] conservative `ast.parse()` validation for standalone code.
+- [ ] preserve legitimate snippets/diffs/fragments.
+- [ ] record validation metadata/rejection reason.
+
+Acceptance criteria:
+
+- Complete invalid Python examples can be detected without blindly deleting valid fragments.
+
+## P5-005 — Create P0 Python corpus
+
+Target:
+
+- ~30k accepted OLMo Python 3 examples.
+- ~10k accepted Magicoder Python examples when available.
+- ~40k total before 95/5 split.
+
+Tasks:
+
+- [ ] Apply filters before final counts.
+- [ ] Fill shortfall only according to explicit config.
+- [ ] Emit actual composition.
+
+Acceptance criteria:
+
+- Final counts are measured, not assumed.
+
+## P5-006 — Emit/freeze Python P0 dataset manifest
+
+- [ ] revisions/licenses.
+- [ ] filtering stats.
+- [ ] dedup stats.
+- [ ] train/validation membership fingerprints.
+- [ ] token stats.
+- [ ] contamination results.
+
+Acceptance criteria:
+
+- P0 dataset is reproducibly defined before training.
+
+---
+
+# Phase 6 — Python Baseline Evaluation
+
+Goal: freeze the unchanged-base Python and regression baseline before any LoRA training.
+
+## P6-001 — Register Python protected benchmarks
+
+- [ ] HumanEval.
+- [ ] MBPP.
+- [ ] repository-owned holdout suite.
+
+Acceptance criteria:
+
+- All are inaccessible to normal SFT data configs.
+
+## P6-002 — Implement HumanEval evaluator
+
+- [ ] Select/pin maintained implementation.
+- [ ] normalize prompting.
+- [ ] constrained execution.
+- [ ] per-problem and aggregate output.
+
+Acceptance criteria:
+
+- Repeated deterministic runs are reproducible within framework limits.
+
+## P6-003 — Implement MBPP evaluator
+
+- [ ] Select/pin maintained implementation.
+- [ ] constrained test execution.
+- [ ] common result schema.
+
+Acceptance criteria:
+
+- Produces comparable per-problem/aggregate artifacts.
+
+## P6-004 — Build custom Python suite
+
+Include representative tasks covering:
+
+- [ ] standard library/data transforms.
+- [ ] pathlib.
+- [ ] JSON.
+- [ ] regex.
+- [ ] dataclasses/typing.
+- [ ] generators/decorators/context managers.
+- [ ] exceptions.
+- [ ] async/await.
+- [ ] subprocess logic.
+- [ ] SQLite.
+- [ ] pytest-oriented tasks.
+
+Acceptance criteria:
+
+- Tests are deterministic, executable, repo-owned, and excluded from training.
+
+## P6-005 — Run unchanged-base Python baseline
+
+- [ ] HumanEval.
+- [ ] MBPP.
+- [ ] custom suite.
+- [ ] general/tool regression suite.
+- [ ] memory/performance metadata.
+
+Acceptance criteria:
+
+- Baseline artifacts are complete and frozen before P0 adapter training.
+
+---
+
+# Phase 7 — Python P0 BF16 LoRA
+
+Goal: produce the first language adapter using a conservative, auditable configuration.
+
+## P7-001 — Finalize selective LoRA targets
+
+- [ ] Use P2 inspection results.
+- [ ] record exact modules.
+- [ ] record trainable parameter count.
+
+Acceptance criteria:
+
+- Target set is architecture-verified.
+
+## P7-002 — Implement generic adapter trainer
+
+- [ ] Base revision from canonical config.
+- [ ] language from registry/config.
+- [ ] LoRA parameters from config.
+- [ ] assistant/completion-only loss.
+- [ ] checkpoint/log output.
+- [ ] run + adapter manifests.
+
+Acceptance criteria:
+
+- Trainer contains no hard-coded Python-only training logic.
+
+## P7-003 — Add P0 Python training config
 
 Initial candidate:
 
 ```text
-sequence length        2048
-micro-batch            4
-grad accumulation      4
-effective batch        16
-```
-
-- [ ] Run memory smoke test.
-- [ ] Reduce/increase micro-batch based on measured headroom.
-- [ ] Keep final values in config, not hard-coded code.
-
-Acceptance criteria:
-
-- Training runs stably on the target 16 GB GPU with comfortable memory headroom.
-
-## P5-006 — Freeze P0 LoRA configuration
-
-Initial intended values:
-
-```text
-rank                   16
-alpha                  32
-dropout                0.05
+precision               BF16
+sequence length         2048
+LoRA rank               16
+LoRA alpha              32
+LoRA dropout            0.05
 bias                    none
-learning rate          2e-4
-scheduler              cosine
-warmup ratio           0.03
+learning rate           2e-4
+scheduler               cosine
+warmup ratio            0.03
 epochs                  1
-precision              BF16
-sequence length        2048
+gradient checkpointing  enabled when compatible
+loss                    assistant/completion only
 ```
 
-- [ ] Finalize target modules from Phase 2 evidence.
-- [ ] Save config under `configs/train/`.
-- [ ] Give it a stable config/version name.
+- [ ] Micro-batch selected empirically.
+- [ ] Gradient accumulation selected empirically.
 
 Acceptance criteria:
 
-- P0 can be launched from a single committed config.
+- Config is fully machine-readable and captured in run manifest.
 
-## P5-007 — Run tiny end-to-end training smoke test
+## P7-004 — Add preflight validation
 
-- [ ] Use a very small dataset subset.
-- [ ] Complete forward/backward/update.
-- [ ] Save adapter.
-- [ ] Reload adapter.
-- [ ] Generate a response.
-
-Acceptance criteria:
-
-- The complete training/save/load path works before the 40k run.
-
-## P5-008 — Run P0 40k training experiment
-
-- [ ] Train one epoch.
-- [ ] Preserve logs/checkpoints according to artifact policy.
-- [ ] Record validation loss.
-- [ ] Record hardware/throughput/VRAM.
-- [ ] Record final adapter hash/path.
+- [ ] Canonical base revision matches config.
+- [ ] Dataset manifest is frozen/compatible.
+- [ ] assistant-only masking verified.
+- [ ] LoRA targets match modules.
+- [ ] output path safe.
+- [ ] GPU/BF16 compatibility reported.
 
 Acceptance criteria:
 
-- Training completes without OOM or silent truncation/masking errors.
+- Invalid setup fails before expensive training.
 
-## P5-009 — Validate adapter reload independently
+## P7-005 — Run short GPU smoke training
 
-- [ ] Start a fresh process.
-- [ ] Load unchanged base checkpoint.
-- [ ] Load saved LoRA adapter.
-- [ ] Generate known smoke prompts.
+- [ ] Bounded sample/steps.
+- [ ] forward/backward succeeds.
+- [ ] loss finite.
+- [ ] checkpoint/adapter saves.
+- [ ] peak VRAM recorded.
 
 Acceptance criteria:
 
-- Adapter does not depend on hidden in-memory training state.
+- Training path works end-to-end before full P0 run.
+
+## P7-006 — Run full Python P0 training
+
+- [ ] Train on frozen P0 corpus.
+- [ ] record loss/throughput.
+- [ ] record peak allocated/reserved VRAM.
+- [ ] save LoRA adapter and manifests.
+
+Acceptance criteria:
+
+- Run completes without OOM/NaN.
+- Output is a LoRA adapter, not a merged full model.
+
+## P7-007 — Validate adapter load/inference
+
+- [ ] Load canonical base.
+- [ ] attach Python adapter.
+- [ ] generate fixed smoke prompts.
+- [ ] disable adapter and recover base behavior.
+
+Acceptance criteria:
+
+- Adapter can be enabled/disabled without rebuilding the full model.
 
 ---
 
-# Phase 6 — P0 Evaluation and Report
+# Phase 8 — Python P0 Evaluation and Promotion Decision
 
-Goal: determine whether the first LoRA actually improved Python capability and what it damaged.
+Goal: determine whether the first adapter genuinely improved Python without unacceptable regressions.
 
-## P6-001 — Run frozen Python evaluation against P0 adapter
+## P8-001 — Evaluate Python P0 adapter
 
 - [ ] HumanEval.
 - [ ] MBPP.
-- [ ] Custom Python suite.
+- [ ] custom Python suite.
+- [ ] same frozen generation config as baseline.
 
 Acceptance criteria:
 
-- Exact same evaluation configuration as baseline unless an explicitly documented compatibility fix is required.
+- Direct base-vs-adapter comparison artifact generated.
 
-## P6-002 — Run frozen regression suite against P0 adapter
+## P8-002 — Run general/tool regression suite
 
-- [ ] instruction following
-- [ ] JSON output
-- [ ] reasoning
-- [ ] shell/Git reasoning
-- [ ] tool/function-call behavior
-
-Acceptance criteria:
-
-- Regressions are visible in the final comparison.
-
-## P6-003 — Produce per-problem comparison
-
-- [ ] baseline fail -> adapter pass
-- [ ] baseline pass -> adapter fail
-- [ ] both pass
-- [ ] both fail
-- [ ] syntax and runtime failure deltas
+- [ ] instruction following.
+- [ ] JSON.
+- [ ] reasoning.
+- [ ] shell/Git.
+- [ ] tool-call formatting/selection.
 
 Acceptance criteria:
 
-- Aggregate gains can be traced back to individual tasks.
+- Regressions quantified, not hand-waved.
 
-## P6-004 — Produce P0 report
+## P8-003 — Add preliminary cross-language smoke tests
 
-Report at least:
-
-- [ ] model/revision
-- [ ] dataset composition
-- [ ] LoRA config
-- [ ] trainable parameter count
-- [ ] training loss/validation loss
-- [ ] peak VRAM
-- [ ] training throughput/time
-- [ ] baseline scores
-- [ ] adapter scores
-- [ ] regressions
-- [ ] contamination status
-- [ ] observed failure modes
+- [ ] small TypeScript prompts.
+- [ ] small Rust prompts.
+- [ ] compare base vs Python adapter.
 
 Acceptance criteria:
 
-- A reviewer can determine whether P0 was beneficial without reading raw logs.
+- Catastrophic non-Python collapse would be detected before promotion.
 
-## P6-005 — Decide P0 outcome
+## P8-004 — Write P0 experiment report
 
-Classify the run as one of:
+Include:
 
-- [ ] useful improvement
-- [ ] neutral/inconclusive
-- [ ] Python improvement with unacceptable regression
-- [ ] failed specialization
-- [ ] invalid experiment
+- [ ] dataset identity.
+- [ ] training config.
+- [ ] VRAM/throughput.
+- [ ] baseline metrics.
+- [ ] adapter metrics.
+- [ ] regressions.
+- [ ] qualitative examples only as supplemental evidence.
 
 Acceptance criteria:
 
-- Decision cites measured evidence and defines the next experimental variable.
+- Report supports a clear promote/reject/iterate decision.
+
+## P8-005 — Promote or reject P0 adapter
+
+- [ ] Establish quantitative promotion thresholds using actual baseline evidence.
+- [ ] Mark recommended Python adapter ID if accepted.
+- [ ] Preserve rejected experiment metadata.
+
+Acceptance criteria:
+
+- "Recommended" has an explicit evidentiary meaning.
 
 ---
 
-# Phase 7 — LoRA Target-Module Experiments
+# Phase 9 — Python LoRA Experiment Matrix
 
-Goal: understand how Qwen3.5's hybrid architecture responds to PEFT targeting.
+Goal: improve the Python adapter through controlled experiments.
 
-## P7-001 — Run selective-target baseline
+## P9-001 — Rank sweep
 
-- [ ] Preserve P0 as the canonical selective-target result.
-
-## P7-002 — Run `all-linear` experiment
-
-- [ ] Same dataset.
-- [ ] Same seed.
-- [ ] Same rank/alpha/dropout.
-- [ ] Same training length.
-- [ ] Same evaluation.
+- [ ] r=8.
+- [ ] r=16 baseline.
+- [ ] r=32.
+- [ ] r=64.
 
 Acceptance criteria:
 
-- Target strategy is the primary meaningful variable changed.
+- All other major variables held fixed.
+- Comparative report produced.
 
-## P7-003 — Compare architecture coverage
+## P9-002 — Target-module sweep
 
-- [ ] trainable parameter count
-- [ ] target-module distribution
-- [ ] DeltaNet/hybrid coverage
-- [ ] VRAM
-- [ ] throughput
-- [ ] Python performance
-- [ ] regression performance
+- [ ] selective baseline.
+- [ ] `all-linear`/equivalent.
 
 Acceptance criteria:
 
-- Choose a preferred target strategy based on measured quality/cost tradeoff.
+- Trainable parameters, VRAM, speed, and benchmark deltas compared.
+
+## P9-003 — Dataset-size sweep
+
+Candidates:
+
+- [ ] 10k.
+- [ ] 25k.
+- [ ] 50k.
+- [ ] 100k+ if justified.
+
+Acceptance criteria:
+
+- Learning curve/diminishing-return evidence produced.
+
+## P9-004 — Training-length/learning-rate study
+
+- [ ] additional epoch/step options.
+- [ ] lower/higher LR candidates.
+
+Acceptance criteria:
+
+- Overfitting/general regression explicitly measured.
+
+## P9-005 — Optional QLoRA comparison
+
+- [ ] Add 4-bit config only after BF16 baseline is stable.
+- [ ] compare VRAM/speed/quality.
+
+Acceptance criteria:
+
+- Quantization effect is isolated from unrelated changes.
+
+## P9-006 — Select recommended Python adapter
+
+Acceptance criteria:
+
+- Best adapter selected from target-language gain, general/tool preservation, cross-language behavior, VRAM, and speed—not training loss alone.
 
 ---
 
-# Phase 8 — LoRA Rank Sweep
+# Phase 10 — Runtime Adapter Manager and Hot Switching
 
-Goal: find the smallest useful adapter capacity and characterize diminishing returns.
+Goal: prove the core product concept: one resident base model with interchangeable LoRA adapters.
 
-## P8-001 — Rank 8
+## P10-001 — Implement adapter registry
 
-- [ ] Train/evaluate with otherwise frozen best-known config.
-
-## P8-002 — Rank 16
-
-- [ ] Preserve/refresh canonical comparison as required.
-
-## P8-003 — Rank 32
-
-- [ ] Train/evaluate.
-
-## P8-004 — Rank 64
-
-- [ ] Train/evaluate.
-
-## P8-005 — Rank sweep report
-
-Compare:
-
-- [ ] adapter size
-- [ ] trainable parameters
-- [ ] VRAM
-- [ ] throughput
-- [ ] Python benchmarks
-- [ ] regression suite
+- [ ] discover/register adapter manifests.
+- [ ] lookup by family/language/ID.
+- [ ] identify recommended adapter per language.
 
 Acceptance criteria:
 
-- Select preferred rank based on quality/size/compute tradeoff rather than assumption.
+- Registry works without hard-coded Python paths.
 
----
+## P10-002 — Implement adapter load/activate/disable API
 
-# Phase 9 — Dataset-Size Sweep
-
-Goal: measure how much instruction data the tiny model actually benefits from.
-
-Use the best target strategy/rank established so far.
-
-## P9-001 — ~10k examples
-
-- [ ] Train/evaluate.
-
-## P9-002 — ~25k examples
-
-- [ ] Train/evaluate.
-
-## P9-003 — ~50k examples
-
-- [ ] Train/evaluate.
-
-## P9-004 — ~100k examples
-
-- [ ] Train/evaluate.
-
-## P9-005 — Larger-data decision
-
-- [ ] Determine whether 250k+ or the full available corpus is justified by the trend.
-
-## P9-006 — Dataset scaling report
-
-- [ ] Plot/report Python score versus accepted training examples.
-- [ ] Plot/report regression score versus accepted training examples.
-- [ ] Report compute cost.
+- [ ] load adapter.
+- [ ] activate adapter.
+- [ ] disable adapters/base-only mode.
+- [ ] query active adapter.
 
 Acceptance criteria:
 
-- Identify the point of diminishing returns or justify additional scale.
+- Base model remains resident during supported adapter switches.
 
----
+## P10-003 — Enforce compatibility during load
 
-# Phase 10 — Sequence-Length and Batch Experiments
-
-Goal: use the available 16 GB VRAM intelligently without conflating context length with model quality.
-
-## P10-001 — Measure 2k canonical run
-
-- [ ] Preserve peak VRAM and throughput.
-
-## P10-002 — 4k sequence experiment
-
-- [ ] Adjust micro-batch only as required for memory.
-- [ ] Keep effective batch documented.
-
-## P10-003 — 8k sequence experiment
-
-- [ ] Run only if dataset/task distribution justifies it.
-
-## P10-004 — Sequence-length report
-
-Compare:
-
-- [ ] truncation rate
-- [ ] VRAM
-- [ ] throughput
-- [ ] benchmark quality
-- [ ] long-example quality
+- [ ] exact base revision.
+- [ ] tokenizer/template constraints.
+- [ ] adapter schema version.
 
 Acceptance criteria:
 
-- Choose sequence length on measured utility, not maximum available context.
+- Incompatible synthetic adapter is rejected before activation.
 
----
+## P10-004 — Test repeated switching
 
-# Phase 11 — BF16 LoRA vs QLoRA
-
-Goal: determine whether quantized training is useful for this model rather than assuming it is necessary.
-
-## P11-001 — Preserve canonical BF16 result
-
-- [ ] Record exact reference config/result.
-
-## P11-002 — Implement QLoRA config
-
-- [ ] Add supported 4-bit quantization stack.
-- [ ] Validate adapter training/save/load.
-- [ ] Record quantization details.
-
-## P11-003 — Controlled QLoRA experiment
-
-- [ ] Match dataset/rank/training length/eval to BF16 run.
-
-## P11-004 — Compare
-
-- [ ] peak VRAM
-- [ ] throughput
-- [ ] adapter quality
-- [ ] benchmark quality
-- [ ] regression behavior
-
-Acceptance criteria:
-
-- QLoRA becomes recommended only if its measured tradeoff is useful.
-
----
-
-# Phase 12 — Base Checkpoint Comparison
-
-Goal: isolate the value of Qwen's post-training for this specialization task.
-
-## P12-001 — Validate Base loading/template strategy
-
-- [ ] Load `Qwen/Qwen3.5-0.8B-Base`.
-- [ ] Validate official chat/control-token handling.
-- [ ] Validate SFT masking.
-
-## P12-002 — Train equivalent Base LoRA
-
-- [ ] Same Python dataset.
-- [ ] Same seed.
-- [ ] Same selected LoRA strategy.
-- [ ] Same training duration.
-
-## P12-003 — Evaluate equivalent Base LoRA
-
-- [ ] Same Python suite.
-- [ ] Same regression suite where meaningful.
-
-## P12-004 — Compare post-trained vs Base specialization
-
-Acceptance criteria:
-
-- Report distinguishes Python gains from instruction/tool behavior that originated in post-training.
-
----
-
-# Phase 13 — Raw Python Continued Pretraining Investigation
-
-Goal: determine whether Python distributional pretraining adds value beyond instruction SFT.
-
-## P13-001 — Survey candidate raw Python corpora
-
-- [ ] Investigate The Stack/BigCode-derived Python sources.
-- [ ] Prefer permissive/open-license subsets.
-- [ ] Document source licenses/provenance.
-- [ ] Evaluate contamination risk.
-
-Acceptance criteria:
-
-- No raw-code source enters training without a documented provenance/license review.
-
-## P13-002 — Build raw-Python cleaning pipeline
-
-- [ ] language/version checks
-- [ ] file-size limits
-- [ ] duplicate/near-duplicate handling
-- [ ] generated/vendor code filtering where practical
-- [ ] benchmark contamination checks
-- [ ] token packing/chunking policy
-
-## P13-003 — Implement causal-LM CPT training path
-
-- [ ] Raw text/code objective.
-- [ ] Separate configuration namespace from SFT.
-- [ ] Separate run identity/artifacts.
-
-## P13-004 — Run bounded CPT experiment
-
-- [ ] Start with a small controlled token budget.
-- [ ] Evaluate code completion and Python benchmark effects.
-
-## P13-005 — Follow CPT with Python SFT
-
-Compare:
+Scenario:
 
 ```text
-post-trained -> Python SFT
+base → python → base → python → base
 ```
 
-and/or
+- [ ] outputs reproducible under deterministic settings.
+- [ ] no cumulative adapter leakage.
+- [ ] bounded VRAM.
+
+Acceptance criteria:
+
+- Switching behavior is stable over repeated cycles.
+
+## P10-005 — Add CLI/runtime selection
+
+Examples conceptually:
 
 ```text
-Base -> Python CPT -> Python SFT
+--adapter python
+--adapter none
 ```
 
 Acceptance criteria:
 
-- CPT is retained only if it improves quality enough to justify additional complexity/compute.
+- User can explicitly choose active language adapter.
 
 ---
 
-# Phase 14 — Tool-Calling Dataset and Agent SFT
+# Phase 11 — TypeScript Adapter
 
-Goal: evolve the Python specialist into a constrained coding agent.
+Goal: prove that the framework generalizes to a second programming language without architectural rewrites.
 
-## P14-001 — Define versioned tool schemas
+## P11-001 — Add TypeScript language plugin/config
 
-Initial candidates:
-
-- [ ] `list_files`
-- [ ] `read_file`
-- [ ] `search`
-- [ ] `apply_patch`
-- [ ] `run_command`
-- [ ] `git_diff`
+- [ ] `.ts`/`.tsx` extensions.
+- [ ] `package.json`/`tsconfig.json` signals.
+- [ ] versioned system prompt.
+- [ ] TypeScript validation/execution hooks.
 
 Acceptance criteria:
 
-- Schemas are JSON-schema-valid, minimal, stable, and versioned.
+- Generic commands support `--language typescript` or equivalent.
 
-## P14-002 — Build tool-call evaluator before tool fine-tuning
+## P11-002 — Survey/select TypeScript training datasets
+
+- [ ] identify suitable open datasets.
+- [ ] inspect licensing/provenance.
+- [ ] distinguish TypeScript from JavaScript when possible.
+- [ ] decide `.tsx` scope.
+- [ ] pin revisions.
+
+Acceptance criteria:
+
+- Dataset decision documented before canonical training.
+
+## P11-003 — Implement TypeScript quality filters
+
+- [ ] parsing/syntax checks where safe.
+- [ ] optional type-check validation for complete units.
+- [ ] preserve valid snippets requiring project context.
+
+Acceptance criteria:
+
+- Quality checks do not assume every example is a standalone project.
+
+## P11-004 — Define TypeScript protected benchmarks/eval suite
+
+Cover representative areas:
+
+- [ ] type system/generics.
+- [ ] async/Promise.
+- [ ] Node APIs.
+- [ ] modules.
+- [ ] transformations/error handling.
+- [ ] `.tsx` if in scope.
+- [ ] compiler/tests.
+
+Acceptance criteria:
+
+- Evaluation frozen before canonical TypeScript training.
+
+## P11-005 — Run unchanged-base TypeScript baseline
+
+Acceptance criteria:
+
+- Complete baseline artifact exists.
+
+## P11-006 — Train TypeScript P0 adapter
+
+- [ ] Use same canonical base revision.
+- [ ] Start from shared LoRA architecture/hyperparameter baseline unless evidence requires change.
+- [ ] emit adapter manifest.
+
+Acceptance criteria:
+
+- Adapter trains without language-specific trainer fork.
+
+## P11-007 — Evaluate/promote TypeScript adapter
+
+- [ ] target-language suite.
+- [ ] general/tool suite.
+- [ ] Python/Rust cross-language tests.
+
+Acceptance criteria:
+
+- Promotion follows same evidence contract as Python.
+
+## P11-008 — Validate Python↔TypeScript switching
+
+Scenario:
+
+```text
+base → python → typescript → python → base
+```
+
+Acceptance criteria:
+
+- Switches succeed without base-model reload and without state leakage.
+
+---
+
+# Phase 12 — Rust Adapter
+
+Goal: prove reuse on a compiler-heavy systems language and exploit compiler feedback for evaluation.
+
+## P12-001 — Add Rust language plugin/config
+
+- [ ] `.rs` extension.
+- [ ] `Cargo.toml`/`Cargo.lock` signals.
+- [ ] versioned system prompt.
+- [ ] Rust validation/execution hooks.
+
+Acceptance criteria:
+
+- Generic commands support Rust without trainer/evaluator architecture fork.
+
+## P12-002 — Survey/select Rust training datasets
+
+- [ ] identify suitable open datasets.
+- [ ] inspect licensing/provenance.
+- [ ] pin revisions.
+- [ ] decide snippet/project balance.
+
+Acceptance criteria:
+
+- Dataset decision documented before canonical training.
+
+## P12-003 — Implement Rust quality filters
+
+- [ ] parse/compile checks where safe.
+- [ ] preserve snippets requiring context.
+- [ ] record compiler-validation metadata where used.
+
+Acceptance criteria:
+
+- Complete invalid examples can be detected without rejecting valid contextual snippets wholesale.
+
+## P12-004 — Define Rust protected benchmarks/eval suite
+
+Cover:
+
+- [ ] ownership/borrowing.
+- [ ] lifetimes where appropriate.
+- [ ] traits/generics.
+- [ ] iterators.
+- [ ] `Result`/error handling.
+- [ ] concurrency.
+- [ ] async if in scope.
+- [ ] Cargo project edits.
+- [ ] compiler/tests.
+- [ ] Clippy where appropriate.
+
+Acceptance criteria:
+
+- Evaluation frozen before canonical Rust training.
+
+## P12-005 — Run unchanged-base Rust baseline
+
+Acceptance criteria:
+
+- Complete baseline artifact exists.
+
+## P12-006 — Train Rust P0 adapter
+
+- [ ] same canonical base revision.
+- [ ] shared LoRA architecture baseline.
+- [ ] generic trainer.
+- [ ] adapter manifest.
+
+Acceptance criteria:
+
+- Rust adapter is another artifact family member, not another full model.
+
+## P12-007 — Evaluate/promote Rust adapter
+
+- [ ] target-language suite.
+- [ ] general/tool suite.
+- [ ] Python/TypeScript cross-language tests.
+
+Acceptance criteria:
+
+- Promotion follows common evidence contract.
+
+## P12-008 — Validate three-way switching
+
+Scenario:
+
+```text
+base → python → typescript → rust → python → base
+```
+
+Acceptance criteria:
+
+- Same base remains loaded.
+- Active adapter identity is correct after every transition.
+- VRAM remains bounded.
+
+---
+
+# Phase 13 — Full Cross-Language Study
+
+Goal: quantify specialization, interference, and storage/runtime benefits across all canonical adapters.
+
+## P13-001 — Freeze cross-language matrix
+
+Rows:
+
+- base/no adapter.
+- Python adapter.
+- TypeScript adapter.
+- Rust adapter.
+
+Columns:
+
+- Python suite.
+- TypeScript suite.
+- Rust suite.
+- general/tool suite.
+
+Acceptance criteria:
+
+- Every cell is evaluated under controlled generation settings.
+
+## P13-002 — Produce specialization/interference report
+
+- [ ] target-language gain.
+- [ ] unrelated-language regression.
+- [ ] general/tool regression.
+- [ ] adapter size.
+- [ ] switching latency.
+- [ ] VRAM impact.
+
+Acceptance criteria:
+
+- Tradeoffs are quantitatively visible.
+
+## P13-003 — Compare storage footprint
+
+Compare:
+
+```text
+one base + 3 adapters
+```
+
+versus hypothetical:
+
+```text
+3 independent full model copies
+```
+
+Acceptance criteria:
+
+- Actual artifact sizes reported.
+
+## P13-004 — Establish canonical recommended adapters
+
+- [ ] Python.
+- [ ] TypeScript.
+- [ ] Rust.
+
+Acceptance criteria:
+
+- Each recommendation points to exact manifest/config/evaluation artifacts.
+
+---
+
+# Phase 14 — Automatic Selection and Polyglot Repositories
+
+Goal: make adapter selection useful in real development workflows while preserving explicit control.
+
+## P14-001 — Implement repository language detection
+
+Signals include:
+
+- Python: `pyproject.toml`, `.py`, `uv.lock`.
+- TypeScript: `package.json`, `tsconfig.json`, `.ts`, `.tsx`.
+- Rust: `Cargo.toml`, `.rs`.
+
+Acceptance criteria:
+
+- Deterministic scoring/result for synthetic repositories.
+
+## P14-002 — Add explicit override precedence
+
+Acceptance criteria:
+
+- User-selected adapter always wins over automatic detection.
+
+## P14-003 — Handle ambiguous/polyglot repositories
+
+- [ ] report multiple detected languages.
+- [ ] avoid pretending one language owns the whole repo.
+- [ ] support explicit task-level selection.
+
+Acceptance criteria:
+
+- Tauri-style Rust+TypeScript fixture is recognized as polyglot.
+
+## P14-004 — Explore file-sensitive selection
+
+Acceptance criteria:
+
+- Switching based on current target file is experimentally evaluated, not enabled blindly.
+
+## P14-005 — Explore dynamic switching during agent loops
+
+Acceptance criteria:
+
+- Conversation context remains coherent.
+- Adapter state does not leak/accumulate.
+- Benefit over fixed-adapter behavior is measured.
+
+---
+
+# Phase 15 — Tool/Agent Specialization
+
+Goal: evolve language-specialized coding assistants into verified repo-level coding agents.
+
+## P15-001 — Define coding-agent tool contract
+
+Candidate constrained tools:
+
+- [ ] list files.
+- [ ] read file.
+- [ ] search.
+- [ ] apply patch/write file.
+- [ ] run bounded command.
+- [ ] inspect diff.
+
+Acceptance criteria:
+
+- Tool schemas are stable and testable.
+
+## P15-002 — Build agent evaluation tasks
+
+Tasks SHOULD require:
+
+- repository inspection.
+- edit generation.
+- formatter/compiler/test execution.
+- recovery after failure.
+
+Acceptance criteria:
+
+- Success is executable and deterministic where practical.
+
+## P15-003 — Record agent baseline per language
+
+- [ ] base/no adapter.
+- [ ] language adapter.
+
+Acceptance criteria:
+
+- Existing language adapters' agent behavior is known before additional agent training.
+
+## P15-004 — Build verified trajectory format
+
+Include:
+
+- task.
+- tool definitions.
+- tool calls.
+- tool outputs.
+- edits.
+- validation failures.
+- repairs.
+- final verified success.
+
+Acceptance criteria:
+
+- Trajectories can be validated and normalized for SFT.
+
+## P15-005 — Investigate behavior specialization strategy
+
+Compare possibilities such as:
+
+- agent training folded into each language adapter.
+- separate behavior adapter.
+- sequential training.
+- future composition/fusion.
+
+Acceptance criteria:
+
+- Strategy chosen from measured interference/compatibility, not convenience alone.
+
+## P15-006 — Train/evaluate agent experiment
+
+Metrics:
+
+- tool-call validity.
+- correct tool selection.
+- patch success.
+- compiler/test success.
+- recovery rate.
+- turns/tokens.
+- loop/premature-done rate.
+
+Acceptance criteria:
+
+- Experiment beats its frozen baseline on repo-level tasks to be considered successful.
+
+---
+
+# Phase 16 — OpenCode-Compatible Serving
+
+Goal: serve the shared base and active adapter through a client-compatible local endpoint.
+
+## P16-001 — Select local serving backend
+
+Evaluate then-current support for:
+
+- Qwen3.5 architecture.
+- LoRA adapters.
+- adapter switching.
+- tool-call parsing.
+- OpenAI-compatible APIs.
+
+Acceptance criteria:
+
+- Backend selection documented from current verified capability.
+
+## P16-002 — Implement serving configuration
+
+- [ ] canonical base model.
+- [ ] adapter registry.
+- [ ] active adapter selection.
+- [ ] OpenAI-compatible endpoint.
+
+Acceptance criteria:
+
+- Inference works through HTTP/client path, not only direct Python.
+
+## P16-003 — Validate tool calling through serving stack
+
+Acceptance criteria:
+
+- Tool-call structure survives model → server → client round trip.
+
+## P16-004 — Connect OpenCode
+
+- [ ] document provider config.
+- [ ] explicit language-adapter workflow.
+- [ ] run disposable repo tasks.
+
+Acceptance criteria:
+
+- OpenCode can interact with local Tiny Qwen Coder endpoint.
+
+## P16-005 — Evaluate real repository tasks
 
 Measure:
 
-- [ ] parse validity
-- [ ] correct function selection
-- [ ] argument validity
-- [ ] unnecessary calls
-- [ ] continuation after tool result
+- task success.
+- test/build success.
+- tool validity.
+- turns.
+- tokens.
+- latency.
+- loops/premature completion.
 
 Acceptance criteria:
 
-- Starting Python adapter receives a frozen agent/tool baseline before agent SFT.
-
-## P14-003 — Define agent trajectory format
-
-Records MUST support:
-
-- [ ] user task
-- [ ] available tools
-- [ ] assistant tool call
-- [ ] tool result
-- [ ] repeated calls/results
-- [ ] final assistant response
-- [ ] verification metadata
-
-## P14-004 — Build synthetic verified coding tasks
-
-Start with disposable Python repositories containing:
-
-- [ ] failing unit test
-- [ ] lint failure
-- [ ] type-check failure
-- [ ] straightforward bug
-- [ ] missing implementation
-- [ ] refactor task
-
-Acceptance criteria:
-
-- Each task has an objectively verifiable expected terminal state.
-
-## P14-005 — Collect successful trajectories
-
-- [ ] Run a teacher/stronger coding agent or curated solution process.
-- [ ] Capture tool calls and results.
-- [ ] Verify final tests/lint/type checks.
-- [ ] Keep only trajectories meeting verification policy.
-
-## P14-006 — Collect failure-and-repair trajectories
-
-Prioritize:
-
-- [ ] pytest failure -> repair
-- [ ] Ruff failure -> repair
-- [ ] type-check failure -> repair
-- [ ] import/runtime failure -> repair
-- [ ] bad patch -> corrected patch
-
-Acceptance criteria:
-
-- Training examples include verified recovery behavior rather than only perfect one-shot trajectories.
-
-## P14-007 — Train agent/tool SFT adapter
-
-- [ ] Use TRL-supported tool-call representation or equivalent validated implementation.
-- [ ] Preserve tools column/schemas.
-- [ ] Train with controlled dataset size.
-- [ ] Evaluate against frozen tool suite.
-
-## P14-008 — Measure Python regression after agent SFT
-
-- [ ] HumanEval/MBPP/custom suite.
-- [ ] general regression suite.
-
-Acceptance criteria:
-
-- Agent gains and Python-quality tradeoffs are both reported.
+- OpenCode readiness is based on executable repo-level evidence.
 
 ---
 
-# Phase 15 — Repository-Level Coding Agent Evaluation
+# Phase 17 — Continued Pretraining Research
 
-Goal: measure actual software-engineering behavior instead of only function calling.
+Goal: determine whether raw language-specific source-code adaptation improves later LoRA SFT.
 
-## P15-001 — Build disposable repository benchmark
-
-Task types:
-
-- [ ] locate and fix a bug
-- [ ] add a small feature
-- [ ] repair a failing test
-- [ ] repair lint/type errors
-- [ ] refactor with behavior preserved
-
-## P15-002 — Add agent metrics
-
-- [ ] task success
-- [ ] tool-call parse validity
-- [ ] correct tool selection
-- [ ] unnecessary call count
-- [ ] file-read relevance
-- [ ] patch validity
-- [ ] test pass after edit
-- [ ] recovery after failure
-- [ ] turns to completion
-- [ ] tokens consumed
-- [ ] wall-clock time
-- [ ] loop rate
-- [ ] premature-done rate
-
-## P15-003 — Add safety boundaries
-
-- [ ] disposable filesystem
-- [ ] command timeout
-- [ ] network policy
-- [ ] no secrets
-- [ ] no host Docker socket
-- [ ] resource limits
+## P17-001 — Define raw-code license/provenance policy
 
 Acceptance criteria:
 
-- Agent evaluation cannot trivially mutate the developer's real repository or host environment.
+- Allowed source/license policy documented before ingesting large corpora.
 
-## P15-004 — Compare model stages
+## P17-002 — Build language-specific raw-code pipeline
 
-Compare at least:
-
-- [ ] untouched Qwen3.5-0.8B
-- [ ] best Python LoRA
-- [ ] best Python + agent/tool SFT
+- [ ] Python first.
+- [ ] TypeScript later.
+- [ ] Rust later.
 
 Acceptance criteria:
 
-- Agent training is shown to improve repo-level task success, not merely tool-call syntax.
+- Provenance/dedup/contamination controls remain auditable.
+
+## P17-003 — Run bounded Python CPT experiment
+
+Acceptance criteria:
+
+- Compare base→SFT versus base→CPT→SFT under frozen eval.
+
+## P17-004 — Extend only if evidence supports it
+
+Acceptance criteria:
+
+- TypeScript/Rust CPT work is justified by Python evidence or language-specific rationale.
 
 ---
 
-# Phase 16 — OpenCode Integration
+# Phase 18 — Adapter Composition/Fusion Research
 
-Goal: determine whether the final tiny model is practically usable behind OpenCode.
+Goal: investigate advanced composition only after independent language adapters are stable.
 
-## P16-001 — Select local inference server
+## P18-001 — Define composition hypotheses
 
-Evaluate compatible OpenAI-style serving through one or more of:
+Candidates:
 
-- [ ] vLLM
-- [ ] SGLang
-- [ ] llama.cpp-compatible path if/when adapter export supports it cleanly
-- [ ] another well-supported OpenAI-compatible local server
-
-Acceptance criteria:
-
-- Selection is based on correct Qwen3.5 + adapter + tool behavior, not familiarity alone.
-
-## P16-002 — Serve base + adapter
-
-- [ ] Load model.
-- [ ] Load adapter or supported merged artifact.
-- [ ] Expose OpenAI-compatible endpoint.
-- [ ] Verify deterministic chat request.
-
-## P16-003 — Validate tool-call protocol through server
-
-- [ ] Send tool definitions.
-- [ ] Verify emitted tool calls survive server parsing/serialization.
-- [ ] Verify tool results can be fed back.
+- language + behavior adapter.
+- two language adapters in polyglot task.
+- weighted/fused adapters.
 
 Acceptance criteria:
 
-- Tool behavior works end-to-end over the same protocol OpenCode will use.
+- Each experiment has an explicit expected benefit and failure mode.
 
-## P16-004 — Configure OpenCode
-
-- [ ] Add documented local provider configuration.
-- [ ] Keep credentials/endpoints environment-driven.
-- [ ] Document context/token limits.
-
-## P16-005 — Run OpenCode task suite
-
-- [ ] Execute disposable Python repository tasks.
-- [ ] Record success/failure and agent telemetry.
-
-## P16-006 — Produce OpenCode readiness report
-
-Classify the model as:
-
-- [ ] not viable
-- [ ] viable for constrained/simple tasks
-- [ ] useful Python micro-agent
-- [ ] broadly useful local coding agent
+## P18-002 — Build composition regression matrix
 
 Acceptance criteria:
 
-- Classification is evidence-based and tied to repository-task metrics.
+- Single adapters remain controls.
+
+## P18-003 — Test language + behavior composition
+
+Acceptance criteria:
+
+- Composition must outperform or provide a meaningful tradeoff versus retraining a combined adapter.
+
+## P18-004 — Test multi-language composition
+
+Acceptance criteria:
+
+- No claim of successful fusion without executable polyglot evidence.
 
 ---
 
-# Phase 17 — Packaging and Publication
+# Phase 19 — Packaging, Publication, and Reproducibility Closure
 
-Goal: make successful results reusable without losing provenance.
+Goal: make successful adapters and results reusable without duplicating the full base model.
 
-## P17-001 — Define adapter naming/versioning
+## P19-001 — Define adapter release format
 
 Include:
 
-- [ ] base model lineage
-- [ ] experiment/config version
-- [ ] dataset-manifest reference
-- [ ] adapter rank/target strategy
-
-## P17-002 — Add adapter model card template
-
-Document:
-
-- [ ] intended use
-- [ ] base model
-- [ ] datasets
-- [ ] training configuration
-- [ ] evaluation results
-- [ ] regressions/limitations
-- [ ] licensing/provenance
-- [ ] hardware
-
-## P17-003 — Add reproducible publish command
-
-- [ ] Publish adapter to an appropriate registry only when explicitly authorized.
-- [ ] Never publish secrets/local paths.
-
-## P17-004 — Optional merge/export path
-
-- [ ] Merge adapter into base weights only as a deployment artifact.
-- [ ] Preserve adapter-level lineage.
-- [ ] Evaluate merged result against adapter-loaded result.
+- binary LoRA weights.
+- adapter manifest.
+- base-model exact revision.
+- training config.
+- evaluation summary.
+- license/provenance notes.
 
 Acceptance criteria:
 
-- Deployment convenience does not obscure experiment provenance.
+- A user can determine exactly which base checkpoint is required.
 
----
+## P19-002 — Add reproducibility command/documentation
 
-# Phase 18 — Final Comparative Study
+Acceptance criteria:
 
-Goal: summarize what actually matters for a 0.8B Python coding model.
+- From repo + upstream sources + pinned config, a user can reconstruct a selected adapter experiment.
 
-## P18-001 — Assemble canonical experiment table
+## P19-003 — Publish canonical comparison report
 
 Include:
 
-- [ ] starting checkpoint
-- [ ] training stage
-- [ ] data count/token count
-- [ ] LoRA rank
-- [ ] target strategy
-- [ ] sequence length
-- [ ] trainable parameters
-- [ ] adapter size
-- [ ] peak VRAM
-- [ ] training time/throughput
-- [ ] HumanEval
-- [ ] MBPP
-- [ ] custom Python suite
-- [ ] regression suite
-- [ ] tool metrics
-- [ ] repo-agent success
-
-## P18-002 — Identify Pareto-optimal configurations
-
-Evaluate quality versus:
-
-- [ ] adapter size
-- [ ] VRAM
-- [ ] training cost
-- [ ] inference cost
-- [ ] regression cost
-
-## P18-003 — Document conclusions
-
-Answer at least:
-
-1. How much can LoRA improve Qwen3.5-0.8B at Python?
-2. What dataset size gives diminishing returns?
-3. What LoRA rank is sufficient?
-4. Does Qwen3.5's hybrid architecture benefit from all-linear targeting?
-5. Does raw Python CPT materially help?
-6. How much tool/agent training can be added without sacrificing Python quality?
-7. Is the resulting model actually useful in OpenCode?
-8. What tasks remain beyond the capability ceiling of a 0.8B model?
+- Python results.
+- TypeScript results.
+- Rust results.
+- cross-language matrix.
+- general/tool regressions.
+- adapter sizes.
+- VRAM/training performance.
+- switching behavior.
 
 Acceptance criteria:
 
-- Conclusions are traceable to committed configurations and recorded experiment artifacts.
+- Claims are traceable to machine-readable artifacts.
+
+## P19-004 — Verify central project invariant
+
+The final system MUST demonstrate:
+
+```text
+one pinned Qwen3.5-0.8B base model
++
+small interchangeable Python/TypeScript/Rust LoRA adapters
+```
+
+without requiring three independent full model copies.
+
+Acceptance criteria:
+
+- Base is loaded once in the runtime test.
+- Python, TypeScript, and Rust adapters can each be activated.
+- Base-only mode can be restored.
+- Exact adapter/base compatibility is enforced.
+- Cross-language evaluation results are published.
 
 ---
 
 # Immediate execution order
 
-The first implementation sequence SHOULD be:
+The next implementation sequence is:
 
 1. `P0-001` through `P0-007` — bootstrap repository and CI.
-2. `P1-001` through `P1-004` — reproducibility/config foundation.
-3. `P2-001` through `P2-005` — inspect Qwen3.5 and validate LoRA/template mechanics.
-4. `P3-001` through `P3-012` — deterministic Python dataset pipeline.
-5. `P4-001` through `P4-010` — benchmark integrity and untouched baseline.
-6. `P5-001` through `P5-009` — first BF16 LoRA training.
-7. `P6-001` through `P6-005` — evaluate and decide whether P0 worked.
+2. `P1-*` — pin the canonical base/configuration contract.
+3. `P2-*` — inspect Qwen3.5 and define adapter compatibility/LoRA targeting.
+4. `P3-*` and `P4-*` — build generic language/data/evaluation infrastructure.
+5. `P5-*` and `P6-*` — prepare Python data and freeze the baseline.
+6. `P7-*` and `P8-*` — train and evaluate the first Python LoRA.
+7. `P9-*` — improve/select the recommended Python adapter.
+8. `P10-*` — prove adapter hot switching on one resident base.
+9. `P11-*` — TypeScript adapter.
+10. `P12-*` — Rust adapter.
+11. `P13-*` onward — cross-language, polyglot, agent, OpenCode, and advanced research.
 
-Do NOT start hyperparameter sweeps before the baseline, dataset manifest, P0 training path, and frozen evaluation path are trustworthy.
+The project MUST resist introducing TypeScript/Rust-specific forks before the shared framework is proven. Python is the first specialization, not the architecture of the system.
