@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from tiny_qwen_coder.config import EvaluationConfig, ExecutionConfig
+from tiny_qwen_coder.config import EvaluationConfig, ExecutionConfig, GenerationConfig
 from tiny_qwen_coder.evaluation.settings import (
     EvaluationSettingsError,
     evaluation_settings_json,
@@ -23,6 +23,7 @@ _EXPECTED_SHA256 = "8660c83a561dc5d9896de2fbf5471ecec5c9763d46dcc16891b24f55e626
 
 def _evaluation_config(*, adapter_id: str | None = None) -> EvaluationConfig:
     settings = load_frozen_evaluation_settings()
+    frozen = settings.generation
     return EvaluationConfig(
         schema_version=1,
         base_config="configs/base/qwen35-4b.yaml",
@@ -31,7 +32,13 @@ def _evaluation_config(*, adapter_id: str | None = None) -> EvaluationConfig:
         suites=("general_tool_regression_v1",),
         output_dir="artifacts/eval/python",
         seed=settings.seed,
-        generation=settings.generation,
+        generation=GenerationConfig(
+            temperature=frozen.temperature,
+            top_p=frozen.top_p,
+            top_k=frozen.top_k,
+            max_new_tokens=frozen.max_new_tokens,
+            prompt_version=frozen.prompt_version,
+        ),
         execution=ExecutionConfig(timeout_seconds=10.0, network_enabled=False),
     )
 
@@ -69,7 +76,7 @@ def test_base_and_adapter_configs_accept_the_same_frozen_settings() -> None:
 
     assert validate_evaluation_config_settings(base, settings) == _EXPECTED_SHA256
     assert validate_evaluation_config_settings(adapter, settings) == _EXPECTED_SHA256
-    assert base.generation == adapter.generation == settings.generation
+    assert base.generation == adapter.generation
     assert base.seed == adapter.seed == settings.seed
 
 
@@ -83,10 +90,10 @@ def test_seed_drift_is_rejected() -> None:
 
 def test_generation_drift_is_rejected() -> None:
     settings = load_frozen_evaluation_settings()
-    changed_generation = replace(settings.generation, max_new_tokens=256)
+    changed_generation = replace(_evaluation_config().generation, max_new_tokens=256)
     config = replace(_evaluation_config(), generation=changed_generation)
 
-    with pytest.raises(EvaluationSettingsError, match="do not match the frozen"):
+    with pytest.raises(EvaluationSettingsError, match="max_new_tokens"):
         validate_evaluation_config_settings(config, settings)
 
 
@@ -120,12 +127,15 @@ def test_canonical_content_drift_requires_explicit_versioned_freeze(tmp_path: Pa
         load_frozen_evaluation_settings(path)
 
 
-def test_greedy_generation_rejects_sampling_knob_drift() -> None:
-    settings = load_frozen_evaluation_settings()
-
-    with pytest.raises(ValueError, match="temperature=0"):
-        replace(settings.generation, temperature=0.1)
-    with pytest.raises(ValueError, match="top_p=1"):
-        replace(settings.generation, top_p=0.95)
-    with pytest.raises(ValueError, match="top_k=0"):
-        replace(settings.generation, top_k=20)
+def test_greedy_generation_rejects_sampling_knob_drift(tmp_path: Path) -> None:
+    original = _SETTINGS_PATH.read_text(encoding="utf-8")
+    replacements = (
+        ("temperature: 0", "temperature: 0.1", "temperature=0"),
+        ("top_p: 1", "top_p: 0.95", "top_p=1"),
+        ("top_k: 0", "top_k: 20", "top_k=0"),
+    )
+    for old, new, message in replacements:
+        path = tmp_path / f"{message}.yaml"
+        path.write_text(original.replace(old, new), encoding="utf-8")
+        with pytest.raises(EvaluationSettingsError, match=message):
+            load_evaluation_settings(path)
