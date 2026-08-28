@@ -250,16 +250,16 @@ Acceptance criteria:
 
 ## P2-004 — Define adapter-manifest schema
 
-- [ ] adapter ID.
-- [ ] family.
-- [ ] language.
-- [ ] base repository/revision.
-- [ ] tokenizer/chat-template identity.
-- [ ] training Git SHA/config hash.
-- [ ] dataset manifest IDs.
-- [ ] LoRA hyperparameters/targets.
-- [ ] trainable parameters.
-- [ ] evaluation artifact references.
+- [x] adapter ID.
+- [x] family.
+- [x] language.
+- [x] base repository/revision.
+- [x] tokenizer/chat-template identity.
+- [x] training Git SHA/config hash.
+- [x] dataset manifest IDs.
+- [x] LoRA hyperparameters/targets.
+- [x] trainable parameters.
+- [x] evaluation artifact references.
 
 Acceptance criteria:
 

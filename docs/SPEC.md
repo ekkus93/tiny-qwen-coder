@@ -262,30 +262,89 @@ Exact naming MAY evolve, but identity MUST be machine-readable and unambiguous.
 
 ### 6.2 Adapter manifest
 
-Each adapter artifact MUST be accompanied by a machine-readable manifest containing at least:
+Each adapter artifact MUST be accompanied by a strict machine-readable manifest. The adapter manifest describes the portable trained artifact, while the run manifest records execution provenance for an individual training or evaluation run.
 
-- adapter ID
-- language
-- adapter family (`language` initially)
-- base-model repository and exact revision
-- tokenizer/chat-template identity
-- training Git commit SHA
-- dataset manifest IDs/hashes
-- training config hash
-- seed
-- LoRA target modules
-- rank
-- alpha
-- dropout
-- trainable parameter count
-- precision
-- sequence length
-- optimizer/scheduler settings
-- training steps/epochs
-- peak VRAM
-- validation metrics
-- evaluation artifact IDs
+Adapter-manifest schema version 1 records:
+
+- stable adapter ID, family, and language
 - creation timestamp
+- exact base-model repository and immutable revision
+- exact tokenizer repository/revision plus chat-template identifier and optional SHA-256
+- originating training run ID, Git SHA, training-config SHA-256, seed, Transformers version, and PEFT version
+- one or more immutable dataset-manifest IDs plus SHA-256 values
+- LoRA rank, alpha, dropout, bias, symbolic target strategy, exact resolved target-module names, and trainable parameter count
+- precision and sequence length
+- optimizer and scheduler names plus extensible scalar settings
+- completed steps/epochs and peak VRAM
+- zero or more named validation metrics
+- zero or more evaluation-artifact references
+
+The canonical shape is:
+
+```yaml
+schema_version: 1
+adapter_id: language/python/p0-r16-40k
+family: language
+language: python
+created_at_utc: 2026-08-28T10:30:00Z
+base_model:
+  repository: Qwen/Qwen3.5-4B
+  revision: 851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a
+tokenizer:
+  repository: Qwen/Qwen3.5-4B
+  revision: 851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a
+  chat_template:
+    identifier: qwen35-4b-pinned-checkpoint
+    sha256: null
+training:
+  run_id: training-python-example
+  git_sha: 0123456789abcdef0123456789abcdef01234567
+  config_sha256: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+  seed: 42
+  transformers_version: 5.16.1
+  peft_version: 0.20.0
+datasets:
+  - manifest_id: dataset/python/p0
+    sha256: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+lora:
+  rank: 16
+  alpha: 32
+  dropout: 0.05
+  bias: none
+  target_strategy: selective
+  target_modules:
+    - model.language_model.layers.0.self_attn.q_proj
+  trainable_parameters: 32464896
+training_summary:
+  precision: bfloat16
+  sequence_length: 2048
+  optimizer:
+    name: adamw_torch
+    settings:
+      - name: learning_rate
+        value: 0.0002
+  scheduler:
+    name: cosine
+    settings:
+      - name: warmup_ratio
+        value: 0.03
+  steps: 1000
+  epochs: 1.0
+  peak_vram_bytes: 12000000000
+validation_metrics:
+  - name: validation_loss
+    value: 1.234
+    split: validation
+    unit: null
+evaluation_artifacts:
+  - evaluation/python/p0/humaneval.json
+```
+
+Adapter IDs MUST contain at least `family/language/experiment`; the first two path components MUST match the manifest `family` and `language` fields. Git revisions are lowercase 40-character commit SHAs. Training-config, dataset-manifest, and optional chat-template hashes are lowercase SHA-256 values.
+
+The manifest MUST record exact resolved LoRA target-module names even when the training configuration used a symbolic strategy such as `all_linear`. This preserves architecture evidence independently of PEFT version-specific target expansion. The schema itself does not decide whether a resolved target set is compatible with a currently loaded base model; P2-005 performs that fail-closed compatibility comparison.
+
+Unknown fields are rejected at every schema level. Python, TypeScript, Rust, and future languages use the same schema and differ only in data values.
 
 ### 6.3 Compatibility checks
 
