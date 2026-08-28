@@ -82,11 +82,11 @@ Acceptance criteria:
 
 ## P0-005 — Add quality gates
 
-- [ ] Configure Ruff formatting.
-- [ ] Configure Ruff linting.
-- [ ] Select/configure mypy or pyright.
-- [ ] Configure pytest.
-- [ ] Add package smoke test.
+- [x] Configure Ruff formatting.
+- [x] Configure Ruff linting.
+- [x] Select/configure mypy or pyright.
+- [x] Configure pytest.
+- [x] Add package smoke test.
 
 Acceptance criteria:
 
