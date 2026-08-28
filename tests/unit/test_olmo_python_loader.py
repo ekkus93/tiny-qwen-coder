@@ -111,9 +111,7 @@ def test_loader_uses_pinned_revision_and_filters_by_metadata_extension() -> None
 
     records = load_olmo_python_instruct(source, language, dataset_loader=loader)
 
-    assert loader.calls == [
-        ("OLMo-Coding/starcoder-python-instruct", _REVISION, "train", True)
-    ]
+    assert loader.calls == [("OLMo-Coding/starcoder-python-instruct", _REVISION, "train", True)]
     assert len(records) == 1
     record = records[0]
     assert record.language == "python"
