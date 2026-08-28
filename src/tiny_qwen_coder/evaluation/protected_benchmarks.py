@@ -160,10 +160,7 @@ class ProtectedBenchmarkRegistry:
             key = (benchmark.language, benchmark.id)
             self._benchmarks_by_key[key] = benchmark
         self._key_by_sft_selector.update(
-            {
-                selector: (owner.language, owner.id)
-                for selector, owner in staged_owners.items()
-            }
+            {selector: (owner.language, owner.id) for selector, owner in staged_owners.items()}
         )
 
     def assert_plugin_registration_matches(self, plugin: LanguagePlugin) -> None:
@@ -211,9 +208,7 @@ class ProtectedBenchmarkRegistry:
         key = (language, benchmark_id)
         benchmark = self._benchmarks_by_key.get(key)
         if benchmark is None:
-            available = ", ".join(
-                item.qualified_id for item in self.list_benchmarks()
-            ) or "<none>"
+            available = ", ".join(item.qualified_id for item in self.list_benchmarks()) or "<none>"
             raise UnknownProtectedBenchmarkError(
                 f"unknown protected benchmark {language}/{benchmark_id}; "
                 f"registered benchmarks: {available}"
