@@ -138,6 +138,8 @@ def test_canonical_python_p0_config_freezes_30k_10k_composition_and_fill() -> No
     assert config.id == "python-p0"
     assert config.target_total == 40_000
     assert config.max_tokens == 2_048
+    assert config.seed == 1_729
+    assert config.validation_fraction == 0.05
     assert tuple((source.id, source.target_accepted) for source in config.sources) == (
         (_OLMO_ID, 30_000),
         (_MAGICODER_ID, 10_000),
@@ -153,6 +155,8 @@ def test_python_p0_config_is_strict_and_targets_must_sum() -> None:
         "target_total": 5,
         "min_tokens": 1,
         "max_tokens": 2048,
+        "seed": 1729,
+        "validation_fraction": 0.05,
         "sources": [
             {"id": _OLMO_ID, "source_config": "olmo.yaml", "target_accepted": 3},
             {"id": _MAGICODER_ID, "source_config": "magic.yaml", "target_accepted": 1},
@@ -170,6 +174,8 @@ def test_python_p0_config_is_strict_and_targets_must_sum() -> None:
         "target_total": 5,
         "min_tokens": 1,
         "max_tokens": 2048,
+        "seed": 1729,
+        "validation_fraction": 0.05,
         "sources": [
             {"id": _OLMO_ID, "source_config": "olmo.yaml", "target_accepted": 3},
             {"id": _MAGICODER_ID, "source_config": "magic.yaml", "target_accepted": 2},
@@ -267,6 +273,10 @@ def test_builder_applies_filters_dedup_and_explicit_olmo_fill() -> None:
     assert result.accepted_total == 5
     assert result.shortfall == 0
     assert result.fill_accepted == 1
+    assert result.token_stats.measured_distribution.count == 7
+    assert result.token_stats.accepted_distribution.count == 5
+    assert result.token_stats.repository == "Qwen/Qwen3.5-4B"
+    assert result.token_stats.revision == _REVISION
     olmo_stats, magic_stats = result.source_stats
     assert olmo_stats.requested_accepted == 4
     assert olmo_stats.accepted == 4

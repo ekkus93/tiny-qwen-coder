@@ -16,8 +16,10 @@ from tiny_qwen_coder.data.deduplication import (
 from tiny_qwen_coder.data.filtering import filter_required_content
 from tiny_qwen_coder.data.length_filtering import (
     LengthFilterConfig,
+    TokenLengthDistribution,
     TruncationPolicy,
     filter_by_token_length,
+    token_length_distribution,
 )
 from tiny_qwen_coder.data.magicoder_python import iter_magicoder_python
 from tiny_qwen_coder.data.olmo_python import iter_olmo_python_instruct
@@ -96,6 +98,40 @@ class PythonP0SourceStats:
 
 
 @dataclass(frozen=True, slots=True)
+class PythonP0TokenStats:
+    """Canonical tokenizer identity plus measured/final P0 token distributions."""
+
+    repository: str
+    revision: str
+    tokenizer_class: str
+    chat_template_sha256: str
+    min_tokens: int
+    max_tokens: int
+    truncation_policy: str
+    measured_distribution: TokenLengthDistribution
+    accepted_distribution: TokenLengthDistribution
+
+    def __post_init__(self) -> None:
+        for field_name, value in (
+            ("repository", self.repository),
+            ("revision", self.revision),
+            ("tokenizer_class", self.tokenizer_class),
+        ):
+            if not value.strip():
+                raise PythonP0CorpusError(f"token stats {field_name} must not be empty")
+        if len(self.chat_template_sha256) != 64 or any(
+            character not in "0123456789abcdef" for character in self.chat_template_sha256
+        ):
+            raise PythonP0CorpusError("token stats chat_template_sha256 must be lowercase SHA-256")
+        if self.min_tokens < 1 or self.max_tokens < self.min_tokens:
+            raise PythonP0CorpusError("token stats bounds are invalid")
+        if self.truncation_policy != "reject":
+            raise PythonP0CorpusError("Python P0 token stats require reject truncation policy")
+        if self.accepted_distribution.count > self.measured_distribution.count:
+            raise PythonP0CorpusError("accepted token count must not exceed measured token count")
+
+
+@dataclass(frozen=True, slots=True)
 class PythonP0RejectionCount:
     """Measured count for one stable rejection stage/reason pair."""
 
@@ -117,6 +153,7 @@ class PythonP0CorpusResult:
     config: PythonP0CorpusConfig
     source_stats: tuple[PythonP0SourceStats, ...]
     rejection_counts: tuple[PythonP0RejectionCount, ...]
+    token_stats: PythonP0TokenStats
     accepted_records: tuple[NormalizedTrainingRecord, ...]
 
     def __post_init__(self) -> None:
@@ -126,6 +163,18 @@ class PythonP0CorpusResult:
             raise PythonP0CorpusError("source statistics must follow configured source order")
         if sum(item.accepted for item in self.source_stats) != len(self.accepted_records):
             raise PythonP0CorpusError("source accepted counts must equal accepted record count")
+        measured_at_length_gate = sum(
+            item.scanned - item.content_rejected - item.validation_rejected
+            for item in self.source_stats
+        )
+        if self.token_stats.measured_distribution.count != measured_at_length_gate:
+            raise PythonP0CorpusError(
+                "measured token distribution must cover every record reaching the length gate"
+            )
+        if self.token_stats.accepted_distribution.count != len(self.accepted_records):
+            raise PythonP0CorpusError(
+                "accepted token distribution must cover every accepted P0 record"
+            )
         rejection_order = tuple((item.stage.value, item.reason) for item in self.rejection_counts)
         if rejection_order != tuple(sorted(rejection_order)):
             raise PythonP0CorpusError("rejection counts must use stable stage/reason order")
@@ -205,26 +254,34 @@ def _process_candidate(
     tokenizer: object,
     target: InspectionTarget,
     length_config: LengthFilterConfig,
-) -> tuple[NormalizedTrainingRecord | None, PythonP0RejectionStage | None, tuple[str, ...]]:
+) -> tuple[
+    NormalizedTrainingRecord | None,
+    PythonP0RejectionStage | None,
+    tuple[str, ...],
+    int | None,
+]:
     content = filter_required_content((record,))
     if content.rejected_records:
         reasons = tuple(reason.value for reason in content.rejected_records[0].reasons)
-        return None, PythonP0RejectionStage.CONTENT, reasons
+        return None, PythonP0RejectionStage.CONTENT, reasons, None
 
     validated = apply_language_validators(content.accepted_records, plugin)
     candidate = validated[0]
     failures = _validation_failure_reasons(candidate)
     if failures:
-        return None, PythonP0RejectionStage.VALIDATION, failures
+        return None, PythonP0RejectionStage.VALIDATION, failures, None
 
     length = filter_by_token_length((candidate,), tokenizer, target, config=length_config)
     if length.rejected_records:
+        rejected = length.rejected_records[0]
         return (
             None,
             PythonP0RejectionStage.LENGTH,
-            (length.rejected_records[0].reason.value,),
+            (rejected.reason.value,),
+            rejected.token_count,
         )
-    return length.accepted_records[0], None, ()
+    accepted_length = length.accepted_lengths[0]
+    return length.accepted_records[0], None, (), accepted_length.token_count
 
 
 def _is_duplicate(
@@ -298,6 +355,9 @@ def build_python_p0_corpus(
         max_tokens=config.max_tokens,
         truncation_policy=TruncationPolicy.REJECT,
     )
+    token_identity = filter_by_token_length((), tokenizer, target, config=length_config)
+    measured_token_counts: list[int] = []
+    accepted_token_counts: dict[str, list[int]] = {source.id: [] for source in config.sources}
     accepted_by_source: dict[str, list[NormalizedTrainingRecord]] = {
         source.id: [] for source in config.sources
     }
@@ -335,13 +395,15 @@ def build_python_p0_corpus(
         for record in stream_factory(source, plugin.spec.config):
             _validate_record_source(record, source=source, language=config.language)
             scanned += 1
-            candidate, stage, reasons = _process_candidate(
+            candidate, stage, reasons, token_count = _process_candidate(
                 record,
                 plugin=plugin,
                 tokenizer=tokenizer,
                 target=target,
                 length_config=length_config,
             )
+            if token_count is not None:
+                measured_token_counts.append(token_count)
             if stage is not None:
                 for reason in reasons:
                     rejection_counter[(stage, reason)] += 1
@@ -364,7 +426,10 @@ def build_python_p0_corpus(
                 for reason in duplicate_reasons:
                     rejection_counter[(PythonP0RejectionStage.DUPLICATE, reason)] += 1
                 continue
+            if token_count is None:
+                raise PythonP0CorpusError("accepted record is missing measured token count")
             accepted.append(candidate)
+            accepted_token_counts[budget.id].append(token_count)
             if len(accepted) >= requested:
                 break
 
@@ -395,10 +460,25 @@ def build_python_p0_corpus(
             rejection_counter.items(), key=lambda item: (item[0][0].value, item[0][1])
         )
     )
+    accepted_token_sequence = tuple(
+        token_count for source in config.sources for token_count in accepted_token_counts[source.id]
+    )
+    token_stats = PythonP0TokenStats(
+        repository=token_identity.target.tokenizer_repository,
+        revision=token_identity.target.tokenizer_revision,
+        tokenizer_class=token_identity.tokenizer_class,
+        chat_template_sha256=token_identity.chat_template_sha256,
+        min_tokens=length_config.min_tokens,
+        max_tokens=length_config.max_tokens,
+        truncation_policy=str(length_config.truncation_policy),
+        measured_distribution=token_length_distribution(measured_token_counts),
+        accepted_distribution=token_length_distribution(accepted_token_sequence),
+    )
     return PythonP0CorpusResult(
         config=config,
         source_stats=ordered_stats,
         rejection_counts=rejection_counts,
+        token_stats=token_stats,
         accepted_records=accepted_records,
     )
 
@@ -411,6 +491,7 @@ __all__ = [
     "PythonP0RejectionStage",
     "PythonP0SourceBudget",
     "PythonP0SourceStats",
+    "PythonP0TokenStats",
     "RecordStreamFactory",
     "build_python_p0_corpus",
     "load_python_p0_config",
