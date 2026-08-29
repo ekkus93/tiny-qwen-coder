@@ -16,9 +16,9 @@ from tiny_qwen_coder.data.records import (
     single_turn_messages,
 )
 from tiny_qwen_coder.languages import (
+    PRIMARY_VALIDATOR_ID,
     LanguageConfigError,
     LanguageRegistry,
-    PRIMARY_VALIDATOR_ID,
     load_language_config,
     load_language_plugin,
 )
