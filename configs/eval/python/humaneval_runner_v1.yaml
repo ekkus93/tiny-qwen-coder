@@ -1,0 +1,27 @@
+schema_version: 1
+runner_id: humaneval
+runner_version: 1
+frozen: true
+benchmark_id: humaneval
+reference_repository: openai/simple-evals
+reference_revision: 652c89d0ca9df547706735883097e9537d40dc47
+dataset_split: test
+expected_problem_count: 164
+prompt_version: humaneval-openai-simple-evals-v1
+completion_normalizer_version: humaneval-completion-normalizer-v1
+instruction: >-
+  Read the following function signature and docstring, and fully implement the
+  function described. Your response should only contain the code for this
+  function.
+execution_image: python:3.11.14-slim@sha256:c8271b1f627d0068857dce5b53e14a9558603b527e46f1f901722f935b786a39
+execution_timeout_seconds: 10
+limits:
+  cpus: 1
+  memory_mebibytes: 512
+  pids: 64
+  workspace_mebibytes: 64
+  temp_mebibytes: 64
+  max_output_bytes: 65536
+  max_input_bytes: 1048576
+  open_files: 256
+  cleanup_timeout_seconds: 5
