@@ -48,8 +48,7 @@ def _load_python_protected_benchmarks(
     evaluation_configs: tuple[str, ...],
 ) -> tuple[ProtectedBenchmark, ...]:
     benchmarks = tuple(
-        load_protected_benchmark_config(Path(config_path))
-        for config_path in evaluation_configs
+        load_protected_benchmark_config(Path(config_path)) for config_path in evaluation_configs
     )
     for benchmark in benchmarks:
         if benchmark.language != "python":

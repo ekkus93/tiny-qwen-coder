@@ -137,18 +137,14 @@ def _expect_int(mapping: Mapping[str, object], key: str, *, context: str) -> int
     return value
 
 
-def _expect_str_tuple(
-    mapping: Mapping[str, object], key: str, *, context: str
-) -> tuple[str, ...]:
+def _expect_str_tuple(mapping: Mapping[str, object], key: str, *, context: str) -> tuple[str, ...]:
     value = mapping[key]
     if not isinstance(value, list):
         raise ProtectedBenchmarkRegistrationError(f"{context}.{key} must be a YAML sequence")
     output: list[str] = []
     for index, item in enumerate(value):
         if not isinstance(item, str):
-            raise ProtectedBenchmarkRegistrationError(
-                f"{context}.{key}[{index}] must be a string"
-            )
+            raise ProtectedBenchmarkRegistrationError(f"{context}.{key}[{index}] must be a string")
         try:
             _require_exact_non_empty(item, field_name=f"{context}.{key}[{index}]")
         except ValueError as exc:
