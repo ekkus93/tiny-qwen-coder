@@ -101,7 +101,7 @@ def _evaluation(
 def _problem(index: int = 0) -> HumanEvalProblem:
     return HumanEvalProblem(
         task_id=f"HumanEval/{index}",
-        prompt="def add(a, b):\n    \"\"\"Return the sum.\"\"\"\n",
+        prompt='def add(a, b):\n    """Return the sum."""\n',
         test="def check(candidate):\n    assert candidate(2, 3) == 5\n",
         entry_point="add",
     )
@@ -248,14 +248,14 @@ def test_loader_uses_exact_protected_revision_and_drops_canonical_solution() -> 
         return [
             {
                 "task_id": "HumanEval/1",
-                "prompt": "def second():\n    \"\"\"Return two.\"\"\"\n",
+                "prompt": 'def second():\n    """Return two."""\n',
                 "canonical_solution": "    return 2\n",
                 "test": "def check(candidate):\n    assert candidate() == 2\n",
                 "entry_point": "second",
             },
             {
                 "task_id": "HumanEval/0",
-                "prompt": "def first():\n    \"\"\"Return one.\"\"\"\n",
+                "prompt": 'def first():\n    """Return one."""\n',
                 "canonical_solution": "    return 1\n",
                 "test": "def check(candidate):\n    assert candidate() == 1\n",
                 "entry_point": "first",
