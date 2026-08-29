@@ -33,7 +33,7 @@ def _load_huggingface_rows(
     split: str,
     streaming: bool,
 ) -> Iterable[DatasetRow]:
-    from datasets import load_dataset
+    from datasets import load_dataset  # type: ignore[import-untyped]
 
     loaded = load_dataset(
         repository,
@@ -172,6 +172,28 @@ def _normalize_row(
     )
 
 
+def iter_olmo_python_instruct(
+    source: DatasetSourceConfig,
+    language: LanguageConfig,
+    *,
+    dataset_loader: DatasetRowsLoader = _load_huggingface_rows,
+) -> Iterable[NormalizedTrainingRecord]:
+    """Stream normalized Python 3 OLMo rows in pinned upstream order."""
+
+    _validate_source_contract(source, language)
+    rows = dataset_loader(
+        source.dataset.repository,
+        revision=source.dataset.revision,
+        split=source.dataset.split,
+        streaming=True,
+    )
+    for raw_row in rows:
+        row = _expect_mapping(raw_row, field_name="dataset row")
+        if _selection_value(row, source.selection.field) != source.selection.equals:
+            continue
+        yield _normalize_row(row, source=source, language=language)
+
+
 def load_olmo_python_instruct(
     source: DatasetSourceConfig,
     language: LanguageConfig,
@@ -179,24 +201,18 @@ def load_olmo_python_instruct(
     max_records: int | None = None,
     dataset_loader: DatasetRowsLoader = _load_huggingface_rows,
 ) -> tuple[NormalizedTrainingRecord, ...]:
-    """Load pinned OLMo rows and retain only metadata-declared Python 3 examples."""
+    """Load a bounded tuple of normalized OLMo Python 3 records."""
 
-    _validate_source_contract(source, language)
     if max_records is not None and max_records <= 0:
         raise OlmoPythonLoaderError("max_records must be greater than zero when provided")
 
-    rows = dataset_loader(
-        source.dataset.repository,
-        revision=source.dataset.revision,
-        split=source.dataset.split,
-        streaming=True,
-    )
     records: list[NormalizedTrainingRecord] = []
-    for raw_row in rows:
-        row = _expect_mapping(raw_row, field_name="dataset row")
-        if _selection_value(row, source.selection.field) != source.selection.equals:
-            continue
-        records.append(_normalize_row(row, source=source, language=language))
+    for record in iter_olmo_python_instruct(
+        source,
+        language,
+        dataset_loader=dataset_loader,
+    ):
+        records.append(record)
         if max_records is not None and len(records) >= max_records:
             break
     return tuple(records)
