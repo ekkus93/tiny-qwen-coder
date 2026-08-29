@@ -2,8 +2,8 @@
 
 from tiny_qwen_coder.languages.loading import (
     DEFAULT_EXECUTION_HOOK_ID,
-    LanguageConfigError,
     PRIMARY_VALIDATOR_ID,
+    LanguageConfigError,
     load_language_config,
     load_language_plugin,
     parse_language_config,
