@@ -9,8 +9,11 @@ preparation. Evaluation-only data must never be selected as SFT input.
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+from pathlib import Path
+
+import yaml
 
 from tiny_qwen_coder.config import DataPreparationConfig
 from tiny_qwen_coder.languages.spec import LanguagePlugin
@@ -85,6 +88,120 @@ class ProtectedBenchmark:
         """Return all exact selectors forbidden in normal SFT source configs."""
 
         return (self.dataset_id, *self.source_configs)
+
+
+def _strict_mapping(value: object, *, context: str) -> dict[str, object]:
+    if not isinstance(value, Mapping):
+        raise ProtectedBenchmarkRegistrationError(f"{context} must be a mapping")
+    result: dict[str, object] = {}
+    for key, item in value.items():
+        if not isinstance(key, str):
+            raise ProtectedBenchmarkRegistrationError(f"{context} keys must be strings")
+        result[key] = item
+    return result
+
+
+def _validate_keys(
+    mapping: Mapping[str, object],
+    *,
+    required: frozenset[str],
+    context: str,
+) -> None:
+    unknown = sorted(set(mapping) - required)
+    missing = sorted(required - set(mapping))
+    if unknown:
+        raise ProtectedBenchmarkRegistrationError(
+            f"{context} contains unknown field(s): {', '.join(unknown)}"
+        )
+    if missing:
+        raise ProtectedBenchmarkRegistrationError(
+            f"{context} is missing required field(s): {', '.join(missing)}"
+        )
+
+
+def _expect_str(mapping: Mapping[str, object], key: str, *, context: str) -> str:
+    value = mapping[key]
+    if not isinstance(value, str):
+        raise ProtectedBenchmarkRegistrationError(f"{context}.{key} must be a string")
+    try:
+        _require_exact_non_empty(value, field_name=f"{context}.{key}")
+    except ValueError as exc:
+        raise ProtectedBenchmarkRegistrationError(str(exc)) from exc
+    return value
+
+
+def _expect_int(mapping: Mapping[str, object], key: str, *, context: str) -> int:
+    value = mapping[key]
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ProtectedBenchmarkRegistrationError(f"{context}.{key} must be an integer")
+    return value
+
+
+def _expect_str_tuple(mapping: Mapping[str, object], key: str, *, context: str) -> tuple[str, ...]:
+    value = mapping[key]
+    if not isinstance(value, list):
+        raise ProtectedBenchmarkRegistrationError(f"{context}.{key} must be a YAML sequence")
+    output: list[str] = []
+    for index, item in enumerate(value):
+        if not isinstance(item, str):
+            raise ProtectedBenchmarkRegistrationError(f"{context}.{key}[{index}] must be a string")
+        try:
+            _require_exact_non_empty(item, field_name=f"{context}.{key}[{index}]")
+        except ValueError as exc:
+            raise ProtectedBenchmarkRegistrationError(str(exc)) from exc
+        output.append(item)
+    return tuple(output)
+
+
+def parse_protected_benchmark_config(value: object) -> ProtectedBenchmark:
+    """Parse one strict protected-benchmark registration mapping."""
+
+    context = "protected_benchmark"
+    mapping = _strict_mapping(value, context=context)
+    _validate_keys(
+        mapping,
+        required=frozenset(
+            {
+                "schema_version",
+                "language",
+                "id",
+                "dataset_id",
+                "dataset_revision",
+                "source_configs",
+            }
+        ),
+        context=context,
+    )
+    if _expect_int(mapping, "schema_version", context=context) != 1:
+        raise ProtectedBenchmarkRegistrationError(
+            "unsupported protected-benchmark config schema version"
+        )
+    try:
+        return ProtectedBenchmark(
+            language=_expect_str(mapping, "language", context=context),
+            id=_expect_str(mapping, "id", context=context),
+            dataset_id=_expect_str(mapping, "dataset_id", context=context),
+            dataset_revision=_expect_str(mapping, "dataset_revision", context=context),
+            source_configs=_expect_str_tuple(mapping, "source_configs", context=context),
+        )
+    except ValueError as exc:
+        raise ProtectedBenchmarkRegistrationError(str(exc)) from exc
+
+
+def load_protected_benchmark_config(path: Path) -> ProtectedBenchmark:
+    """Load one strict protected-benchmark registration from YAML."""
+
+    try:
+        loaded: object = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise ProtectedBenchmarkRegistrationError(
+            f"could not read protected benchmark config {path}: {exc}"
+        ) from exc
+    except yaml.YAMLError as exc:
+        raise ProtectedBenchmarkRegistrationError(
+            f"invalid YAML in protected benchmark config {path}: {exc}"
+        ) from exc
+    return parse_protected_benchmark_config(loaded)
 
 
 class ProtectedBenchmarkRegistry:
