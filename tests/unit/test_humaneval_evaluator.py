@@ -274,7 +274,7 @@ def test_loader_rejects_schema_drift_wrong_count_and_noncanonical_ids() -> None:
     runner = replace(load_frozen_humaneval_runner_config(), expected_problem_count=1)
 
     def schema_drift(*args: object, **kwargs: object) -> list[dict[str, object]]:
-        row = {
+        row: dict[str, object] = {
             "task_id": "HumanEval/0",
             "prompt": "def f():\n    pass\n",
             "canonical_solution": "    return 1\n",
