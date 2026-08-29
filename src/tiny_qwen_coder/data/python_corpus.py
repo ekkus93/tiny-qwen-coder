@@ -461,9 +461,7 @@ def build_python_p0_corpus(
         )
     )
     accepted_token_sequence = tuple(
-        token_count
-        for source in config.sources
-        for token_count in accepted_token_counts[source.id]
+        token_count for source in config.sources for token_count in accepted_token_counts[source.id]
     )
     token_stats = PythonP0TokenStats(
         repository=token_identity.target.tokenizer_repository,

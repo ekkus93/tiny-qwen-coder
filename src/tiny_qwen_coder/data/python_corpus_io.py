@@ -249,4 +249,3 @@ def freeze_canonical_python_p0(
         contamination=contamination,
         repo_root=repo_root,
     )
-

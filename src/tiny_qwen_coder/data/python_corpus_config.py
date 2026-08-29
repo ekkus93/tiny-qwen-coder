@@ -90,9 +90,7 @@ class PythonP0CorpusConfig:
         except SeedError as exc:
             raise PythonP0CorpusError(str(exc)) from exc
         if not 0.0 < self.validation_fraction < 1.0:
-            raise PythonP0CorpusError(
-                "validation_fraction must be greater than 0 and less than 1"
-            )
+            raise PythonP0CorpusError("validation_fraction must be greater than 0 and less than 1")
 
 
 def _strict_mapping(value: object, *, context: str) -> dict[str, object]:
