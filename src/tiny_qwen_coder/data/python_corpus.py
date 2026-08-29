@@ -62,16 +62,19 @@ class PythonP0SourceStats:
     accepted: int
 
     def __post_init__(self) -> None:
-        if min(
-            self.target_accepted,
-            self.requested_accepted,
-            self.scanned,
-            self.content_rejected,
-            self.validation_rejected,
-            self.length_rejected,
-            self.duplicate_rejected,
-            self.accepted,
-        ) < 0:
+        if (
+            min(
+                self.target_accepted,
+                self.requested_accepted,
+                self.scanned,
+                self.content_rejected,
+                self.validation_rejected,
+                self.length_rejected,
+                self.duplicate_rejected,
+                self.accepted,
+            )
+            < 0
+        ):
             raise PythonP0CorpusError("source statistics must not contain negative counts")
         classified = (
             self.content_rejected
@@ -227,17 +230,13 @@ def _process_candidate(
 def _is_duplicate(
     record: NormalizedTrainingRecord,
     *,
-    content_seen: dict[
-        str, tuple[RecordContentFingerprint, tuple[TrainingMessage, ...]]
-    ],
+    content_seen: dict[str, tuple[RecordContentFingerprint, tuple[TrainingMessage, ...]]],
     source_seen: dict[SourceRecordIdentity, RecordContentFingerprint],
 ) -> tuple[bool, tuple[str, ...]]:
     fingerprint = normalized_record_fingerprint(record)
     content_match = content_seen.get(fingerprint.record_sha256)
     if content_match is not None and content_match[1] != record.messages:
-        raise PythonP0CorpusError(
-            "SHA-256 content collision while composing the Python P0 corpus"
-        )
+        raise PythonP0CorpusError("SHA-256 content collision while composing the Python P0 corpus")
     source_identity = source_record_identity(record)
     source_match = source_seen.get(source_identity) if source_identity is not None else None
     if source_match is not None and source_match != fingerprint:
@@ -287,9 +286,7 @@ def build_python_p0_corpus(
     expected_ids = {source.id for source in config.sources}
     if set(source_configs) != expected_ids:
         raise PythonP0CorpusError("source_configs must exactly match configured source IDs")
-    adapter_refs = {
-        component.id: component.import_ref for component in plugin.spec.data_adapters
-    }
+    adapter_refs = {component.id: component.import_ref for component in plugin.spec.data_adapters}
     for source_id, source in source_configs.items():
         if adapter_refs.get(source_id) != source.adapter:
             raise PythonP0CorpusError(
@@ -306,9 +303,7 @@ def build_python_p0_corpus(
     }
     stats_by_source: dict[str, PythonP0SourceStats] = {}
     rejection_counter: Counter[tuple[PythonP0RejectionStage, str]] = Counter()
-    content_seen: dict[
-        str, tuple[RecordContentFingerprint, tuple[TrainingMessage, ...]]
-    ] = {}
+    content_seen: dict[str, tuple[RecordContentFingerprint, tuple[TrainingMessage, ...]]] = {}
     source_seen: dict[SourceRecordIdentity, RecordContentFingerprint] = {}
     accumulated_shortfall = 0
 
