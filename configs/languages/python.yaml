@@ -28,7 +28,9 @@ config_refs:
     - configs/data/python/olmo_starcoder_python_instruct.yaml
     - configs/data/python/magicoder_oss_instruct_75k.yaml
   evaluation:
-    - configs/eval/python.yaml
+    - configs/eval/python/humaneval.yaml
+    - configs/eval/python/mbpp.yaml
+    - configs/eval/python/repository_holdout.yaml
 hooks:
   validator: tiny_qwen_coder.languages.python:validate_python_record
   executor: tiny_qwen_coder.languages.python:execute_python

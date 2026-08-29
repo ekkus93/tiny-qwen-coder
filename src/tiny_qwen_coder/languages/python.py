@@ -7,9 +7,18 @@ from pathlib import Path
 from typing import NoReturn
 
 from tiny_qwen_coder.data.records import NormalizedTrainingRecord, ValidationResult
+from tiny_qwen_coder.evaluation.protected_benchmarks import (
+    ProtectedBenchmark,
+    ProtectedBenchmarkRegistry,
+    load_protected_benchmark_config,
+)
 from tiny_qwen_coder.languages.loading import PRIMARY_VALIDATOR_ID, load_language_plugin
 from tiny_qwen_coder.languages.python_quality import PYTHON_QUALITY_VALIDATOR_ID
-from tiny_qwen_coder.languages.spec import LanguageComponentRef, StaticLanguagePlugin
+from tiny_qwen_coder.languages.spec import (
+    LanguageComponentRef,
+    ProtectedBenchmarkRef,
+    StaticLanguagePlugin,
+)
 
 _PYTHON_CONFIG_PATH = Path("configs/languages/python.yaml")
 _OLMO_SOURCE_CONFIG_PATH = Path("configs/data/python/olmo_starcoder_python_instruct.yaml")
@@ -35,6 +44,21 @@ def execute_python() -> NoReturn:
     raise NotImplementedError("Python execution is implemented by the Phase 6 evaluators")
 
 
+def _load_python_protected_benchmarks(
+    evaluation_configs: tuple[str, ...],
+) -> tuple[ProtectedBenchmark, ...]:
+    benchmarks = tuple(
+        load_protected_benchmark_config(Path(config_path))
+        for config_path in evaluation_configs
+    )
+    for benchmark in benchmarks:
+        if benchmark.language != "python":
+            raise ValueError(
+                f"protected benchmark {benchmark.qualified_id!r} does not belong to Python"
+            )
+    return benchmarks
+
+
 def load_python_plugin(
     config_path: Path = _PYTHON_CONFIG_PATH,
     olmo_source_config_path: Path = _OLMO_SOURCE_CONFIG_PATH,
@@ -58,6 +82,7 @@ def load_python_plugin(
     adapters = tuple(
         LanguageComponentRef(id=source.id, import_ref=source.adapter) for source in sources
     )
+    protected_benchmarks = _load_python_protected_benchmarks(config.config_refs.evaluation)
     quality_validator = LanguageComponentRef(
         id=PYTHON_QUALITY_VALIDATOR_ID,
         import_ref=_PYTHON_QUALITY_IMPORT_REF,
@@ -67,5 +92,26 @@ def load_python_plugin(
             base_plugin.spec,
             data_adapters=adapters,
             validators=base_plugin.spec.validators + (quality_validator,),
+            protected_benchmarks=tuple(
+                ProtectedBenchmarkRef(id=benchmark.id) for benchmark in protected_benchmarks
+            ),
         )
     )
+
+
+def load_python_protected_benchmark_registry(
+    config_path: Path = _PYTHON_CONFIG_PATH,
+    olmo_source_config_path: Path = _OLMO_SOURCE_CONFIG_PATH,
+    magicoder_source_config_path: Path = _MAGICODER_SOURCE_CONFIG_PATH,
+) -> ProtectedBenchmarkRegistry:
+    """Load Python's canonical evaluation-only benchmark registry."""
+
+    plugin = load_python_plugin(
+        config_path=config_path,
+        olmo_source_config_path=olmo_source_config_path,
+        magicoder_source_config_path=magicoder_source_config_path,
+    )
+    benchmarks = _load_python_protected_benchmarks(plugin.spec.config.config_refs.evaluation)
+    registry = ProtectedBenchmarkRegistry()
+    registry.register_language(plugin, benchmarks)
+    return registry

@@ -67,7 +67,11 @@ def test_python_config_references_planned_data_and_evaluation_configs() -> None:
         "configs/data/python/olmo_starcoder_python_instruct.yaml",
         "configs/data/python/magicoder_oss_instruct_75k.yaml",
     )
-    assert config.config_refs.evaluation == ("configs/eval/python.yaml",)
+    assert config.config_refs.evaluation == (
+        "configs/eval/python/humaneval.yaml",
+        "configs/eval/python/mbpp.yaml",
+        "configs/eval/python/repository_holdout.yaml",
+    )
 
 
 def test_language_config_loader_fails_closed_on_unknown_fields(tmp_path: Path) -> None:

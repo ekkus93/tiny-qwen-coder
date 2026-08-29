@@ -1,0 +1,7 @@
+schema_version: 1
+language: python
+id: humaneval
+dataset_id: openai/openai_humaneval
+dataset_revision: 7dce6050a7d6d172f3cc5c32aa97f52fa1a2e544
+source_configs:
+  - configs/eval/python/humaneval.yaml

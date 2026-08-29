@@ -1,0 +1,7 @@
+schema_version: 1
+language: python
+id: mbpp
+dataset_id: google-research-datasets/mbpp
+dataset_revision: 4bb6404fdc6cacfda99d4ac4205087b89d32030c
+source_configs:
+  - configs/eval/python/mbpp.yaml

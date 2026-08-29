@@ -35,6 +35,8 @@ from tiny_qwen_coder.evaluation.protected_benchmarks import (
     ProtectedBenchmarkRegistryError,
     ProtectedBenchmarkTrainingSelectionError,
     UnknownProtectedBenchmarkError,
+    load_protected_benchmark_config,
+    parse_protected_benchmark_config,
 )
 from tiny_qwen_coder.evaluation.regression import (
     RegressionCase,
@@ -113,6 +115,8 @@ __all__ = [
     "ProtectedBenchmarkRegistryError",
     "ProtectedBenchmarkTrainingSelectionError",
     "UnknownProtectedBenchmarkError",
+    "load_protected_benchmark_config",
+    "parse_protected_benchmark_config",
     "check_training_contamination",
     "evaluate",
 ]
