@@ -62,7 +62,7 @@ _RUNNER_COMPILE_EXIT = 11
 _RUNNER_TEST_EXIT = 12
 _RUNNER_HARNESS_EXIT = 20
 
-_HUMANEVAL_RUNNER_SOURCE = f'''\
+_HUMANEVAL_RUNNER_SOURCE = f"""\
 from __future__ import annotations
 
 import ast
@@ -115,7 +115,7 @@ except BaseException as exc:
     fail({_RUNNER_TEST_EXIT}, "test", exc)
 
 print(PASS, file=sys.stderr, flush=True)
-'''
+"""
 
 DatasetRow = Mapping[str, object]
 DatasetRowsLoader = Callable[..., Iterable[DatasetRow]]
@@ -163,15 +163,11 @@ class HumanEvalRunnerConfig:
         if self.runner_id != _HUMANEVAL_RUNNER_ID:
             raise HumanEvalError(f"HumanEval runner_id must be {_HUMANEVAL_RUNNER_ID!r}")
         if self.runner_version != _HUMANEVAL_RUNNER_VERSION:
-            raise HumanEvalError(
-                f"HumanEval runner_version must be {_HUMANEVAL_RUNNER_VERSION}"
-            )
+            raise HumanEvalError(f"HumanEval runner_version must be {_HUMANEVAL_RUNNER_VERSION}")
         if not self.frozen:
             raise HumanEvalError("HumanEval runner configuration must be frozen")
         if self.benchmark_id != _HUMANEVAL_BENCHMARK_ID:
-            raise HumanEvalError(
-                f"HumanEval benchmark_id must be {_HUMANEVAL_BENCHMARK_ID!r}"
-            )
+            raise HumanEvalError(f"HumanEval benchmark_id must be {_HUMANEVAL_BENCHMARK_ID!r}")
         _require_non_empty(self.reference_repository, field_name="reference_repository")
         if not _GIT_SHA_PATTERN.fullmatch(self.reference_revision):
             raise HumanEvalError("reference_revision must be a lowercase 40-character Git SHA")
@@ -762,9 +758,7 @@ def _validate_benchmark_contract(
     if benchmark.id != runner.benchmark_id:
         raise HumanEvalError("HumanEval protected benchmark ID does not match runner config")
     if benchmark.dataset_id != _HUMANEVAL_DATASET_ID:
-        raise HumanEvalError(
-            f"HumanEval protected dataset must be {_HUMANEVAL_DATASET_ID!r}"
-        )
+        raise HumanEvalError(f"HumanEval protected dataset must be {_HUMANEVAL_DATASET_ID!r}")
     if not _GIT_SHA_PATTERN.fullmatch(benchmark.dataset_revision):
         raise HumanEvalError("HumanEval dataset revision must be an immutable Git SHA")
 
