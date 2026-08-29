@@ -4,6 +4,8 @@ language: python
 target_total: 40000
 min_tokens: 1
 max_tokens: 2048
+seed: 1729
+validation_fraction: 0.05
 sources:
   - id: olmo-starcoder-python-instruct
     source_config: configs/data/python/olmo_starcoder_python_instruct.yaml

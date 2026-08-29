@@ -8,7 +8,11 @@ from pathlib import Path
 
 import yaml
 
+from tiny_qwen_coder.reproducibility import SeedError, validate_seed
+
 _SCHEMA_VERSION = 1
+_DEFAULT_P0_SEED = 1729
+_DEFAULT_VALIDATION_FRACTION = 0.05
 DEFAULT_PYTHON_P0_CONFIG = Path("configs/data/python/p0.yaml")
 
 
@@ -46,6 +50,8 @@ class PythonP0CorpusConfig:
     sources: tuple[PythonP0SourceBudget, ...]
     fill_shortfall_from: str | None
     output_jsonl: str
+    seed: int = _DEFAULT_P0_SEED
+    validation_fraction: float = _DEFAULT_VALIDATION_FRACTION
 
     def __post_init__(self) -> None:
         if self.schema_version != _SCHEMA_VERSION:
@@ -79,6 +85,14 @@ class PythonP0CorpusConfig:
                 )
         if not self.output_jsonl.strip():
             raise PythonP0CorpusError("output_jsonl must not be empty")
+        try:
+            validate_seed(self.seed)
+        except SeedError as exc:
+            raise PythonP0CorpusError(str(exc)) from exc
+        if not 0.0 < self.validation_fraction < 1.0:
+            raise PythonP0CorpusError(
+                "validation_fraction must be greater than 0 and less than 1"
+            )
 
 
 def _strict_mapping(value: object, *, context: str) -> dict[str, object]:
@@ -120,6 +134,13 @@ def _expect_int(mapping: Mapping[str, object], key: str, *, context: str) -> int
     return value
 
 
+def _expect_float(mapping: Mapping[str, object], key: str, *, context: str) -> float:
+    value = mapping[key]
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise PythonP0CorpusError(f"{context}.{key} must be a number")
+    return float(value)
+
+
 def _parse_source_budget(value: object, *, index: int) -> PythonP0SourceBudget:
     context = f"python_p0.sources[{index}]"
     mapping = _strict_mapping(value, context=context)
@@ -153,6 +174,8 @@ def parse_python_p0_config(value: object) -> PythonP0CorpusConfig:
                 "sources",
                 "fill_shortfall_from",
                 "output_jsonl",
+                "seed",
+                "validation_fraction",
             }
         ),
         context=context,
@@ -180,6 +203,8 @@ def parse_python_p0_config(value: object) -> PythonP0CorpusConfig:
         ),
         fill_shortfall_from=fill_source,
         output_jsonl=_expect_str(mapping, "output_jsonl", context=context),
+        seed=_expect_int(mapping, "seed", context=context),
+        validation_fraction=_expect_float(mapping, "validation_fraction", context=context),
     )
 
 

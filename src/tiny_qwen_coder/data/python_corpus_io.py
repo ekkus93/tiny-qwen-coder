@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from tiny_qwen_coder.data.length_filtering import load_canonical_tokenizer
@@ -17,12 +17,39 @@ from tiny_qwen_coder.data.python_corpus_config import (
     PythonP0CorpusError,
     load_python_p0_config,
 )
+from tiny_qwen_coder.data.python_p0_manifest import (
+    PythonP0DatasetManifest,
+    create_python_p0_dataset_manifest,
+    python_p0_dataset_manifest_sha256,
+    split_python_p0_corpus,
+    write_python_p0_dataset_manifest,
+)
+from tiny_qwen_coder.data.records import NormalizedTrainingRecord
 from tiny_qwen_coder.data.source_config import DatasetSourceConfig, load_dataset_source_config
+from tiny_qwen_coder.data.splitting import DeduplicatedDatasetSplit
 from tiny_qwen_coder.languages.python import load_python_plugin
 from tiny_qwen_coder.model.inspection import load_inspection_target
+from tiny_qwen_coder.reporting.dataset_manifest import ContaminationSummary
+from tiny_qwen_coder.reporting.manifest import GitMetadata
 
 _SCHEMA_VERSION = 1
 _DEFAULT_BASE_CONFIG = Path("configs/base/qwen35-4b.yaml")
+
+
+@dataclass(frozen=True, slots=True)
+class FrozenPythonP0Artifacts:
+    """Materialized records and audit files for one frozen Python P0 corpus."""
+
+    result: PythonP0CorpusResult
+    split: DeduplicatedDatasetSplit
+    manifest: PythonP0DatasetManifest
+    accepted_path: Path
+    composition_path: Path
+    train_path: Path
+    validation_path: Path
+    manifest_path: Path
+    manifest_checksum_path: Path
+    manifest_sha256: str
 
 
 def _load_sources(
@@ -86,13 +113,14 @@ def python_p0_summary_json(result: PythonP0CorpusResult) -> str:
     return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
-def write_python_p0_jsonl(result: PythonP0CorpusResult, path: Path | None = None) -> Path:
-    """Write accepted pre-split P0 records deterministically as UTF-8 JSONL."""
-
-    destination = path or Path(result.config.output_jsonl)
+def _write_records_jsonl(
+    records: tuple[NormalizedTrainingRecord, ...],
+    destination: Path,
+) -> Path:
     destination.parent.mkdir(parents=True, exist_ok=True)
-    with destination.open("w", encoding="utf-8", newline="\n") as handle:
-        for record in result.accepted_records:
+    temporary = destination.with_name(f".{destination.name}.tmp")
+    with temporary.open("w", encoding="utf-8", newline="\n") as handle:
+        for record in records:
             handle.write(
                 json.dumps(
                     asdict(record),
@@ -102,7 +130,36 @@ def write_python_p0_jsonl(result: PythonP0CorpusResult, path: Path | None = None
                 )
             )
             handle.write("\n")
+    temporary.replace(destination)
     return destination
+
+
+def _write_text_atomic(destination: Path, content: str, *, encoding: str = "utf-8") -> Path:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary = destination.with_name(f".{destination.name}.tmp")
+    temporary.write_text(content, encoding=encoding)
+    temporary.replace(destination)
+    return destination
+
+
+def write_python_p0_jsonl(result: PythonP0CorpusResult, path: Path | None = None) -> Path:
+    """Write accepted pre-split P0 records deterministically as UTF-8 JSONL."""
+
+    destination = path or Path(result.config.output_jsonl)
+    return _write_records_jsonl(result.accepted_records, destination)
+
+
+def write_python_p0_split(
+    split: DeduplicatedDatasetSplit,
+    output_dir: Path,
+) -> tuple[Path, Path]:
+    """Write deterministic linkage-safe train and validation JSONL files."""
+
+    train_path = _write_records_jsonl(split.train_records, output_dir / "train.jsonl")
+    validation_path = _write_records_jsonl(
+        split.validation_records, output_dir / "validation.jsonl"
+    )
+    return train_path, validation_path
 
 
 def materialize_canonical_python_p0(
@@ -122,3 +179,74 @@ def materialize_canonical_python_p0(
     summary_path = output.with_name("composition.json")
     summary_path.write_text(python_p0_summary_json(result) + "\n", encoding="utf-8")
     return result, output, summary_path
+
+
+def freeze_python_p0_result(
+    result: PythonP0CorpusResult,
+    *,
+    source_configs: dict[str, DatasetSourceConfig],
+    output_dir: Path | None = None,
+    contamination: ContaminationSummary | None = None,
+    git: GitMetadata | None = None,
+    repo_root: Path = Path("."),
+) -> FrozenPythonP0Artifacts:
+    """Split, validate, then atomically write one measured Python P0 result."""
+
+    destination = output_dir or Path(result.config.output_jsonl).parent
+    split = split_python_p0_corpus(result)
+    manifest = create_python_p0_dataset_manifest(
+        result,
+        source_configs=source_configs,
+        split=split,
+        contamination=contamination,
+        repo_root=repo_root,
+        git=git,
+    )
+
+    accepted_path = write_python_p0_jsonl(
+        result, destination / Path(result.config.output_jsonl).name
+    )
+    composition_path = _write_text_atomic(
+        destination / "composition.json", python_p0_summary_json(result) + "\n"
+    )
+    train_path, validation_path = write_python_p0_split(split, destination)
+    manifest_files = write_python_p0_dataset_manifest(manifest, destination)
+    return FrozenPythonP0Artifacts(
+        result=result,
+        split=split,
+        manifest=manifest,
+        accepted_path=accepted_path,
+        composition_path=composition_path,
+        train_path=train_path,
+        validation_path=validation_path,
+        manifest_path=manifest_files.manifest,
+        manifest_checksum_path=manifest_files.checksum,
+        manifest_sha256=python_p0_dataset_manifest_sha256(manifest),
+    )
+
+
+def freeze_canonical_python_p0(
+    *,
+    config_path: Path = DEFAULT_PYTHON_P0_CONFIG,
+    base_config: Path = _DEFAULT_BASE_CONFIG,
+    local_files_only: bool = False,
+    contamination: ContaminationSummary | None = None,
+    repo_root: Path = Path("."),
+) -> FrozenPythonP0Artifacts:
+    """Build and freeze the canonical Python P0 records, split, and manifest."""
+
+    result = build_canonical_python_p0(
+        config_path=config_path,
+        base_config=base_config,
+        local_files_only=local_files_only,
+    )
+    config, sources = _load_sources(config_path)
+    if config != result.config:
+        raise PythonP0CorpusError("reloaded P0 config does not match measured corpus config")
+    return freeze_python_p0_result(
+        result,
+        source_configs=sources,
+        contamination=contamination,
+        repo_root=repo_root,
+    )
+
