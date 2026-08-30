@@ -1,0 +1,88 @@
+import ast
+import re
+import unicodedata
+
+
+def _correct_slugify(value):
+    if not isinstance(value, str):
+        raise TypeError("value must be str")
+    normalized = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii")
+    lowered = normalized.lower().strip()
+    return re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", lowered)).strip("-")
+
+
+def _must_fail(slugify):
+    try:
+        test_slugify_contract(slugify)
+    except (AssertionError, TypeError):
+        return
+    raise AssertionError("candidate test failed to reject a broken slugify implementation")
+
+
+def test_accepts_correct_implementation():
+    test_slugify_contract(_correct_slugify)
+
+
+def test_rejects_case_punctuation_mutant():
+    def mutant(value):
+        if not isinstance(value, str):
+            raise TypeError
+        return value.strip().replace(" ", "-")
+
+    _must_fail(mutant)
+
+
+def test_rejects_dash_mutant():
+    def mutant(value):
+        result = _correct_slugify(value)
+        if value == "  already--spaced  ":
+            return "already--spaced"
+        return result
+
+    _must_fail(mutant)
+
+
+def test_rejects_unicode_mutant():
+    def mutant(value):
+        if not isinstance(value, str):
+            raise TypeError
+        return re.sub(r"-+", "-", re.sub(r"[^a-z0-9éà-ÿ]+", "-", value.lower().strip())).strip("-")
+
+    _must_fail(mutant)
+
+
+def test_rejects_type_mutant():
+    def mutant(value):
+        if not isinstance(value, str):
+            return str(value)
+        return _correct_slugify(value)
+
+    _must_fail(mutant)
+
+
+def test_uses_pytest_raises():
+    tree = ast.parse(__candidate_source__)
+    imports_pytest = any(
+        isinstance(node, ast.Import) and any(alias.name == "pytest" for alias in node.names)
+        for node in ast.walk(tree)
+    )
+    uses_raises = any(
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "pytest"
+        and node.func.attr == "raises"
+        for node in ast.walk(tree)
+    )
+    assert imports_pytest
+    assert uses_raises
+
+
+TESTS = (
+    test_accepts_correct_implementation,
+    test_rejects_case_punctuation_mutant,
+    test_rejects_dash_mutant,
+    test_rejects_unicode_mutant,
+    test_rejects_type_mutant,
+    test_uses_pytest_raises,
+)
