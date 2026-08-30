@@ -5,3 +5,4 @@ dataset_id: repository://tiny-qwen-coder/python-holdout
 dataset_revision: repository-holdout-v1
 source_configs:
   - configs/eval/python/repository_holdout.yaml
+  - configs/eval/python/repository_holdout_suite_v1.yaml
