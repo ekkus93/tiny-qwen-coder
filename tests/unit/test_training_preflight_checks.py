@@ -73,7 +73,9 @@ def _write_records(path: Path, records: tuple[NormalizedTrainingRecord, ...]) ->
     )
 
 
-def _config(*, output_dir: str, train: Path, validation: Path, manifest: Path) -> AdapterTrainingConfig:
+def _config(
+    *, output_dir: str, train: Path, validation: Path, manifest: Path
+) -> AdapterTrainingConfig:
     profile = load_frozen_selective_lora_target_profile()
     return AdapterTrainingConfig(
         schema_version=1,
