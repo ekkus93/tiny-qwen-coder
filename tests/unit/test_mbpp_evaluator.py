@@ -355,8 +355,7 @@ def test_success_uses_pinned_sandbox_and_emits_common_result() -> None:
                 status=ExecutionStatus.FAILED,
                 exit_code=11,
                 stderr=(
-                    "__TQC_MBPP_PARSE_OK_V1__\n"
-                    "__TQC_MBPP_ERROR_V1__:compile:ValueError:oops\n"
+                    "__TQC_MBPP_PARSE_OK_V1__\n__TQC_MBPP_ERROR_V1__:compile:ValueError:oops\n"
                 ),
             ),
             EvaluationErrorCategory.COMPILE,
