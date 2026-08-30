@@ -38,8 +38,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  baseline:
-    name: Canonical unchanged-base Python baseline
+  generate:
+    name: Generate unchanged-base responses on GPU
     runs-on:
       - self-hosted
       - linux
@@ -49,7 +49,6 @@ jobs:
     env:
       TOKENIZERS_PARALLELISM: "false"
       HF_HUB_DISABLE_TELEMETRY: "1"
-      EXECUTION_IMAGE: python:3.11.14-slim@sha256:c8271b1f627d0068857dce5b53e14a9558603b527e46f1f901722f935b786a39
 
     steps:
       - name: Check out canonical source commit
@@ -92,20 +91,80 @@ jobs:
           print(f"total_memory_bytes={total}")
           PY
 
+      - name: Confirm clean source tree
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain)"
+          git rev-parse HEAD
+
+      - name: Generate canonical unchanged-base responses
+        run: |
+          set -euo pipefail
+          uv run --frozen python -m tiny_qwen_coder.evaluation._baseline_stages generate
+          find artifacts/eval/python/base-baseline-v1 -type f -print | sort
+
+      - name: Upload GPU generation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-base-generation-${{ github.sha }}
+          path: artifacts/eval/python/base-baseline-v1/
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 14
+
+      - name: Upload partial GPU evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-base-generation-partial-${{ github.sha }}
+          path: artifacts/eval/python/base-baseline-v1/
+          if-no-files-found: ignore
+          include-hidden-files: true
+          retention-days: 14
+
+  score:
+    name: Score generated responses in OCI sandbox
+    needs: generate
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    env:
+      TOKENIZERS_PARALLELISM: "false"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      EXECUTION_IMAGE: python:3.11.14-slim@sha256:c8271b1f627d0068857dce5b53e14a9558603b527e46f1f901722f935b786a39
+
+    steps:
+      - name: Check out canonical source commit
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          clean: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Sync frozen environment
+        run: uv sync --frozen
+
+      - name: Download GPU generation evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: python-base-generation-${{ github.sha }}
+          path: artifacts/eval/python/base-baseline-v1
+
       - name: Prepare constrained execution image
         run: |
           set -euo pipefail
-          if command -v podman >/dev/null 2>&1; then
-            runtime=podman
-          elif command -v docker >/dev/null 2>&1; then
-            runtime=docker
-          else
-            echo "Neither Podman nor Docker is installed on the self-hosted runner" >&2
-            exit 1
-          fi
-          echo "Using OCI runtime: ${runtime}"
-          "${runtime}" pull "${EXECUTION_IMAGE}"
-          "${runtime}" image inspect "${EXECUTION_IMAGE}" >/dev/null
+          docker --version
+          docker pull "${EXECUTION_IMAGE}"
+          docker image inspect "${EXECUTION_IMAGE}" >/dev/null
 
       - name: Confirm clean source tree
         run: |
@@ -113,10 +172,10 @@ jobs:
           test -z "$(git status --porcelain)"
           git rev-parse HEAD
 
-      - name: Run canonical unchanged-base baseline
+      - name: Score GPU responses under constrained execution
         run: |
           set -euo pipefail
-          uv run --frozen tiny-qwen-coder-python-baseline \
+          uv run --frozen python -m tiny_qwen_coder.evaluation._baseline_stages score \
             | tee "${RUNNER_TEMP}/python-baseline-manifest.json"
 
       - name: Verify frozen baseline artifacts
@@ -137,11 +196,11 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-      - name: Upload partial evidence on failure
+      - name: Upload partial scoring evidence on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: python-base-baseline-partial-${{ github.sha }}
+          name: python-base-scoring-partial-${{ github.sha }}
           path: artifacts/eval/python/base-baseline-v1/
           if-no-files-found: ignore
           include-hidden-files: true
