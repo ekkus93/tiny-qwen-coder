@@ -24,7 +24,6 @@ from tiny_qwen_coder.evaluation.settings import FrozenEvaluationSettings
 from tiny_qwen_coder.identities import BaseModelIdentity
 from tiny_qwen_coder.reproducibility import seed_everything
 
-
 _BASELINE_ENABLE_THINKING = False
 
 
