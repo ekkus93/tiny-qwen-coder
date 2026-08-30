@@ -81,13 +81,13 @@ class BaselineSuitePerformance:
         ):
             if isinstance(value, bool) or not isinstance(value, int) or value < 0:
                 raise PythonBaselineError(f"suite_performance.{field_name} must be non-negative")
-        for field_name, value in (
+        for field_name, numeric_value in (
             ("generation_latency_seconds", self.generation_latency_seconds),
             ("tokens_per_second", self.tokens_per_second),
         ):
-            if isinstance(value, bool) or not isinstance(value, int | float):
+            if isinstance(numeric_value, bool) or not isinstance(numeric_value, int | float):
                 raise PythonBaselineError(f"suite_performance.{field_name} must be numeric")
-            if not math.isfinite(float(value)) or float(value) < 0:
+            if not math.isfinite(float(numeric_value)) or float(numeric_value) < 0:
                 raise PythonBaselineError(
                     f"suite_performance.{field_name} must be finite and non-negative"
                 )
