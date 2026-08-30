@@ -74,7 +74,9 @@ def _require_manifest_sidecar(manifest_path: Path, manifest_sha256: str) -> Path
     try:
         text = sidecar.read_text(encoding="ascii")
     except OSError as exc:
-        raise AdapterTrainingError(f"could not read dataset manifest checksum {sidecar}: {exc}") from exc
+        raise AdapterTrainingError(
+            f"could not read dataset manifest checksum {sidecar}: {exc}"
+        ) from exc
     expected = f"{manifest_sha256}  {manifest_path.name}\n"
     if text != expected:
         raise AdapterTrainingError(
@@ -91,9 +93,13 @@ def verify_frozen_training_dataset(plan: AdapterTrainingPlan) -> DatasetPrefligh
         raw_bytes = manifest_path.read_bytes()
         raw: object = json.loads(raw_bytes)
     except OSError as exc:
-        raise AdapterTrainingError(f"could not read dataset manifest {manifest_path}: {exc}") from exc
+        raise AdapterTrainingError(
+            f"could not read dataset manifest {manifest_path}: {exc}"
+        ) from exc
     except json.JSONDecodeError as exc:
-        raise AdapterTrainingError(f"dataset manifest {manifest_path} is invalid JSON: {exc}") from exc
+        raise AdapterTrainingError(
+            f"dataset manifest {manifest_path} is invalid JSON: {exc}"
+        ) from exc
 
     manifest_sha256 = hashlib.sha256(raw_bytes).hexdigest()
     if manifest_sha256 != plan.dataset.sha256:
