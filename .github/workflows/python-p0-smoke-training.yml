@@ -1,0 +1,163 @@
+name: Python P0 GPU Smoke Training
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/python-p0-smoke-training.yml"
+      - "configs/base/qwen35-4b.yaml"
+      - "configs/data/python/**"
+      - "configs/languages/python.yaml"
+      - "configs/train/python/p0.yaml"
+      - "configs/train/python/p0_smoke.yaml"
+      - "scripts/freeze_python_p0.py"
+      - "src/tiny_qwen_coder/adapters/**"
+      - "src/tiny_qwen_coder/data/**"
+      - "src/tiny_qwen_coder/model/**"
+      - "src/tiny_qwen_coder/reporting/**"
+      - "src/tiny_qwen_coder/reproducibility.py"
+      - "src/tiny_qwen_coder/training/**"
+      - "pyproject.toml"
+      - "uv.lock"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: python-p0-smoke-training-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    name: Run bounded Python P0 QLoRA smoke training
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+    timeout-minutes: 240
+
+    env:
+      TOKENIZERS_PARALLELISM: "false"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+
+    steps:
+      - name: Check out canonical source commit
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          clean: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Inspect NVIDIA GPU
+        run: |
+          set -euo pipefail
+          nvidia-smi
+
+      - name: Sync frozen QLoRA environment
+        run: uv sync --frozen --extra qlora
+
+      - name: Verify CUDA and QLoRA runtime
+        run: |
+          set -euo pipefail
+          uv run --frozen python - <<'PY'
+          import bitsandbytes
+          import torch
+
+          if not torch.cuda.is_available():
+              raise SystemExit("PyTorch cannot access CUDA on the self-hosted runner")
+          if not torch.cuda.is_bf16_supported():
+              raise SystemExit("CUDA device 0 does not support BF16")
+          properties = torch.cuda.get_device_properties(0)
+          print(f"torch={torch.__version__}")
+          print(f"bitsandbytes={bitsandbytes.__version__}")
+          print(f"cuda_runtime={torch.version.cuda}")
+          print(f"gpu={properties.name}")
+          print(f"capability={torch.cuda.get_device_capability(0)}")
+          print(f"total_memory_bytes={properties.total_memory}")
+          PY
+
+      - name: Confirm clean source tree
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain)"
+          git rev-parse HEAD
+
+      - name: Materialize frozen Python P0 corpus
+        run: |
+          set -euo pipefail
+          uv run --frozen python scripts/freeze_python_p0.py
+          test -f data/python/p0/dataset-manifest.json
+          test -f data/python/p0/dataset-manifest.sha256
+          test -f data/python/p0/train.jsonl
+          test -f data/python/p0/validation.jsonl
+
+      - name: Run bounded GPU smoke training
+        run: |
+          set -euo pipefail
+          uv run --frozen tiny-qwen-coder-train-smoke \
+            --config configs/train/python/p0_smoke.yaml \
+            --repo-root . \
+            | tee "${RUNNER_TEMP}/python-p0-smoke-report.json"
+          test -f artifacts/train/python/p0-smoke/smoke-training-report.json
+          test -f artifacts/train/python/p0-smoke/adapter/adapter_config.json
+          test -d artifacts/train/python/p0-smoke/checkpoints/checkpoint-1
+          find artifacts/train/python/p0-smoke -type f -print | sort
+
+      - name: Verify smoke acceptance evidence
+        run: |
+          set -euo pipefail
+          uv run --frozen python - <<'PY'
+          import json
+          import math
+          from pathlib import Path
+
+          report_path = Path("artifacts/train/python/p0-smoke/smoke-training-report.json")
+          report = json.loads(report_path.read_text(encoding="utf-8"))
+          if report.get("smoke_only") is not True or report.get("promotable") is not False:
+              raise SystemExit("smoke report promotion flags are invalid")
+          if report.get("max_steps") != 1 or report.get("global_steps") != 1:
+              raise SystemExit("smoke run did not complete exactly one optimizer step")
+          for key in ("training_loss", "validation_loss"):
+              value = report.get(key)
+              if isinstance(value, bool) or not isinstance(value, (int, float)):
+                  raise SystemExit(f"{key} is not numeric")
+              if not math.isfinite(float(value)):
+                  raise SystemExit(f"{key} is not finite")
+          for key in ("peak_allocated_vram_bytes", "peak_reserved_vram_bytes"):
+              value = report.get(key)
+              if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+                  raise SystemExit(f"{key} is not a positive integer")
+          print(json.dumps(report, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload canonical smoke evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-p0-smoke-training-${{ github.sha }}
+          path: |
+            artifacts/train/python/p0-smoke/
+            ${{ runner.temp }}/python-p0-smoke-report.json
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 30
+
+      - name: Upload partial smoke evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-p0-smoke-training-partial-${{ github.sha }}
+          path: artifacts/train/python/p0-smoke/
+          if-no-files-found: ignore
+          include-hidden-files: true
+          retention-days: 14
