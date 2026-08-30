@@ -99,6 +99,5 @@ def test_python_p0_training_config_is_captured_by_resolved_run_payload(
     lora_payload = config_payload["lora"]
     assert isinstance(lora_payload, dict)
     assert (
-        lora_payload["target_modules"]
-        == load_frozen_selective_lora_target_profile().target_modules
+        lora_payload["target_modules"] == load_frozen_selective_lora_target_profile().target_modules
     )
