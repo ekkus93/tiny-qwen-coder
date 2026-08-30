@@ -1,0 +1,56 @@
+import subprocess
+import sys
+
+
+def test_successful_command_preserves_output():
+    code, stdout, stderr = run_command([sys.executable, "-c", "print('ok')"], 3)
+    assert code == 0
+    assert stdout == "ok\n"
+    assert stderr == ""
+
+
+def test_nonzero_exit_is_returned_not_raised():
+    command = [sys.executable, "-c", "import sys; print('bad', file=sys.stderr); sys.exit(3)"]
+    code, stdout, stderr = run_command(command, 3)
+    assert code == 3
+    assert stdout == ""
+    assert stderr == "bad\n"
+
+
+def test_subprocess_run_contract():
+    original = subprocess.run
+    captured = {}
+
+    def fake_run(command, **kwargs):
+        captured["command"] = command
+        captured.update(kwargs)
+        return subprocess.CompletedProcess(command, 4, stdout="out\n", stderr="err\n")
+
+    subprocess.run = fake_run
+    try:
+        result = run_command(["program", "arg"], 1.25)
+    finally:
+        subprocess.run = original
+    assert result == (4, "out\n", "err\n")
+    assert captured["command"] == ["program", "arg"]
+    assert captured["timeout"] == 1.25
+    assert captured["capture_output"] is True
+    assert captured["text"] is True
+    assert captured.get("check", False) is False
+    assert captured.get("shell", False) is False
+
+
+def test_empty_command_rejected():
+    try:
+        run_command([], 1)
+    except ValueError:
+        return
+    raise AssertionError("empty command must raise ValueError")
+
+
+TESTS = (
+    test_successful_command_preserves_output,
+    test_nonzero_exit_is_returned_not_raised,
+    test_subprocess_run_contract,
+    test_empty_command_rejected,
+)
