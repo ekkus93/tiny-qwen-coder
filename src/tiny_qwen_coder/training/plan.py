@@ -216,7 +216,9 @@ def load_training_language_registry(
     try:
         config_paths = tuple(sorted(languages_dir.glob("*.yaml")))
     except OSError as exc:
-        raise AdapterTrainingError(f"could not enumerate language configs in {languages_dir}") from exc
+        raise AdapterTrainingError(
+            f"could not enumerate language configs in {languages_dir}"
+        ) from exc
     if not config_paths:
         raise AdapterTrainingError(f"no language configs found in {languages_dir}")
     return LanguageRegistry(load_language_plugin(path) for path in config_paths)

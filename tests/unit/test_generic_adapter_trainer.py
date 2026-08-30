@@ -117,8 +117,8 @@ language: rust
 adapter_family: language
 adapter_id: language/rust/p0
 dataset_manifest: {dataset_manifest}
-train_records: {dataset_manifest.parent / 'train.jsonl'}
-validation_records: {dataset_manifest.parent / 'validation.jsonl'}
+train_records: {dataset_manifest.parent / "train.jsonl"}
+validation_records: {dataset_manifest.parent / "validation.jsonl"}
 output_dir: {output_dir}
 seed: 1337
 training_mode: qlora_4bit

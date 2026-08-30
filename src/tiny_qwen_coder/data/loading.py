@@ -44,9 +44,13 @@ def _validate_keys(
     unknown = sorted(set(mapping) - allowed)
     missing = sorted(required - set(mapping))
     if unknown:
-        raise TrainingRecordLoadingError(f"{context} contains unknown field(s): {', '.join(unknown)}")
+        raise TrainingRecordLoadingError(
+            f"{context} contains unknown field(s): {', '.join(unknown)}"
+        )
     if missing:
-        raise TrainingRecordLoadingError(f"{context} is missing required field(s): {', '.join(missing)}")
+        raise TrainingRecordLoadingError(
+            f"{context} is missing required field(s): {', '.join(missing)}"
+        )
 
 
 def _string(mapping: Mapping[str, object], key: str, *, context: str) -> str:
@@ -125,7 +129,9 @@ def _parse_provenance(value: object, *, context: str) -> SourceProvenance:
         split=_optional_string(mapping, "split", context=context),
         record_id=_optional_string(mapping, "record_id", context=context),
         url=_optional_string(mapping, "url", context=context),
-        source_metadata=_parse_source_metadata(source_metadata, context=f"{context}.source_metadata"),
+        source_metadata=_parse_source_metadata(
+            source_metadata, context=f"{context}.source_metadata"
+        ),
     )
 
 
@@ -194,7 +200,9 @@ def parse_normalized_training_record(value: object) -> NormalizedTrainingRecord:
             messages=_parse_messages(mapping["messages"], context=f"{context}.messages"),
             language=_string(mapping, "language", context=context),
             provenance=_parse_provenance(mapping["provenance"], context=f"{context}.provenance"),
-            validation=_parse_validation(mapping.get("validation"), context=f"{context}.validation"),
+            validation=_parse_validation(
+                mapping.get("validation"), context=f"{context}.validation"
+            ),
         )
     except (TypeError, ValueError) as exc:
         if isinstance(exc, TrainingRecordLoadingError):
@@ -221,7 +229,9 @@ def load_normalized_training_records_jsonl(
         try:
             raw: object = json.loads(line)
         except json.JSONDecodeError as exc:
-            raise TrainingRecordLoadingError(f"invalid JSON at {path}:{line_number}: {exc}") from exc
+            raise TrainingRecordLoadingError(
+                f"invalid JSON at {path}:{line_number}: {exc}"
+            ) from exc
         record = parse_normalized_training_record(raw)
         if expected_language is not None and record.language != expected_language:
             raise TrainingRecordLoadingError(
@@ -231,5 +241,7 @@ def load_normalized_training_records_jsonl(
         records.append(record)
 
     if not records:
-        raise TrainingRecordLoadingError(f"training records {path} must contain at least one record")
+        raise TrainingRecordLoadingError(
+            f"training records {path} must contain at least one record"
+        )
     return tuple(records)

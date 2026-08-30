@@ -162,9 +162,7 @@ def create_completed_adapter_manifest(
             ),
             scheduler=TrainingComponentSettings(
                 name=plan.config.scheduler,
-                settings=(
-                    TrainingSetting(name="warmup_ratio", value=plan.config.warmup_ratio),
-                ),
+                settings=(TrainingSetting(name="warmup_ratio", value=plan.config.warmup_ratio),),
             ),
             steps=global_steps,
             epochs=plan.config.epochs,
