@@ -1,0 +1,85 @@
+import asyncio
+
+
+def test_preserves_order_and_enforces_limit():
+    async def scenario():
+        active = 0
+        peak = 0
+        gate = asyncio.Event()
+
+        async def worker(value):
+            nonlocal active, peak
+            active += 1
+            peak = max(peak, active)
+            if peak >= 2:
+                gate.set()
+            await gate.wait()
+            await asyncio.sleep(0)
+            active -= 1
+            return value * 10
+
+        result = await map_limited([3, 1, 2, 4], worker, 2)
+        assert result == [30, 10, 20, 40]
+        assert peak <= 2
+        assert peak == 2
+
+    asyncio.run(scenario())
+
+
+def test_limit_one_is_serial():
+    async def scenario():
+        active = 0
+        peak = 0
+
+        async def worker(value):
+            nonlocal active, peak
+            active += 1
+            peak = max(peak, active)
+            await asyncio.sleep(0)
+            active -= 1
+            return value
+
+        assert await map_limited([1, 2, 3], worker, 1) == [1, 2, 3]
+        assert peak == 1
+
+    asyncio.run(scenario())
+
+
+def test_nonpositive_limit_rejected():
+    async def scenario():
+        async def worker(value):
+            return value
+
+        try:
+            await map_limited([1], worker, 0)
+        except ValueError:
+            return
+        raise AssertionError("limit <= 0 must raise ValueError")
+
+    asyncio.run(scenario())
+
+
+def test_worker_exception_propagates():
+    async def scenario():
+        async def worker(value):
+            if value == 2:
+                raise RuntimeError("worker failed")
+            await asyncio.sleep(0)
+            return value
+
+        try:
+            await map_limited([1, 2, 3], worker, 2)
+        except RuntimeError as exc:
+            assert str(exc) == "worker failed"
+            return
+        raise AssertionError("worker exception must propagate")
+
+    asyncio.run(scenario())
+
+
+TESTS = (
+    test_preserves_order_and_enforces_limit,
+    test_limit_one_is_serial,
+    test_nonpositive_limit_rejected,
+    test_worker_exception_propagates,
+)

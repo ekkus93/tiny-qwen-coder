@@ -65,7 +65,10 @@ def test_python_registry_pins_external_benchmarks_and_repo_holdout() -> None:
     holdout = registry.resolve("python", "repository-holdout")
     assert holdout.dataset_id == "repository://tiny-qwen-coder/python-holdout"
     assert holdout.dataset_revision == "repository-holdout-v1"
-    assert holdout.source_configs == ("configs/eval/python/repository_holdout.yaml",)
+    assert holdout.source_configs == (
+        "configs/eval/python/repository_holdout.yaml",
+        "configs/eval/python/repository_holdout_suite_v1.yaml",
+    )
 
 
 def test_python_registry_allows_only_normal_training_source_selectors() -> None:
@@ -85,6 +88,7 @@ def test_python_registry_allows_only_normal_training_source_selectors() -> None:
         ("mbpp", "configs/eval/python/mbpp.yaml"),
         ("repository-holdout", "repository://tiny-qwen-coder/python-holdout"),
         ("repository-holdout", "configs/eval/python/repository_holdout.yaml"),
+        ("repository-holdout", "configs/eval/python/repository_holdout_suite_v1.yaml"),
     ],
 )
 def test_every_python_protected_selector_is_inaccessible_to_sft(
@@ -105,7 +109,7 @@ def test_python_protected_configs_are_strict_and_self_protecting() -> None:
         path = Path(path_text)
         benchmark = load_protected_benchmark_config(path)
         assert benchmark.language == "python"
-        assert benchmark.source_configs == (path_text,)
+        assert path_text in benchmark.source_configs
 
 
 def test_protected_benchmark_config_rejects_unknown_fields(tmp_path: Path) -> None:

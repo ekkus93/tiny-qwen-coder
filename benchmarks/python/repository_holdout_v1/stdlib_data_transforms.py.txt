@@ -1,0 +1,41 @@
+def _events_fixture():
+    return [
+        {"user": "bob", "kind": "read", "seconds": 3},
+        {"user": "alice", "kind": "write", "seconds": 5},
+        {"user": "bob", "kind": "write", "seconds": 4},
+        {"user": "alice", "kind": "write", "seconds": 2},
+    ]
+
+
+def test_grouping_and_sorting():
+    assert summarize_events(_events_fixture()) == [
+        {"user": "alice", "total_seconds": 7, "kinds": ["write"]},
+        {"user": "bob", "total_seconds": 7, "kinds": ["read", "write"]},
+    ]
+
+
+def test_empty_input():
+    assert summarize_events([]) == []
+
+
+def test_does_not_mutate_inputs():
+    events = _events_fixture()
+    snapshot = [dict(event) for event in events]
+    summarize_events(events)
+    assert events == snapshot
+
+
+def test_negative_seconds_rejected():
+    try:
+        summarize_events([{"user": "a", "kind": "x", "seconds": -1}])
+    except ValueError:
+        return
+    raise AssertionError("negative seconds must raise ValueError")
+
+
+TESTS = (
+    test_grouping_and_sorting,
+    test_empty_input,
+    test_does_not_mutate_inputs,
+    test_negative_seconds_rejected,
+)

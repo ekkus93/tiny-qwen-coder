@@ -1,0 +1,41 @@
+def test_returns_nested_and_falsey_values():
+    data = {"a": {"b": {"zero": 0, "flag": False}}}
+    assert require_path(data, "a.b.zero") == 0
+    assert require_path(data, "a.b.flag") is False
+
+
+def test_missing_segment_reports_context():
+    try:
+        require_path({"a": {}}, "a.missing.value")
+    except ConfigPathError as exc:
+        assert exc.path == "a.missing.value"
+        assert exc.segment == "missing"
+        assert "missing" in str(exc)
+        return
+    raise AssertionError("missing path must raise ConfigPathError")
+
+
+def test_non_mapping_reports_next_segment():
+    try:
+        require_path({"a": 3}, "a.b")
+    except ConfigPathError as exc:
+        assert exc.path == "a.b"
+        assert exc.segment == "b"
+        return
+    raise AssertionError("non-mapping traversal must raise ConfigPathError")
+
+
+def test_empty_path_rejected():
+    try:
+        require_path({}, "")
+    except ValueError:
+        return
+    raise AssertionError("empty path must raise ValueError")
+
+
+TESTS = (
+    test_returns_nested_and_falsey_values,
+    test_missing_segment_reports_context,
+    test_non_mapping_reports_next_segment,
+    test_empty_path_rejected,
+)

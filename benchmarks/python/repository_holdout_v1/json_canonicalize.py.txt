@@ -1,0 +1,33 @@
+import json
+
+
+def test_merges_and_canonicalizes():
+    assert canonicalize_json_object('{"z": 1, "a": 2}', {"m": 3}) == '{"a":2,"m":3,"z":1}'
+
+
+def test_unicode_is_not_ascii_escaped():
+    assert canonicalize_json_object('{"name": "caf\\u00e9"}', {}) == '{"name":"café"}'
+
+
+def test_rejects_non_object_json():
+    for source in ("[]", "null", '"x"', "1"):
+        try:
+            canonicalize_json_object(source, {})
+        except ValueError:
+            continue
+        raise AssertionError(f"expected ValueError for {source}")
+
+
+def test_does_not_mutate_updates():
+    updates = {"nested": {"x": 1}}
+    before = json.loads(json.dumps(updates))
+    canonicalize_json_object("{}", updates)
+    assert updates == before
+
+
+TESTS = (
+    test_merges_and_canonicalizes,
+    test_unicode_is_not_ascii_escaped,
+    test_rejects_non_object_json,
+    test_does_not_mutate_updates,
+)

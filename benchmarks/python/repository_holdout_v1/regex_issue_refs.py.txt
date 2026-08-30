@@ -1,0 +1,22 @@
+def test_recognizes_and_normalizes_forms():
+    assert extract_issue_refs("Fix #12, gh-7, and GH-99.") == ["#12", "#7", "#99"]
+
+
+def test_deduplicates_preserving_order():
+    assert extract_issue_refs("GH-8 then #3 then #8 then gh-3") == ["#8", "#3"]
+
+
+def test_word_boundaries_are_required():
+    assert extract_issue_refs("x#12 #34y abcGH-5 GH-6_ok ok GH-7") == ["#7"]
+
+
+def test_zero_and_leading_zero_are_not_refs():
+    assert extract_issue_refs("#0 #01 GH-00 GH-9") == ["#9"]
+
+
+TESTS = (
+    test_recognizes_and_normalizes_forms,
+    test_deduplicates_preserving_order,
+    test_word_boundaries_are_required,
+    test_zero_and_leading_zero_are_not_refs,
+)

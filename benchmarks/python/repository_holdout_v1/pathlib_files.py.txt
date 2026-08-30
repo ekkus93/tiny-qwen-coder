@@ -1,0 +1,60 @@
+import tempfile
+from pathlib import Path
+
+
+def _build_tree():
+    temporary = tempfile.TemporaryDirectory()
+    root = Path(temporary.name)
+    (root / "pkg").mkdir()
+    (root / "pkg" / "a.py").write_text("pass\n", encoding="utf-8")
+    (root / "pkg" / "b.txt").write_text("x\n", encoding="utf-8")
+    (root / ".hidden").mkdir()
+    (root / ".hidden" / "hidden.py").write_text("pass\n", encoding="utf-8")
+    (root / "pkg" / "__pycache__").mkdir()
+    (root / "pkg" / "__pycache__" / "cache.py").write_text("pass\n", encoding="utf-8")
+    (root / "z.py").write_text("pass\n", encoding="utf-8")
+    return temporary, root
+
+
+def test_finds_sorted_relative_python_files():
+    temporary, root = _build_tree()
+    try:
+        assert find_python_modules(root) == ["pkg/a.py", "z.py"]
+    finally:
+        temporary.cleanup()
+
+
+def test_ignores_hidden_and_cache_components():
+    temporary, root = _build_tree()
+    try:
+        result = find_python_modules(root)
+        assert all(".hidden" not in item for item in result)
+        assert all("__pycache__" not in item for item in result)
+    finally:
+        temporary.cleanup()
+
+
+def test_ignores_file_symlinks():
+    temporary, root = _build_tree()
+    try:
+        (root / "link.py").symlink_to(root / "pkg" / "a.py")
+        assert "link.py" not in find_python_modules(root)
+    finally:
+        temporary.cleanup()
+
+
+def test_ignores_directory_symlinks():
+    temporary, root = _build_tree()
+    try:
+        (root / "linked-pkg").symlink_to(root / "pkg", target_is_directory=True)
+        assert not any(item.startswith("linked-pkg/") for item in find_python_modules(root))
+    finally:
+        temporary.cleanup()
+
+
+TESTS = (
+    test_finds_sorted_relative_python_files,
+    test_ignores_hidden_and_cache_components,
+    test_ignores_file_symlinks,
+    test_ignores_directory_symlinks,
+)

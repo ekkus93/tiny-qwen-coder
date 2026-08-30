@@ -1,0 +1,57 @@
+import sqlite3
+
+
+def _connection(rows):
+    connection = sqlite3.connect(":memory:")
+    connection.execute("create table users(email text)")
+    connection.executemany("insert into users(email) values (?)", [(row,) for row in rows])
+    return connection
+
+
+def test_counts_normalizes_and_sorts():
+    connection = _connection([
+        "a@Example.com",
+        "b@example.COM",
+        "c@test.org",
+        "d@test.org",
+        "e@test.org",
+    ])
+    try:
+        assert domain_counts(connection) == [("test.org", 3), ("example.com", 2)]
+    finally:
+        connection.close()
+
+
+def test_ignores_invalid_domains():
+    connection = _connection(["plain", "x@", "@valid.org", "a@ok.net"])
+    try:
+        assert domain_counts(connection) == [("ok.net", 1), ("valid.org", 1)]
+    finally:
+        connection.close()
+
+
+def test_empty_table():
+    connection = _connection([])
+    try:
+        assert domain_counts(connection) == []
+    finally:
+        connection.close()
+
+
+def test_executes_select_sql():
+    connection = _connection(["a@example.com"])
+    statements = []
+    connection.set_trace_callback(statements.append)
+    try:
+        domain_counts(connection)
+    finally:
+        connection.close()
+    assert any(statement.lstrip().lower().startswith("select") for statement in statements)
+
+
+TESTS = (
+    test_counts_normalizes_and_sorts,
+    test_ignores_invalid_domains,
+    test_empty_table,
+    test_executes_select_sql,
+)
