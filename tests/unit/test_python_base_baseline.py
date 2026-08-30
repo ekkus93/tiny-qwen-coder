@@ -314,6 +314,13 @@ def test_freeze_requires_complete_artifact_set_and_detects_tampering(tmp_path: P
         path = output / relative_path
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(f"artifact:{relative_path}\n", encoding="utf-8")
+    valid_coding_aggregate = '{"harness_errors":0,"pass_at_1":0.0}\n'
+    for relative_path in (
+        "humaneval/humaneval-aggregate.json",
+        "mbpp/mbpp-aggregate.json",
+        "repository-holdout/repository-holdout-aggregate.json",
+    ):
+        (output / relative_path).write_text(valid_coding_aggregate, encoding="utf-8")
     (output / "provenance.json").write_text(baseline_provenance_json(provenance), encoding="utf-8")
 
     manifest = freeze_python_baseline(
