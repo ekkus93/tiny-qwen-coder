@@ -53,7 +53,7 @@ _EXPECTED_CATEGORIES = {
 }
 
 _CANDIDATES: dict[str, str] = {
-    "stdlib-data-transforms": '''\
+    "stdlib-data-transforms": """\
 def summarize_events(events):
     grouped = {}
     for event in events:
@@ -72,8 +72,8 @@ def summarize_events(events):
         }
         for user in sorted(grouped)
     ]
-''',
-    "pathlib-files": '''\
+""",
+    "pathlib-files": """\
 def find_python_modules(root):
     result = []
     for path in root.rglob("*.py"):
@@ -85,8 +85,8 @@ def find_python_modules(root):
         if path.is_file():
             result.append(relative.as_posix())
     return sorted(result)
-''',
-    "json-canonicalize": '''\
+""",
+    "json-canonicalize": """\
 import json
 
 
@@ -97,8 +97,8 @@ def canonicalize_json_object(text, updates):
     merged = dict(value)
     merged.update(updates)
     return json.dumps(merged, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-''',
-    "regex-issue-refs": '''\
+""",
+    "regex-issue-refs": """\
 import re
 
 _PATTERN = re.compile(r"(?<!\\w)(?:#|GH-)([1-9][0-9]*)(?!\\w)", re.IGNORECASE)
@@ -113,8 +113,8 @@ def extract_issue_refs(text):
             seen.add(item)
             result.append(item)
     return result
-''',
-    "dataclasses-typing": '''\
+""",
+    "dataclasses-typing": """\
 from dataclasses import dataclass
 
 
@@ -134,8 +134,8 @@ class Metric:
 def make_metric(name, values, labels=None):
     normalized_labels = tuple(sorted((labels or {}).items()))
     return Metric(name, tuple(float(value) for value in values), normalized_labels)
-''',
-    "generators-decorators-context": '''\
+""",
+    "generators-decorators-context": """\
 from contextlib import contextmanager
 from functools import wraps
 
@@ -177,8 +177,8 @@ def temporary_mapping(mapping, updates):
     finally:
         mapping.clear()
         mapping.update(original)
-''',
-    "exceptions-config-path": '''\
+""",
+    "exceptions-config-path": """\
 from collections.abc import Mapping
 
 
@@ -198,8 +198,8 @@ def require_path(mapping, path):
             raise ConfigPathError(path, segment)
         current = current[segment]
     return current
-''',
-    "async-map-limited": '''\
+""",
+    "async-map-limited": """\
 import asyncio
 
 
@@ -213,8 +213,8 @@ async def map_limited(items, worker, limit):
             return await worker(item)
 
     return list(await asyncio.gather(*(run(item) for item in items)))
-''',
-    "subprocess-run-command": '''\
+""",
+    "subprocess-run-command": """\
 import subprocess
 
 
@@ -230,7 +230,7 @@ def run_command(command, timeout):
         shell=False,
     )
     return completed.returncode, completed.stdout, completed.stderr
-''',
+""",
     "sqlite-domain-counts": '''\
 def domain_counts(connection):
     query = """
@@ -243,7 +243,7 @@ def domain_counts(connection):
     """
     return [(domain, count) for domain, count in connection.execute(query)]
 ''',
-    "pytest-contract": '''\
+    "pytest-contract": """\
 import pytest
 
 
@@ -254,7 +254,7 @@ def test_slugify_contract(slugify):
     assert slugify("") == ""
     with pytest.raises(TypeError):
         slugify(123)
-''',
+""",
 }
 
 
