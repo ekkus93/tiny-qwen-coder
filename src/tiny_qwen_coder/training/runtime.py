@@ -25,6 +25,11 @@ from tiny_qwen_coder.training.plan import (
     resolved_config_json,
     training_rows,
 )
+from tiny_qwen_coder.training.preflight import (
+    TrainingPreflightReport,
+    run_training_preflight,
+    training_preflight_json,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,10 +69,14 @@ def _validation_loss(metrics: object) -> float | None:
     return float(value)
 
 
-def _prepare_output(plan: AdapterTrainingPlan) -> None:
-    plan.artifacts.output_dir.mkdir(parents=True, exist_ok=True)
-    plan.artifacts.checkpoints.mkdir(parents=True, exist_ok=True)
+def _prepare_output(plan: AdapterTrainingPlan, preflight: TrainingPreflightReport) -> None:
+    plan.artifacts.output_dir.mkdir(parents=True, exist_ok=False)
+    plan.artifacts.checkpoints.mkdir(parents=True, exist_ok=False)
     plan.artifacts.training_config.write_text(resolved_config_json(plan), encoding="utf-8")
+    (plan.artifacts.output_dir / "training-preflight.json").write_text(
+        training_preflight_json(preflight),
+        encoding="utf-8",
+    )
     shutil.copyfile(Path(plan.config.dataset_manifest), plan.artifacts.dataset_manifest)
 
 
@@ -189,11 +198,10 @@ def run_adapter_training(
     """Execute one generic LoRA/QLoRA training run and freeze its artifacts."""
 
     plan = resolve_adapter_training_plan(config_path)
-    if not torch.cuda.is_available():
-        raise AdapterTrainingError("adapter training requires a CUDA-visible GPU")
+    preflight = run_training_preflight(plan, repo_root=repo_root)
 
     seed_everything(plan.config.seed)
-    _prepare_output(plan)
+    _prepare_output(plan, preflight)
     run_manifest = create_run_manifest(
         run_kind="training",
         base_model=BaseModelIdentity(
