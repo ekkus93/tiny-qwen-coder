@@ -1,0 +1,148 @@
+schema_version: 1
+suite_id: repository-holdout
+suite_version: 1
+frozen: true
+benchmark_id: repository-holdout
+dataset_revision: repository-holdout-v1
+prompt_version: repository-holdout-python-v1
+completion_normalizer_version: python-module-completion-v1
+instruction: >-
+  Implement the requested Python module. Return only Python code with no Markdown
+  fences or explanatory prose. Preserve every requested name and interface.
+execution_image: python:3.11.14-slim@sha256:c8271b1f627d0068857dce5b53e14a9558603b527e46f1f901722f935b786a39
+execution_timeout_seconds: 10
+limits:
+  cpus: 1
+  memory_mebibytes: 512
+  pids: 64
+  workspace_mebibytes: 64
+  temp_mebibytes: 64
+  max_output_bytes: 65536
+  max_input_bytes: 1048576
+  open_files: 256
+  cleanup_timeout_seconds: 5
+tasks:
+  - id: stdlib-data-transforms
+    category: standard-library-data-transforms
+    prompt: >-
+      Implement summarize_events(events). Each event is a mapping with string keys
+      user and kind plus a non-negative integer seconds value. Return one dictionary
+      per user, sorted by user, with exactly the keys user, total_seconds, and kinds.
+      total_seconds is the sum for that user and kinds is a sorted list of unique
+      kinds. Do not mutate the input records. Raise ValueError if any seconds value
+      is negative.
+    test_path: benchmarks/python/repository_holdout_v1/stdlib_data_transforms.py.txt
+    setup_path: null
+    expected_tests: 4
+  - id: pathlib-files
+    category: pathlib
+    prompt: >-
+      Implement find_python_modules(root). root is a pathlib.Path. Recursively find
+      regular .py files below root, excluding any path whose relative components
+      include __pycache__ or a component beginning with a dot. Ignore symlink files
+      and symlink directories. Return POSIX-style relative path strings sorted
+      lexicographically.
+    test_path: benchmarks/python/repository_holdout_v1/pathlib_files.py.txt
+    setup_path: null
+    expected_tests: 4
+  - id: json-canonicalize
+    category: json
+    prompt: >-
+      Implement canonicalize_json_object(text, updates). Parse text as JSON and
+      require the top-level value to be an object, otherwise raise ValueError.
+      Shallow-merge updates into a new object without mutating updates. Return
+      canonical JSON using sorted keys, compact separators, and ensure_ascii=False.
+    test_path: benchmarks/python/repository_holdout_v1/json_canonicalize.py.txt
+    setup_path: null
+    expected_tests: 4
+  - id: regex-issue-refs
+    category: regex
+    prompt: >-
+      Implement extract_issue_refs(text). Recognize GitHub-style references #123 and
+      GH-123 case-insensitively. Numbers must start with 1-9. Do not match a reference
+      when it touches a word character on either side. Normalize every match to #N,
+      remove duplicates while preserving first occurrence order, and return a list.
+    test_path: benchmarks/python/repository_holdout_v1/regex_issue_refs.py.txt
+    setup_path: null
+    expected_tests: 4
+  - id: dataclasses-typing
+    category: dataclasses-typing
+    prompt: >-
+      Define a frozen, slotted dataclass Metric with fields name: str,
+      values: tuple[float, ...], and labels: tuple[tuple[str, str], ...]. Give Metric
+      a mean property that returns the arithmetic mean and raises ValueError when
+      values is empty. Also implement make_metric(name, values, labels=None), where
+      values is any iterable of numbers and labels is an optional mapping. Convert
+      values to floats and store labels as a tuple sorted by key.
+    test_path: benchmarks/python/repository_holdout_v1/dataclasses_typing.py.txt
+    setup_path: null
+    expected_tests: 5
+  - id: generators-decorators-context
+    category: generators-decorators-context-managers
+    prompt: >-
+      Implement three helpers. chunked(iterable, size) must be a lazy generator that
+      yields tuples of up to size items and raises ValueError for size <= 0.
+      count_calls(func) must be a functools.wraps-preserving decorator whose wrapper
+      has a mutable integer calls attribute incremented on every invocation, including
+      invocations that raise. temporary_mapping(mapping, updates) must be a context
+      manager that applies updates and restores the mapping exactly to its original
+      contents when leaving the context, including exceptional exits.
+    test_path: benchmarks/python/repository_holdout_v1/generators_decorators_context.py.txt
+    setup_path: null
+    expected_tests: 5
+  - id: exceptions-config-path
+    category: exceptions
+    prompt: >-
+      Define ConfigPathError as a LookupError subclass with public path and segment
+      attributes. Implement require_path(mapping, path) for dot-separated paths.
+      Reject an empty path with ValueError. Traverse mapping objects segment by
+      segment and return the final value, including falsey values. If a segment is
+      missing or traversal reaches a non-mapping before completion, raise
+      ConfigPathError whose path is the full requested path and whose segment is the
+      segment that could not be resolved.
+    test_path: benchmarks/python/repository_holdout_v1/exceptions_config_path.py.txt
+    setup_path: null
+    expected_tests: 4
+  - id: async-map-limited
+    category: async-await
+    prompt: >-
+      Implement async map_limited(items, worker, limit). worker is an async callable.
+      Process all input items concurrently while never allowing more than limit worker
+      calls to be active at once. Preserve input order in the returned list. Raise
+      ValueError for limit <= 0 and propagate worker exceptions to the caller.
+    test_path: benchmarks/python/repository_holdout_v1/async_map_limited.py.txt
+    setup_path: null
+    expected_tests: 4
+  - id: subprocess-run-command
+    category: subprocess
+    prompt: >-
+      Implement run_command(command, timeout). command is a non-empty sequence of
+      argument strings. Use subprocess.run without a shell, capture stdout and stderr
+      as text, do not raise merely because the child exits nonzero, and pass timeout
+      through to subprocess.run. Return (returncode, stdout, stderr) without stripping
+      output. Raise ValueError for an empty command.
+    test_path: benchmarks/python/repository_holdout_v1/subprocess_run_command.py.txt
+    setup_path: null
+    expected_tests: 4
+  - id: sqlite-domain-counts
+    category: sqlite
+    prompt: >-
+      Implement domain_counts(connection) for a sqlite3 connection containing a
+      users(email TEXT) table. Use SQL to produce (domain, count) tuples. A valid
+      email has a non-empty substring after its first @. Normalize domains to
+      lowercase, ignore rows without @ or with an empty domain, and sort by count
+      descending then domain ascending.
+    test_path: benchmarks/python/repository_holdout_v1/sqlite_domain_counts.py.txt
+    setup_path: null
+    expected_tests: 4
+  - id: pytest-contract
+    category: pytest-oriented
+    prompt: >-
+      Write a pytest-style function test_slugify_contract(slugify) for a provided
+      callable. Use direct asserts plus pytest.raises(TypeError); do not use plugins
+      or parametrization. The contract is: 'Hello, World!' -> 'hello-world',
+      '  already--spaced  ' -> 'already-spaced', 'Café déjà vu' ->
+      'cafe-deja-vu', '' -> '', and passing integer 123 must raise TypeError.
+    test_path: benchmarks/python/repository_holdout_v1/pytest_contract.py.txt
+    setup_path: benchmarks/python/repository_holdout_v1/pytest_setup.py.txt
+    expected_tests: 6
