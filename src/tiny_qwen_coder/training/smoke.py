@@ -27,8 +27,8 @@ from tiny_qwen_coder.training.preflight import run_training_preflight, training_
 from tiny_qwen_coder.training.runtime import (
     AdapterTrainingRuntimeOptions,
     _load_training_runtime,
-    _write_metrics,
     _validation_loss,
+    _write_metrics,
 )
 
 _SCHEMA_VERSION = 1
@@ -60,17 +60,14 @@ class TrainingSmokeConfig:
             if not value.strip() or value != value.strip():
                 raise AdapterTrainingError(f"smoke {field_name} must be a non-empty exact path")
         if not 1 <= self.max_steps <= _MAX_SMOKE_STEPS:
-            raise AdapterTrainingError(
-                f"smoke max_steps must be between 1 and {_MAX_SMOKE_STEPS}"
-            )
+            raise AdapterTrainingError(f"smoke max_steps must be between 1 and {_MAX_SMOKE_STEPS}")
         if not 1 <= self.train_samples <= _MAX_TRAIN_SAMPLES:
             raise AdapterTrainingError(
                 f"smoke train_samples must be between 1 and {_MAX_TRAIN_SAMPLES}"
             )
         if not 1 <= self.validation_samples <= _MAX_VALIDATION_SAMPLES:
             raise AdapterTrainingError(
-                "smoke validation_samples must be between 1 and "
-                f"{_MAX_VALIDATION_SAMPLES}"
+                f"smoke validation_samples must be between 1 and {_MAX_VALIDATION_SAMPLES}"
             )
 
 
