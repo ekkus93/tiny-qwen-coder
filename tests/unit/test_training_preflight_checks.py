@@ -60,9 +60,9 @@ def _record(text: str) -> NormalizedTrainingRecord:
 
 def _content_sha(records: tuple[NormalizedTrainingRecord, ...]) -> str:
     hashes = tuple(normalized_record_fingerprint(record).record_sha256 for record in records)
-    payload = json.dumps(
-        hashes, ensure_ascii=True, separators=(",", ":"), sort_keys=True
-    ).encode("ascii")
+    payload = json.dumps(hashes, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode(
+        "ascii"
+    )
     return hashlib.sha256(payload).hexdigest()
 
 
