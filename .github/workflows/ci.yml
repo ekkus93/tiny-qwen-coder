@@ -48,25 +48,18 @@ jobs:
       - name: Sync frozen environment
         run: uv sync --frozen
 
-      - name: Apply P6-005 harness and integrity fixes
+      - name: Update baseline integrity test fixture
         run: |
           set -euo pipefail
-          python scripts/_p6_005_harness_patch.py
-          uv run --frozen ruff format \
-            src/tiny_qwen_coder/evaluation/execution.py \
-            src/tiny_qwen_coder/evaluation/_baseline_artifacts.py
-          uv run --frozen ruff check --fix \
-            src/tiny_qwen_coder/evaluation/execution.py \
-            src/tiny_qwen_coder/evaluation/_baseline_artifacts.py
+          python scripts/_p6_005_test_patch.py
+          uv run --frozen ruff format tests/unit/test_python_base_baseline.py tests/unit/test_p6_005_harness_integrity.py
+          uv run --frozen ruff check --fix tests/unit/test_python_base_baseline.py tests/unit/test_p6_005_harness_integrity.py
           git diff --check
-          git diff
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm scripts/_p6_005_harness_patch.py
-          git add \
-            src/tiny_qwen_coder/evaluation/execution.py \
-            src/tiny_qwen_coder/evaluation/_baseline_artifacts.py
-          git commit -m "fix: reject invalid baseline harness results"
+          git rm scripts/_p6_005_test_patch.py
+          git add tests/unit/test_python_base_baseline.py tests/unit/test_p6_005_harness_integrity.py
+          git commit -m "test: enforce P6-005 aggregate integrity"
           git push origin "HEAD:fix/p6-005-baseline-harness-integrity"
 
       - name: Check formatting
