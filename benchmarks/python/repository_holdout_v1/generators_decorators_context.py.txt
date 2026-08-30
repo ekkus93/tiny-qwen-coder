@@ -1,0 +1,74 @@
+import inspect
+
+
+def test_chunked_is_lazy_and_correct():
+    seen = []
+
+    def source():
+        for value in range(5):
+            seen.append(value)
+            yield value
+
+    result = chunked(source(), 2)
+    assert inspect.isgenerator(result)
+    assert seen == []
+    assert next(result) == (0, 1)
+    assert seen == [0, 1]
+    assert list(result) == [(2, 3), (4,)]
+
+
+def test_chunked_rejects_nonpositive_size():
+    for size in (0, -1):
+        try:
+            list(chunked([1, 2], size))
+        except ValueError:
+            continue
+        raise AssertionError("size <= 0 must raise ValueError")
+
+
+def test_count_calls_preserves_metadata_and_counts_success():
+    def add(a, b):
+        """add docs"""
+        return a + b
+
+    wrapped = count_calls(add)
+    assert wrapped.__name__ == "add"
+    assert wrapped.__doc__ == "add docs"
+    assert wrapped.calls == 0
+    assert wrapped(2, 3) == 5
+    assert wrapped.calls == 1
+
+
+def test_count_calls_counts_exceptions():
+    def boom():
+        raise RuntimeError("boom")
+
+    wrapped = count_calls(boom)
+    try:
+        wrapped()
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError("wrapped exception must propagate")
+    assert wrapped.calls == 1
+
+
+def test_temporary_mapping_restores_after_exception():
+    mapping = {"keep": 1, "change": 2}
+    original = dict(mapping)
+    try:
+        with temporary_mapping(mapping, {"change": 9, "added": 3}):
+            assert mapping == {"keep": 1, "change": 9, "added": 3}
+            raise LookupError("exit")
+    except LookupError:
+        pass
+    assert mapping == original
+
+
+TESTS = (
+    test_chunked_is_lazy_and_correct,
+    test_chunked_rejects_nonpositive_size,
+    test_count_calls_preserves_metadata_and_counts_success,
+    test_count_calls_counts_exceptions,
+    test_temporary_mapping_restores_after_exception,
+)
