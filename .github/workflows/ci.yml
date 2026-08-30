@@ -48,21 +48,28 @@ jobs:
       - name: Sync frozen environment
         run: uv sync --frozen
 
-      - name: Apply pinned Ruff fixes
+      - name: Apply exact type fix and pinned Ruff
         run: |
           set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/tiny_qwen_coder/evaluation/_baseline_stages.py")
+          text = path.read_text(encoding="utf-8")
+          old = "        cuda_runtime=cast(str | None, cuda_runtime),\n"
+          new = "        cuda_runtime=cuda_runtime,\n"
+          if old not in text:
+              raise SystemExit("expected redundant cast was not found")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
           uv run --frozen ruff format src/tiny_qwen_coder/evaluation/_baseline_stages.py
           uv run --frozen ruff check --fix src/tiny_qwen_coder/evaluation/_baseline_stages.py
           git diff --check
-          if git diff --quiet; then
-            echo "No Ruff changes remain."
-            exit 0
-          fi
           git diff
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src/tiny_qwen_coder/evaluation/_baseline_stages.py
-          git commit -m "fix: format split baseline stages"
+          git commit -m "fix: satisfy mypy for baseline stage parser"
           git push origin "HEAD:fix/p6-005-split-gpu-scoring"
 
       - name: Check formatting
