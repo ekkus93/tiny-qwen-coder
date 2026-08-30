@@ -1,0 +1,148 @@
+name: Python Base Baseline GPU
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/python-base-baseline.yml"
+      - "configs/base/qwen35-4b.yaml"
+      - "configs/eval/canonical_generation_v1.yaml"
+      - "configs/eval/general_tool_regression_v1.yaml"
+      - "configs/eval/python/base_baseline_v1.yaml"
+      - "configs/eval/python/humaneval*.yaml"
+      - "configs/eval/python/mbpp*.yaml"
+      - "configs/eval/python/repository_holdout*.yaml"
+      - "benchmarks/python/repository_holdout_v1/**"
+      - "src/tiny_qwen_coder/evaluation/baseline.py"
+      - "src/tiny_qwen_coder/evaluation/_baseline_*.py"
+      - "src/tiny_qwen_coder/evaluation/humaneval.py"
+      - "src/tiny_qwen_coder/evaluation/_mbpp_*.py"
+      - "src/tiny_qwen_coder/evaluation/mbpp.py"
+      - "src/tiny_qwen_coder/evaluation/_repository_holdout_*.py"
+      - "src/tiny_qwen_coder/evaluation/repository_holdout.py"
+      - "src/tiny_qwen_coder/evaluation/execution.py"
+      - "src/tiny_qwen_coder/evaluation/regression.py"
+      - "src/tiny_qwen_coder/evaluation/results.py"
+      - "src/tiny_qwen_coder/evaluation/settings.py"
+      - "src/tiny_qwen_coder/languages/python.py"
+      - "pyproject.toml"
+      - "uv.lock"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: python-base-baseline-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  baseline:
+    name: Canonical unchanged-base Python baseline
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+    timeout-minutes: 240
+
+    env:
+      TOKENIZERS_PARALLELISM: "false"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      EXECUTION_IMAGE: python:3.11.14-slim@sha256:c8271b1f627d0068857dce5b53e14a9558603b527e46f1f901722f935b786a39
+
+    steps:
+      - name: Check out canonical source commit
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          clean: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Inspect NVIDIA GPU
+        run: |
+          set -euo pipefail
+          nvidia-smi
+
+      - name: Sync frozen environment
+        run: uv sync --frozen
+
+      - name: Verify PyTorch CUDA access
+        run: |
+          set -euo pipefail
+          uv run --frozen python - <<'PY'
+          import torch
+
+          if not torch.cuda.is_available():
+              raise SystemExit("PyTorch cannot access CUDA on the self-hosted runner")
+          print(f"torch={torch.__version__}")
+          print(f"cuda_runtime={torch.version.cuda}")
+          print(f"gpu={torch.cuda.get_device_name(0)}")
+          print(f"capability={torch.cuda.get_device_capability(0)}")
+          total = torch.cuda.get_device_properties(0).total_memory
+          print(f"total_memory_bytes={total}")
+          PY
+
+      - name: Prepare constrained execution image
+        run: |
+          set -euo pipefail
+          if command -v podman >/dev/null 2>&1; then
+            runtime=podman
+          elif command -v docker >/dev/null 2>&1; then
+            runtime=docker
+          else
+            echo "Neither Podman nor Docker is installed on the self-hosted runner" >&2
+            exit 1
+          fi
+          echo "Using OCI runtime: ${runtime}"
+          "${runtime}" pull "${EXECUTION_IMAGE}"
+          "${runtime}" image inspect "${EXECUTION_IMAGE}" >/dev/null
+
+      - name: Confirm clean source tree
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain)"
+          git rev-parse HEAD
+
+      - name: Run canonical unchanged-base baseline
+        run: |
+          set -euo pipefail
+          uv run --frozen tiny-qwen-coder-python-baseline \
+            | tee "${RUNNER_TEMP}/python-baseline-manifest.json"
+
+      - name: Verify frozen baseline artifacts
+        run: |
+          set -euo pipefail
+          uv run --frozen tiny-qwen-coder-python-baseline --verify-only \
+            | tee "${RUNNER_TEMP}/python-baseline-verified.json"
+          find artifacts/eval/python/base-baseline-v1 -type f -print | sort
+
+      - name: Upload canonical baseline evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-base-baseline-${{ github.sha }}
+          path: |
+            artifacts/eval/python/base-baseline-v1/
+            ${{ runner.temp }}/python-baseline-manifest.json
+            ${{ runner.temp }}/python-baseline-verified.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload partial evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-base-baseline-partial-${{ github.sha }}
+          path: artifacts/eval/python/base-baseline-v1/
+          if-no-files-found: ignore
+          include-hidden-files: true
+          retention-days: 14
