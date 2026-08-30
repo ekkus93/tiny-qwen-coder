@@ -1,9 +1,6 @@
 """Language-neutral LoRA training services."""
 
-from __future__ import annotations
-
-from typing import NoReturn
-
+from tiny_qwen_coder.training.artifacts import create_completed_adapter_manifest
 from tiny_qwen_coder.training.loss_masking import (
     ChatLossMaskReport,
     ChatMessage,
@@ -29,14 +26,29 @@ from tiny_qwen_coder.training.memory_preflight import (
     training_memory_report_json,
     training_memory_report_text,
 )
-
-
-def train_adapter() -> NoReturn:
-    """Run generic adapter training once P7-002 implements it."""
-    raise SystemExit("Adapter training is scaffolded; implementation is tracked by P7-002.")
-
+from tiny_qwen_coder.training.plan import (
+    AdapterTrainingConfig,
+    AdapterTrainingError,
+    AdapterTrainingPlan,
+    TrainerArtifactPaths,
+    TrainingDatasetIdentity,
+    load_training_dataset_identity,
+    load_training_language_registry,
+    resolve_adapter_training_plan,
+    resolved_config_json,
+    training_rows,
+)
+from tiny_qwen_coder.training.runtime import (
+    AdapterTrainingResult,
+    run_adapter_training,
+    train_adapter,
+)
 
 __all__ = [
+    "AdapterTrainingConfig",
+    "AdapterTrainingError",
+    "AdapterTrainingPlan",
+    "AdapterTrainingResult",
     "ChatLossMaskReport",
     "ChatMessage",
     "CudaMemorySnapshot",
@@ -45,18 +57,27 @@ __all__ = [
     "LossMaskingError",
     "QuantizationSpec",
     "TokenizedLossExample",
+    "TrainerArtifactPaths",
+    "TrainingDatasetIdentity",
     "TrainingMemoryPreflightError",
     "TrainingMemoryPreflightReport",
     "build_chat_loss_mask_report",
     "canonical_probe_messages",
     "completion_only_fallback",
+    "create_completed_adapter_manifest",
+    "load_training_dataset_identity",
+    "load_training_language_registry",
     "loss_mask_report_json",
     "loss_mask_report_text",
     "required_safety_headroom_bytes",
+    "resolve_adapter_training_plan",
+    "resolved_config_json",
+    "run_adapter_training",
     "run_canonical_qlora_memory_preflight",
     "train_adapter",
     "training_memory_preflight_main",
     "training_memory_report_json",
     "training_memory_report_text",
+    "training_rows",
     "validate_loss_masking_main",
 ]

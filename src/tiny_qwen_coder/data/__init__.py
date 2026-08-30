@@ -44,6 +44,11 @@ from tiny_qwen_coder.data.length_filtering import (
     token_length_distribution,
     tokenize_training_record,
 )
+from tiny_qwen_coder.data.loading import (
+    TrainingRecordLoadingError,
+    load_normalized_training_records_jsonl,
+    parse_normalized_training_record,
+)
 from tiny_qwen_coder.data.pipeline import (
     DatasetPipelineError,
     DatasetPipelineResult,
@@ -108,6 +113,7 @@ __all__ = [
     "TokenLengthDistribution",
     "TokenLengthFilterReport",
     "TrainingMessage",
+    "TrainingRecordLoadingError",
     "TrainValidationSplit",
     "TruncationPolicy",
     "ValidationMetadata",
@@ -120,12 +126,14 @@ __all__ = [
     "filter_required_content",
     "filter_with_canonical_tokenizer",
     "load_canonical_tokenizer",
+    "load_normalized_training_records_jsonl",
     "normalize_record_text",
     "normalize_training_text",
     "normalized_prompt_sha256",
     "normalized_record_fingerprint",
     "normalized_response_sha256",
     "prepare_data",
+    "parse_normalized_training_record",
     "resolve_language_validator",
     "run_dataset_pipeline",
     "single_turn_messages",
