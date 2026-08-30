@@ -1,0 +1,6 @@
+schema_version: 1
+training_config: configs/train/python/p0.yaml
+output_dir: artifacts/train/python/p0-smoke
+max_steps: 1
+train_samples: 8
+validation_samples: 4

@@ -43,6 +43,25 @@ class AdapterTrainingResult:
     artifacts: TrainerArtifactPaths
 
 
+@dataclass(frozen=True, slots=True)
+class AdapterTrainingRuntimeOptions:
+    """Optional bounded runtime controls used by non-promotable smoke runs."""
+
+    output_dir: Path | None = None
+    max_steps: int | None = None
+    train_sample_limit: int | None = None
+    validation_sample_limit: int | None = None
+
+    def __post_init__(self) -> None:
+        for field_name, value in (
+            ("max_steps", self.max_steps),
+            ("train_sample_limit", self.train_sample_limit),
+            ("validation_sample_limit", self.validation_sample_limit),
+        ):
+            if value is not None and value <= 0:
+                raise AdapterTrainingError(f"runtime option {field_name} must be greater than zero")
+
+
 def _torch_dtype(name: str) -> torch.dtype:
     if name == "bfloat16":
         return torch.bfloat16
@@ -80,7 +99,26 @@ def _prepare_output(plan: AdapterTrainingPlan, preflight: TrainingPreflightRepor
     shutil.copyfile(Path(plan.config.dataset_manifest), plan.artifacts.dataset_manifest)
 
 
-def _load_training_runtime(plan: AdapterTrainingPlan) -> tuple[Any, Any]:
+def _bounded_records(
+    records: tuple[Any, ...],
+    *,
+    limit: int | None,
+    split_name: str,
+) -> tuple[Any, ...]:
+    if limit is None:
+        return records
+    if len(records) < limit:
+        raise AdapterTrainingError(
+            f"{split_name} contains {len(records)} records; bounded runtime requires {limit}"
+        )
+    return records[:limit]
+
+
+def _load_training_runtime(
+    plan: AdapterTrainingPlan,
+    *,
+    options: AdapterTrainingRuntimeOptions | None = None,
+) -> tuple[Any, Any]:
     try:
         from datasets import Dataset  # type: ignore[import-untyped]
         from peft import LoraConfig, prepare_model_for_kbit_training
@@ -90,6 +128,7 @@ def _load_training_runtime(plan: AdapterTrainingPlan) -> tuple[Any, Any]:
     except ImportError as exc:
         raise AdapterTrainingError(f"training dependency is unavailable: {exc}") from exc
 
+    runtime_options = options or AdapterTrainingRuntimeOptions()
     dtype = _torch_dtype(plan.config.compute_dtype)
     tokenizer_factory = cast(Any, AutoTokenizer)
     tokenizer: Any = tokenizer_factory.from_pretrained(
@@ -139,13 +178,21 @@ def _load_training_runtime(plan: AdapterTrainingPlan) -> tuple[Any, Any]:
         task_type="CAUSAL_LM",
     )
 
-    train_records = load_normalized_training_records_jsonl(
-        plan.train_records,
-        expected_language=plan.language,
+    train_records = _bounded_records(
+        load_normalized_training_records_jsonl(
+            plan.train_records,
+            expected_language=plan.language,
+        ),
+        limit=runtime_options.train_sample_limit,
+        split_name="training split",
     )
-    validation_records = load_normalized_training_records_jsonl(
-        plan.validation_records,
-        expected_language=plan.language,
+    validation_records = _bounded_records(
+        load_normalized_training_records_jsonl(
+            plan.validation_records,
+            expected_language=plan.language,
+        ),
+        limit=runtime_options.validation_sample_limit,
+        split_name="validation split",
     )
     dataset_factory = cast(Any, Dataset)
     train_dataset: Any = dataset_factory.from_list(
@@ -155,12 +202,19 @@ def _load_training_runtime(plan: AdapterTrainingPlan) -> tuple[Any, Any]:
         list(training_rows(validation_records, loss_mode=plan.config.loss_mode))
     )
 
+    bounded = runtime_options.max_steps is not None
+    checkpoint_dir = (
+        runtime_options.output_dir / "checkpoints"
+        if runtime_options.output_dir is not None
+        else plan.artifacts.checkpoints
+    )
     sft_config_factory = cast(Any, SFTConfig)
     args: Any = sft_config_factory(
-        output_dir=str(plan.artifacts.checkpoints),
+        output_dir=str(checkpoint_dir),
         per_device_train_batch_size=plan.config.micro_batch_size,
         gradient_accumulation_steps=plan.config.gradient_accumulation_steps,
         num_train_epochs=plan.config.epochs,
+        max_steps=runtime_options.max_steps if runtime_options.max_steps is not None else -1,
         learning_rate=plan.config.learning_rate,
         lr_scheduler_type=plan.config.scheduler,
         warmup_ratio=plan.config.warmup_ratio,
@@ -169,8 +223,10 @@ def _load_training_runtime(plan: AdapterTrainingPlan) -> tuple[Any, Any]:
         max_length=plan.config.sequence_length,
         assistant_only_loss=plan.config.loss_mode == "assistant_only",
         completion_only_loss=plan.config.loss_mode == "completion_only",
-        eval_strategy="epoch",
-        save_strategy="epoch",
+        eval_strategy="no" if bounded else "epoch",
+        save_strategy="steps" if bounded else "epoch",
+        save_steps=runtime_options.max_steps if bounded else 500,
+        save_total_limit=1 if bounded else None,
         logging_strategy="steps",
         logging_steps=1,
         optim="adamw_torch",

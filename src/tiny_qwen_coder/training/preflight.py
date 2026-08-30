@@ -23,6 +23,7 @@ from tiny_qwen_coder.training.preflight_hardware import (
 from tiny_qwen_coder.training.preflight_loss import LossPreflightEvidence, verify_training_loss_mask
 from tiny_qwen_coder.training.preflight_output import (
     OutputPreflightEvidence,
+    verify_training_output_directory,
     verify_training_output_path,
 )
 from tiny_qwen_coder.training.preflight_targets import (
@@ -54,11 +55,15 @@ def run_training_preflight(
     repo_root: Path = Path("."),
     hardware_probe: HardwareProbe | None = None,
     tokenizer: PreTrainedTokenizerBase | None = None,
+    output_dir: Path | None = None,
 ) -> TrainingPreflightReport:
     """Run every P7-004 gate without creating output artifacts or loading model weights."""
 
     targets = verify_frozen_lora_targets(plan)
-    output = verify_training_output_path(plan, repo_root=repo_root)
+    if output_dir is None:
+        output = verify_training_output_path(plan, repo_root=repo_root)
+    else:
+        output = verify_training_output_directory(output_dir, repo_root=repo_root)
     hardware = verify_training_hardware(plan, probe=hardware_probe)
     dataset = verify_frozen_training_dataset(plan)
     if tokenizer is None:
