@@ -47,6 +47,13 @@ jobs:
       - name: Sync frozen environment
         run: uv sync --frozen
 
+      - name: Diagnose Ruff autofixes
+        run: |
+          set -euo pipefail
+          uv run --frozen ruff check --fix .
+          git diff -- src/tiny_qwen_coder/evaluation/_baseline_generation.py src/tiny_qwen_coder/evaluation/_baseline_runner.py
+          git diff --exit-code
+
       - name: Check formatting
         run: uv run --frozen ruff format --check .
 
