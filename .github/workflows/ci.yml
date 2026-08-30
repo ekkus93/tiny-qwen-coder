@@ -10,7 +10,7 @@ on:
       - master
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -26,14 +26,13 @@ jobs:
       HF_HUB_OFFLINE: "1"
       HF_DATASETS_OFFLINE: "1"
       TRANSFORMERS_OFFLINE: "1"
-      TOKENIZERS_PARALLELISM: false
+      TOKENIZERS_PARALLELISM: "false"
 
     steps:
-      - name: Check out PR branch
+      - name: Check out repository
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.head_ref }}
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -47,26 +46,6 @@ jobs:
 
       - name: Sync frozen environment
         run: uv sync --frozen
-
-      - name: Apply pinned Ruff autofixes
-        run: |
-          set -euo pipefail
-          uv run --frozen ruff check --fix \
-            src/tiny_qwen_coder/evaluation/_baseline_generation.py \
-            src/tiny_qwen_coder/evaluation/_baseline_runner.py
-          git diff --check
-          if git diff --quiet; then
-            echo "No Ruff autofixes remain."
-            exit 0
-          fi
-          git diff
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            src/tiny_qwen_coder/evaluation/_baseline_generation.py \
-            src/tiny_qwen_coder/evaluation/_baseline_runner.py
-          git commit -m "fix: apply Ruff baseline autofixes"
-          git push origin "HEAD:${{ github.head_ref }}"
 
       - name: Check formatting
         run: uv run --frozen ruff format --check .
