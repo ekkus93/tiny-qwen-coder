@@ -1,0 +1,35 @@
+schema_version: 1
+runner_id: mbpp
+runner_version: 1
+frozen: true
+benchmark_id: mbpp
+reference_repository: bigcode-project/bigcode-evaluation-harness
+reference_revision: 8fc5bae6479c4fbbb28c3f8b644f6a15b3f3b5bd
+dataset_config: full
+dataset_split: test
+task_id_start: 11
+task_id_end: 510
+expected_problem_count: 500
+tests_per_problem: 3
+prompt_version: mbpp-bigcode-incoder-v1
+completion_normalizer_version: mbpp-completion-normalizer-v1
+stop_words:
+  - "\nclass"
+  - "\nassert"
+  - "\n\"\"\""
+  - "\nprint"
+  - "\nif"
+  - "\n<|/"
+  - "\n```"
+execution_image: python:3.11.14-slim@sha256:c8271b1f627d0068857dce5b53e14a9558603b527e46f1f901722f935b786a39
+execution_timeout_seconds: 10
+limits:
+  cpus: 1
+  memory_mebibytes: 512
+  pids: 64
+  workspace_mebibytes: 64
+  temp_mebibytes: 64
+  max_output_bytes: 65536
+  max_input_bytes: 1048576
+  open_files: 256
+  cleanup_timeout_seconds: 5
