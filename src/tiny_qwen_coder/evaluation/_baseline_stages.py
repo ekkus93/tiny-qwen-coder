@@ -280,7 +280,7 @@ def _load_provenance(path: Path) -> BaselineProvenance:
         machine=_expect_str(mapping, "machine", context="provenance"),
         python_version=_expect_str(mapping, "python_version", context="provenance"),
         cuda_available=cuda_available,
-        cuda_runtime=cast(str | None, cuda_runtime),
+        cuda_runtime=cuda_runtime,
         gpus=tuple(_parse_gpu(item, index=index) for index, item in enumerate(raw_gpus)),
         dependencies=tuple(dependencies),
     )
