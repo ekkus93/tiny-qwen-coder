@@ -1,0 +1,45 @@
+import dataclasses
+
+
+def test_metric_shape_is_frozen_and_slotted():
+    metric = make_metric("latency", [1, 2], {"region": "west"})
+    assert dataclasses.is_dataclass(metric)
+    assert hasattr(type(metric), "__slots__")
+    try:
+        metric.name = "changed"
+    except (dataclasses.FrozenInstanceError, AttributeError):
+        return
+    raise AssertionError("Metric must be frozen")
+
+
+def test_make_metric_normalizes_values_and_labels():
+    metric = make_metric("x", [1, 2.5], {"z": "9", "a": "1"})
+    assert metric.name == "x"
+    assert metric.values == (1.0, 2.5)
+    assert metric.labels == (("a", "1"), ("z", "9"))
+
+
+def test_labels_default_to_empty_tuple():
+    assert make_metric("x", [1]).labels == ()
+
+
+def test_mean_property():
+    assert make_metric("x", [1, 2, 6]).mean == 3.0
+
+
+def test_empty_mean_rejected():
+    metric = make_metric("x", [])
+    try:
+        _ = metric.mean
+    except ValueError:
+        return
+    raise AssertionError("empty metric mean must raise ValueError")
+
+
+TESTS = (
+    test_metric_shape_is_frozen_and_slotted,
+    test_make_metric_normalizes_values_and_labels,
+    test_labels_default_to_empty_tuple,
+    test_mean_property,
+    test_empty_mean_rejected,
+)
