@@ -88,15 +88,15 @@ except BaseException as exc:
 
 namespace: dict[str, object] = {{}}
 try:
-    if setup_code is not None:
-        exec(setup_code, namespace)
-except BaseException as exc:
-    fail({_RUNNER_HARNESS_EXIT}, "benchmark", exc)
-
-try:
     exec(candidate_code, namespace)
 except BaseException as exc:
     fail({_RUNNER_RUNTIME_EXIT}, "runtime", exc)
+
+try:
+    if setup_code is not None:
+        exec(setup_code, namespace)
+except BaseException as exc:
+    fail({_RUNNER_TEST_EXIT}, "setup", exc)
 
 for index, compiled_test in enumerate(test_code, start=1):
     try:
