@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from tiny_qwen_coder.config import load_evaluation_config
+from tiny_qwen_coder.config import EvaluationConfig, load_evaluation_config
 from tiny_qwen_coder.evaluation._baseline_generation import generation_contract_sha256
 from tiny_qwen_coder.evaluation._baseline_provenance import load_baseline_base_model_identity
 from tiny_qwen_coder.evaluation._baseline_runner import _validate_baseline_contract
@@ -17,14 +17,17 @@ from tiny_qwen_coder.evaluation._baseline_stages import (
     _write_generation_stage_manifest,
 )
 from tiny_qwen_coder.evaluation._baseline_types import PythonBaselineError
-from tiny_qwen_coder.evaluation.settings import load_frozen_evaluation_settings
+from tiny_qwen_coder.evaluation.settings import (
+    FrozenEvaluationSettings,
+    load_frozen_evaluation_settings,
+)
 
 _BASELINE_CONFIG = Path("configs/eval/python/base_baseline_v1.yaml")
 _WORKFLOW = Path(".github/workflows/python-base-baseline.yml")
 _SOURCE_SHA = "1" * 40
 
 
-def _stage_contract() -> tuple[object, object, str, str]:
+def _stage_contract() -> tuple[EvaluationConfig, FrozenEvaluationSettings, str, str]:
     evaluation = load_evaluation_config(_BASELINE_CONFIG)
     settings = load_frozen_evaluation_settings()
     base_model = load_baseline_base_model_identity(Path(evaluation.base_config))
