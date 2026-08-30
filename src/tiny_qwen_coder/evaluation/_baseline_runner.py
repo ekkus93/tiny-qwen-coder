@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import shutil
 import subprocess
@@ -27,7 +26,6 @@ from tiny_qwen_coder.evaluation._baseline_generation import (
     prompt_sha256,
 )
 from tiny_qwen_coder.evaluation._baseline_provenance import (
-    BaselineProvenance,
     collect_baseline_provenance,
     load_baseline_base_model_identity,
     write_baseline_provenance,
