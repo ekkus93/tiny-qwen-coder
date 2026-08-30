@@ -21,9 +21,7 @@ _REPOSITORY_HOLDOUT_SUITE_VERSION = 1
 _REPOSITORY_HOLDOUT_DATASET_ID = "repository://tiny-qwen-coder/python-holdout"
 _REPOSITORY_HOLDOUT_DATASET_REVISION = "repository-holdout-v1"
 _REPOSITORY_HOLDOUT_BENCHMARK_CONFIG_PATH = Path("configs/eval/python/repository_holdout.yaml")
-_REPOSITORY_HOLDOUT_SUITE_CONFIG_PATH = Path(
-    "configs/eval/python/repository_holdout_suite_v1.yaml"
-)
+_REPOSITORY_HOLDOUT_SUITE_CONFIG_PATH = Path("configs/eval/python/repository_holdout_suite_v1.yaml")
 _REPOSITORY_HOLDOUT_ASSET_ROOT = Path("benchmarks/python/repository_holdout_v1")
 _FROZEN_REPOSITORY_HOLDOUT_SUITE_SHA256 = (
     "91d87aa5d1fb5041d9d26e6c8bfbeb958fa406a3aa24f0f1966ded9816f8252e"
