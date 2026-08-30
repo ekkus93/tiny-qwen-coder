@@ -54,6 +54,14 @@ _REQUIRED_ARTIFACTS: tuple[tuple[str, str], ...] = (
         f"general-tool-regression/{_REGRESSION_AGGREGATE_NAME}",
     ),
 )
+_CODING_AGGREGATES: tuple[tuple[str, str], ...] = (
+    ("HumanEval", "humaneval/humaneval-aggregate.json"),
+    ("MBPP", "mbpp/mbpp-aggregate.json"),
+    (
+        "repository holdout",
+        "repository-holdout/repository-holdout-aggregate.json",
+    ),
+)
 
 
 def _atomic_write(path: Path, content: str) -> None:
@@ -182,6 +190,24 @@ def _require_clean_provenance(provenance: BaselineProvenance) -> None:
         raise PythonBaselineError("baseline provenance does not record a CUDA GPU")
 
 
+def _require_valid_coding_aggregates(output_dir: Path) -> None:
+    """Reject incomplete coding metrics even when artifact files themselves are present."""
+
+    for benchmark_name, relative_path in _CODING_AGGREGATES:
+        context = f"{benchmark_name} aggregate"
+        mapping = _read_json_mapping(output_dir / relative_path, context=context)
+        harness_errors = _expect_int(mapping, "harness_errors", context=context)
+        if harness_errors != 0:
+            raise PythonBaselineError(
+                f"{context} records {harness_errors} harness errors; baseline is invalid"
+            )
+        pass_at_1 = mapping.get("pass_at_1")
+        if isinstance(pass_at_1, bool) or not isinstance(pass_at_1, (int, float)):
+            raise PythonBaselineError(f"{context}.pass_at_1 must be a numeric value")
+        if not 0.0 <= float(pass_at_1) <= 1.0:
+            raise PythonBaselineError(f"{context}.pass_at_1 must be between zero and one")
+
+
 def freeze_python_baseline(
     *,
     output_dir: Path,
@@ -226,6 +252,7 @@ def freeze_python_baseline(
             )
         )
     ordered = tuple(artifacts)
+    _require_valid_coding_aggregates(output_dir)
     manifest = PythonBaselineManifest(
         schema_version=1,
         baseline_id=_BASELINE_ID,
@@ -391,4 +418,5 @@ def validate_python_baseline_artifacts(
         raise PythonBaselineError(
             "frozen Python baseline artifact inventory does not match the required P6-005 set"
         )
+    _require_valid_coding_aggregates(output_dir)
     return resolved

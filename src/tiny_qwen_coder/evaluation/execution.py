@@ -32,7 +32,10 @@ _CONTAINER_TMP = "/tmp"
 _SANDBOX_UID = 65534
 _SANDBOX_GID = 65534
 _COPY_AND_EXEC_SCRIPT = (
-    'set -eu; cp -R /input/. /workspace/; chmod -R u+rwX /workspace; cd /workspace; exec "$@"'
+    "set -eu; cp -R /input/. /workspace/; "
+    "for path in /workspace/* /workspace/.[!.]* /workspace/..?*; do "
+    '[ -e "$path" ] || continue; chmod -R u+rwX "$path"; done; '
+    'cd /workspace; exec "$@"'
 )
 
 
