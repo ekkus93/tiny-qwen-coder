@@ -95,8 +95,7 @@ def test_frozen_profile_records_exact_architecture_and_p2_measurement() -> None:
     assert profile.measurement_rank == 16
     assert profile.measured_trainable_parameters == 32_464_896
     assert (
-        profile.source_sha256
-        == "edc61481737903c729eb6671bee846879004b91ba0644175beb9fe5e0be05dc6"
+        profile.source_sha256 == "edc61481737903c729eb6671bee846879004b91ba0644175beb9fe5e0be05dc6"
     )
 
 
