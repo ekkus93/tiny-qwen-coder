@@ -99,6 +99,6 @@ def test_gpu_workflow_keeps_oci_runtime_off_self_hosted_runner() -> None:
     assert "include-hidden-files: true" in generation_job
 
     assert "runs-on: ubuntu-latest" in scoring_job
-    assert "docker pull \"${EXECUTION_IMAGE}\"" in scoring_job
+    assert 'docker pull "${EXECUTION_IMAGE}"' in scoring_job
     assert "Download GPU generation evidence" in scoring_job
     assert "Score GPU responses under constrained execution" in scoring_job
