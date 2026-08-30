@@ -1,0 +1,44 @@
+schema_version: 1
+id: qwen35-4b-selective-lora-v1
+
+base:
+  repository: Qwen/Qwen3.5-4B
+  revision: 851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a
+
+strategy: selective
+
+categories:
+  full_attention:
+    - k_proj
+    - o_proj
+    - q_proj
+    - v_proj
+  mlp:
+    - down_proj
+    - gate_proj
+    - up_proj
+  gated_deltanet:
+    - in_proj_a
+    - in_proj_b
+    - in_proj_qkv
+    - in_proj_z
+    - out_proj
+
+target_modules:
+  - down_proj
+  - gate_proj
+  - in_proj_a
+  - in_proj_b
+  - in_proj_qkv
+  - in_proj_z
+  - k_proj
+  - o_proj
+  - out_proj
+  - q_proj
+  - up_proj
+  - v_proj
+
+measurement:
+  source_task: P2-008
+  rank: 16
+  trainable_parameters: 32464896
