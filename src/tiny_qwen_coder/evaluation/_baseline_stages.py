@@ -6,7 +6,6 @@ import argparse
 import json
 import shutil
 from collections.abc import Mapping, Sequence
-from dataclasses import asdict
 from pathlib import Path
 from typing import cast
 
@@ -180,18 +179,12 @@ def _load_runtime_metadata(path: Path) -> BaselineRuntimeMetadata:
         schema_version=_expect_int(mapping, "schema_version", context="runtime"),
         device=_expect_str(mapping, "device", context="runtime"),
         gpu_name=_expect_str(mapping, "gpu_name", context="runtime"),
-        gpu_compute_capability=_expect_str(
-            mapping, "gpu_compute_capability", context="runtime"
-        ),
+        gpu_compute_capability=_expect_str(mapping, "gpu_compute_capability", context="runtime"),
         torch_version=_expect_str(mapping, "torch_version", context="runtime"),
-        transformers_version=_expect_str(
-            mapping, "transformers_version", context="runtime"
-        ),
+        transformers_version=_expect_str(mapping, "transformers_version", context="runtime"),
         model_class=_expect_str(mapping, "model_class", context="runtime"),
         parameter_dtypes=tuple(cast(list[str], raw_dtypes)),
-        resolved_model_revision=_expect_str(
-            mapping, "resolved_model_revision", context="runtime"
-        ),
+        resolved_model_revision=_expect_str(mapping, "resolved_model_revision", context="runtime"),
         cuda_total_bytes=_expect_int(mapping, "cuda_total_bytes", context="runtime"),
         cuda_free_before_load_bytes=_expect_int(
             mapping, "cuda_free_before_load_bytes", context="runtime"
@@ -221,9 +214,7 @@ def _load_runtime_metadata(path: Path) -> BaselineRuntimeMetadata:
         total_wall_seconds=_expect_float(mapping, "total_wall_seconds", context="runtime"),
         total_requests=_expect_int(mapping, "total_requests", context="runtime"),
         total_prompt_tokens=_expect_int(mapping, "total_prompt_tokens", context="runtime"),
-        total_generated_tokens=_expect_int(
-            mapping, "total_generated_tokens", context="runtime"
-        ),
+        total_generated_tokens=_expect_int(mapping, "total_generated_tokens", context="runtime"),
         total_generation_latency_seconds=_expect_float(
             mapping, "total_generation_latency_seconds", context="runtime"
         ),
@@ -563,7 +554,9 @@ def generate_canonical_python_base_baseline_stage(
     source_git_sha, _ = _preflight_source_tree(repo_root)
     output_dir = Path(evaluation.output_dir)
     if (output_dir / "baseline-manifest.json").exists():
-        raise PythonBaselineError("GPU generation stage refuses an already-frozen baseline directory")
+        raise PythonBaselineError(
+            "GPU generation stage refuses an already-frozen baseline directory"
+        )
     generator = HuggingFaceBaselineGenerator(
         base_model=base_model,
         settings=settings,
