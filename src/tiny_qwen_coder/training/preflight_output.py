@@ -21,7 +21,9 @@ def _reject_symlink_components(path: Path, *, stop: Path) -> None:
     current = path
     while True:
         if current.exists() and current.is_symlink():
-            raise AdapterTrainingError(f"training output path contains symlink component: {current}")
+            raise AdapterTrainingError(
+                f"training output path contains symlink component: {current}"
+            )
         if current == stop:
             return
         parent = current.parent
