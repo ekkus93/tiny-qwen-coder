@@ -32,16 +32,15 @@ def _reject_symlink_components(path: Path, *, stop: Path) -> None:
         current = parent
 
 
-def verify_training_output_path(
-    plan: AdapterTrainingPlan,
+def verify_training_output_directory(
+    output_dir: Path,
     *,
     repo_root: Path,
 ) -> OutputPreflightEvidence:
-    """Require a fresh, non-symlinked destination beneath ``artifacts/train``."""
+    """Require one explicit fresh destination beneath ``artifacts/train``."""
 
     root = repo_root.resolve()
-    configured = Path(plan.config.output_dir)
-    lexical = configured if configured.is_absolute() else root / configured
+    lexical = output_dir if output_dir.is_absolute() else root / output_dir
     _reject_symlink_components(lexical, stop=root)
 
     allowed = (root / "artifacts" / "train").resolve(strict=False)
@@ -60,4 +59,17 @@ def verify_training_output_path(
         repo_root=str(root),
         allowed_root=str(allowed),
         output_dir=str(output),
+    )
+
+
+def verify_training_output_path(
+    plan: AdapterTrainingPlan,
+    *,
+    repo_root: Path,
+) -> OutputPreflightEvidence:
+    """Validate the output directory declared by a resolved training plan."""
+
+    return verify_training_output_directory(
+        Path(plan.config.output_dir),
+        repo_root=repo_root,
     )
