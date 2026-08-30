@@ -55,8 +55,10 @@ def _int(mapping: dict[str, object], key: str, *, context: str) -> int:
 
 def _sha(mapping: dict[str, object], key: str, *, context: str) -> str:
     value = mapping.get(key)
-    if not isinstance(value, str) or len(value) != 64 or any(
-        character not in "0123456789abcdef" for character in value
+    if (
+        not isinstance(value, str)
+        or len(value) != 64
+        or any(character not in "0123456789abcdef" for character in value)
     ):
         raise AdapterTrainingError(f"{context}.{key} must be a lowercase SHA-256")
     return value
