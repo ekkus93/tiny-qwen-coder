@@ -152,7 +152,10 @@ def test_generic_loader_rejects_target_group_mismatch(tmp_path: Path) -> None:
     source = Path("configs/base/qwen35-4b-selective-lora-v1.yaml").read_text(encoding="utf-8")
     invalid = tmp_path / "invalid.yaml"
     invalid.write_text(
-        source.replace("  - v_proj\n\nmeasurement:", "  - v_proj\n  - extra_proj\n\nmeasurement:"),
+        source.replace(
+            "  - down_proj\n  - gate_proj",
+            "  - down_proj\n  - extra_proj\n  - gate_proj",
+        ),
         encoding="utf-8",
     )
 
