@@ -70,7 +70,7 @@ def _trainable_parameter_count(model: object) -> int:
     parameters = getattr(model, "parameters", None)
     if not callable(parameters):
         raise AdapterTrainingError("trained model does not expose parameters()")
-    count = sum(parameter.numel() for parameter in parameters() if parameter.requires_grad)
+    count = sum(int(parameter.numel()) for parameter in parameters() if parameter.requires_grad)
     if count <= 0:
         raise AdapterTrainingError("trained adapter has no trainable parameters")
     return count

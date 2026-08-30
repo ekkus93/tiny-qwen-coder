@@ -73,10 +73,11 @@ def _prepare_output(plan: AdapterTrainingPlan) -> None:
 
 def _load_training_runtime(plan: AdapterTrainingPlan) -> tuple[Any, Any]:
     try:
-        from datasets import Dataset
+        from datasets import Dataset  # type: ignore[import-untyped]
         from peft import LoraConfig, prepare_model_for_kbit_training
         from transformers import AutoModelForMultimodalLM, AutoTokenizer, BitsAndBytesConfig
-        from trl import SFTConfig, SFTTrainer
+        from trl.trainer.sft_config import SFTConfig
+        from trl.trainer.sft_trainer import SFTTrainer
     except ImportError as exc:
         raise AdapterTrainingError(f"training dependency is unavailable: {exc}") from exc
 
