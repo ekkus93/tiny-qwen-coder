@@ -7,7 +7,6 @@ from typing import NoReturn
 # Keep this package initializer limited to leaf data services. ``data.pipeline``
 # depends on ``reporting.dataset_manifest``, which imports these leaf modules;
 # re-exporting the pipeline here creates a circular package initialization path.
-
 from tiny_qwen_coder.data.deduplication import (
     DeduplicationError,
     DuplicateReason,
