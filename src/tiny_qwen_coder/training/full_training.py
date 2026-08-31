@@ -120,9 +120,7 @@ def _load_metric_history(path: Path) -> tuple[dict[str, object], ...]:
                 f"training metrics line {line_number} is invalid JSON"
             ) from exc
         if not isinstance(payload, dict):
-            raise AdapterTrainingError(
-                f"training metrics line {line_number} must be a JSON object"
-            )
+            raise AdapterTrainingError(f"training metrics line {line_number} must be a JSON object")
         history.append(payload)
     return tuple(history)
 
@@ -195,9 +193,7 @@ def _preflight_counts(path: Path) -> tuple[int, int]:
         raise AdapterTrainingError("training preflight dataset must be an object")
     return (
         _positive_int(dataset.get("train_records"), field_name="preflight train_records"),
-        _positive_int(
-            dataset.get("validation_records"), field_name="preflight validation_records"
-        ),
+        _positive_int(dataset.get("validation_records"), field_name="preflight validation_records"),
     )
 
 
@@ -323,7 +319,9 @@ def run_full_training(
         result.validation_loss, field_name="generic trainer validation loss"
     )
     if not math.isclose(generic_validation_loss, validation_loss, rel_tol=0.0, abs_tol=1e-12):
-        raise AdapterTrainingError("generic trainer validation loss disagrees with persisted metrics")
+        raise AdapterTrainingError(
+            "generic trainer validation loss disagrees with persisted metrics"
+        )
 
     peak_allocated = int(torch.cuda.max_memory_allocated(0))
     peak_reserved = int(torch.cuda.max_memory_reserved(0))
@@ -332,7 +330,9 @@ def run_full_training(
     if peak_allocated > peak_reserved:
         raise AdapterTrainingError("CUDA peak allocated memory exceeds peak reserved memory")
     if result.peak_vram_bytes != peak_reserved:
-        raise AdapterTrainingError("generic trainer peak VRAM disagrees with CUDA peak reserved memory")
+        raise AdapterTrainingError(
+            "generic trainer peak VRAM disagrees with CUDA peak reserved memory"
+        )
 
     final_checkpoint = _verify_full_training_outputs(plan, global_steps=result.global_steps)
     preflight_path = plan.artifacts.output_dir / "training-preflight.json"
