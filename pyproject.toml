@@ -24,6 +24,7 @@ tiny-qwen-coder-train-preflight = "tiny_qwen_coder.training.preflight:training_p
 tiny-qwen-coder-train-smoke = "tiny_qwen_coder.training.smoke:training_smoke_main"
 tiny-qwen-coder-versions = "tiny_qwen_coder.versions:main"
 tiny-qwen-coder-python-baseline = "tiny_qwen_coder.evaluation.baseline:main"
+tiny-qwen-coder-promote-hf = "tiny_qwen_coder.huggingface_promotion:huggingface_promotion_main"
 
 [dependency-groups]
 dev = [
