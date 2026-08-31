@@ -217,7 +217,7 @@ def _load_training_runtime(
         max_steps=runtime_options.max_steps if runtime_options.max_steps is not None else -1,
         learning_rate=plan.config.learning_rate,
         lr_scheduler_type=plan.config.scheduler,
-        warmup_ratio=plan.config.warmup_ratio,
+        warmup_steps=plan.config.warmup_ratio,
         gradient_checkpointing=plan.config.gradient_checkpointing,
         bf16=plan.config.compute_dtype == "bfloat16",
         max_length=plan.config.sequence_length,
