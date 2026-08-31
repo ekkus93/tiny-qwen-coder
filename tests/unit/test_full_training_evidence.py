@@ -77,9 +77,17 @@ def test_full_training_extracts_finite_persisted_metrics() -> None:
     with pytest.raises(AdapterTrainingError, match="logged training loss must be finite"):
         _training_metrics(({"loss": math.nan}, {"train_loss": 1.0}, {"eval_loss": 1.0}))
     with pytest.raises(AdapterTrainingError, match="validation loss"):
-        _training_metrics(({"loss": 1.0}, {"train_loss": 1.0, "train_runtime": 1.0,
-                                           "train_samples_per_second": 1.0,
-                                           "train_steps_per_second": 1.0}))
+        _training_metrics(
+            (
+                {"loss": 1.0},
+                {
+                    "train_loss": 1.0,
+                    "train_runtime": 1.0,
+                    "train_samples_per_second": 1.0,
+                    "train_steps_per_second": 1.0,
+                },
+            )
+        )
 
 
 def test_full_training_requires_lora_adapter_and_rejects_merged_model(tmp_path: Path) -> None:
@@ -155,6 +163,8 @@ def test_workflow_is_valid_yaml_mapping() -> None:
 
 
 def test_artifact_set_hash_matches_canonical_json_encoding(tmp_path: Path) -> None:
+    import hashlib
+
     path = tmp_path / "evidence.json"
     path.write_text("{}\n", encoding="utf-8")
     artifacts = _artifact_digests(tmp_path, (path,))
@@ -166,6 +176,5 @@ def test_artifact_set_hash_matches_canonical_json_encoding(tmp_path: Path) -> No
         sort_keys=True,
         separators=(",", ":"),
     )
-    import hashlib
 
     assert _artifact_set_sha256(artifacts) == hashlib.sha256(payload.encode("utf-8")).hexdigest()
