@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from tiny_qwen_coder.data import apply_language_validators
+from tiny_qwen_coder.data.pipeline import apply_language_validators
 from tiny_qwen_coder.data.records import (
     LicenseMetadata,
     NormalizedTrainingRecord,
