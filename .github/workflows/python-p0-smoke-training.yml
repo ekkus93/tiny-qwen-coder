@@ -6,7 +6,6 @@ on:
     branches:
       - master
     paths:
-      - ".github/workflows/python-p0-smoke-training.yml"
       - "configs/base/qwen35-4b.yaml"
       - "configs/data/python/**"
       - "configs/languages/python.yaml"
@@ -141,23 +140,30 @@ jobs:
           print(json.dumps(report, indent=2, sort_keys=True))
           PY
 
-      - name: Upload canonical smoke evidence
+      - name: Upload compact smoke evidence
         uses: actions/upload-artifact@v4
         with:
           name: python-p0-smoke-training-${{ github.sha }}
           path: |
-            artifacts/train/python/p0-smoke/
+            artifacts/train/python/p0-smoke/*.json
+            artifacts/train/python/p0-smoke/*.jsonl
+            artifacts/train/python/p0-smoke/*.sha256
+            artifacts/train/python/p0-smoke/adapter/adapter_config.json
             ${{ runner.temp }}/python-p0-smoke-report.json
           if-no-files-found: error
           include-hidden-files: true
-          retention-days: 30
+          retention-days: 7
 
-      - name: Upload partial smoke evidence on failure
+      - name: Upload compact partial smoke evidence on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: python-p0-smoke-training-partial-${{ github.sha }}
-          path: artifacts/train/python/p0-smoke/
+          path: |
+            artifacts/train/python/p0-smoke/*.json
+            artifacts/train/python/p0-smoke/*.jsonl
+            artifacts/train/python/p0-smoke/*.sha256
+            ${{ runner.temp }}/python-p0-smoke-report.json
           if-no-files-found: ignore
           include-hidden-files: true
-          retention-days: 14
+          retention-days: 3
