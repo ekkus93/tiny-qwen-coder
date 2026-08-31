@@ -100,6 +100,7 @@ def _validate_source_contract(source: DatasetSourceConfig, language: LanguageCon
 
 
 def _source_metadata(row: Mapping[str, object]) -> tuple[tuple[str, str], ...]:
+    seed = _expect_str(row, "seed", field_name="row.seed", allow_empty=True)
     values = {
         "index": str(_expect_int(row, "index", field_name="row.index")),
         "lang": _expect_str(row, "lang", field_name="row.lang"),
@@ -109,8 +110,9 @@ def _source_metadata(row: Mapping[str, object]) -> tuple[tuple[str, str], ...]:
             field_name="row.openai_fingerprint",
         ),
         "raw_index": str(_expect_int(row, "raw_index", field_name="row.raw_index")),
-        "seed": _expect_str(row, "seed", field_name="row.seed"),
     }
+    if seed.strip():
+        values["seed"] = seed
     return tuple(sorted(values.items()))
 
 
