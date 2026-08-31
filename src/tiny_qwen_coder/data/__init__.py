@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from typing import NoReturn
 
+# Keep this package initializer limited to leaf data services. ``data.pipeline``
+# depends on ``reporting.dataset_manifest``, which imports these leaf modules;
+# re-exporting the pipeline here creates a circular package initialization path.
 from tiny_qwen_coder.data.deduplication import (
     DeduplicationError,
     DuplicateReason,
@@ -49,15 +52,6 @@ from tiny_qwen_coder.data.loading import (
     load_normalized_training_records_jsonl,
     parse_normalized_training_record,
 )
-from tiny_qwen_coder.data.pipeline import (
-    DatasetPipelineError,
-    DatasetPipelineResult,
-    LanguageRecordValidator,
-    ValidatorResolver,
-    apply_language_validators,
-    resolve_language_validator,
-    run_dataset_pipeline,
-)
 from tiny_qwen_coder.data.records import (
     LicenseMetadata,
     MessageRole,
@@ -83,8 +77,6 @@ __all__ = [
     "AcceptedTokenLength",
     "ContentRejectionReason",
     "DatasetPartition",
-    "DatasetPipelineError",
-    "DatasetPipelineResult",
     "DatasetSplitMembership",
     "DatasetSplittingError",
     "DeduplicatedDatasetSplit",
@@ -93,7 +85,6 @@ __all__ = [
     "DuplicateReasonCount",
     "DuplicateTrainingRecord",
     "ExactDeduplicationReport",
-    "LanguageRecordValidator",
     "LengthFilterConfig",
     "LengthFilteringError",
     "LengthRejectedTrainingRecord",
@@ -118,8 +109,6 @@ __all__ = [
     "TruncationPolicy",
     "ValidationMetadata",
     "ValidationResult",
-    "ValidatorResolver",
-    "apply_language_validators",
     "deduplicate_exact_records",
     "deterministic_train_validation_split",
     "filter_by_token_length",
@@ -134,8 +123,6 @@ __all__ = [
     "normalized_response_sha256",
     "prepare_data",
     "parse_normalized_training_record",
-    "resolve_language_validator",
-    "run_dataset_pipeline",
     "single_turn_messages",
     "source_record_identity",
     "split_deduplicated_records",
