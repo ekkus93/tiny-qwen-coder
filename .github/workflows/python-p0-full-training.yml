@@ -2,11 +2,6 @@ name: Python P0 Full Training
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - master
-    paths:
-      - ".github/workflows/python-p0-full-training.yml"
 
 permissions:
   contents: read
@@ -243,27 +238,43 @@ jobs:
           print(json.dumps(report, indent=2, sort_keys=True))
           PY
 
-      - name: Upload canonical P7-006 training artifacts
+      - name: Show local canonical output location
+        run: |
+          set -euo pipefail
+          echo "Canonical local output remains at: ${GITHUB_WORKSPACE}/artifacts/train/python/p0"
+          du -sh artifacts/train/python/p0
+
+      - name: Upload compact P7-006 recovery bundle
         uses: actions/upload-artifact@v4
         with:
           name: python-p0-full-training-${{ github.sha }}
           path: |
-            artifacts/train/python/p0/
+            artifacts/train/python/p0/adapter/
+            artifacts/train/python/p0/adapter-manifest.json
+            artifacts/train/python/p0/run-manifest.json
+            artifacts/train/python/p0/training-config.json
+            artifacts/train/python/p0/training-metrics.jsonl
+            artifacts/train/python/p0/training-report.json
+            artifacts/train/python/p0/dataset-manifest.json
+            artifacts/train/python/p0/dataset-manifest.sha256
             ${{ runner.temp }}/python-p0-training-preflight.json
             ${{ runner.temp }}/python-p0-training-report.json
           if-no-files-found: error
           include-hidden-files: true
-          retention-days: 90
+          retention-days: 7
 
-      - name: Upload partial P7-006 evidence on failure
+      - name: Upload compact partial evidence on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: python-p0-full-training-partial-${{ github.sha }}
           path: |
-            artifacts/train/python/p0/
+            artifacts/train/python/p0/*.json
+            artifacts/train/python/p0/*.jsonl
+            artifacts/train/python/p0/*.sha256
+            artifacts/train/python/p0/adapter/
             ${{ runner.temp }}/python-p0-training-preflight.json
             ${{ runner.temp }}/python-p0-training-report.json
           if-no-files-found: ignore
           include-hidden-files: true
-          retention-days: 30
+          retention-days: 3
