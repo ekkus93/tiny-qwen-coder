@@ -88,6 +88,15 @@ def test_scoring_stage_refuses_missing_gpu_checkpoint() -> None:
         generator.generate(system_prompt="system", user_prompt="prompt")
 
 
+def test_frozen_gpu_baseline_is_manual_only() -> None:
+    workflow = _WORKFLOW.read_text(encoding="utf-8")
+    trigger_block = workflow.split("\npermissions:\n", maxsplit=1)[0]
+
+    assert "workflow_dispatch:" in trigger_block
+    assert "push:" not in trigger_block
+    assert "pull_request:" not in trigger_block
+
+
 def test_gpu_workflow_keeps_oci_runtime_off_self_hosted_runner() -> None:
     workflow = _WORKFLOW.read_text(encoding="utf-8")
     generation_job, scoring_job = workflow.split("\n  score:\n", maxsplit=1)
