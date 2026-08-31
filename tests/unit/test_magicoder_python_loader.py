@@ -148,6 +148,29 @@ def test_loader_preserves_magicoder_source_provenance() -> None:
     )
 
 
+def test_loader_omits_empty_auxiliary_seed_metadata() -> None:
+    source = load_dataset_source_config(_SOURCE_PATH)
+    language = load_language_config(_LANGUAGE_PATH)
+    row = _row(
+        lang="python",
+        raw_index=7,
+        index=3,
+        problem="Return one.",
+        solution="return 1",
+    )
+    row["seed"] = "   "
+    loader = RecordingDatasetLoader((row,))
+
+    (record,) = load_magicoder_python(source, language, dataset_loader=loader)
+
+    assert record.provenance.source_metadata == (
+        ("index", "3"),
+        ("lang", "python"),
+        ("openai_fingerprint", "fp_eeff13170a"),
+        ("raw_index", "7"),
+    )
+
+
 def test_loader_retains_empty_content_for_generic_required_content_filtering() -> None:
     source = load_dataset_source_config(_SOURCE_PATH)
     language = load_language_config(_LANGUAGE_PATH)
