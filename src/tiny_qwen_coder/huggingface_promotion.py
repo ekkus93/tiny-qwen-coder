@@ -394,9 +394,7 @@ def _validate_training_output(output_dir: Path) -> PromotionIdentity:
     dataset_manifest_sha256 = _require_str(
         report, "dataset_manifest_sha256", context="training report"
     )
-    final_checkpoint_dir = _require_str(
-        report, "final_checkpoint_dir", context="training report"
-    )
+    final_checkpoint_dir = _require_str(report, "final_checkpoint_dir", context="training report")
     checkpoint = _safe_output_path(
         output_dir, final_checkpoint_dir, context="final checkpoint directory"
     )
@@ -626,9 +624,7 @@ def _build_local_archive(
         (staging / "README.md").write_text(_model_card(identity), encoding="utf-8")
 
         files_without_manifest = tuple(
-            _digest_file(staging, path)
-            for path in sorted(staging.rglob("*"))
-            if path.is_file()
+            _digest_file(staging, path) for path in sorted(staging.rglob("*")) if path.is_file()
         )
         manifest_payload = _archive_manifest_payload(identity, files_without_manifest)
         (staging / "archive-manifest.json").write_text(
@@ -636,9 +632,7 @@ def _build_local_archive(
             encoding="utf-8",
         )
         expected = tuple(
-            _digest_file(staging, path)
-            for path in sorted(staging.rglob("*"))
-            if path.is_file()
+            _digest_file(staging, path) for path in sorted(staging.rglob("*")) if path.is_file()
         )
 
         if archive_dir.exists():
