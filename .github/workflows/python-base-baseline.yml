@@ -2,33 +2,6 @@ name: Python Base Baseline GPU
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - master
-    paths:
-      - ".github/workflows/python-base-baseline.yml"
-      - "configs/base/qwen35-4b.yaml"
-      - "configs/eval/canonical_generation_v1.yaml"
-      - "configs/eval/general_tool_regression_v1.yaml"
-      - "configs/eval/python/base_baseline_v1.yaml"
-      - "configs/eval/python/humaneval*.yaml"
-      - "configs/eval/python/mbpp*.yaml"
-      - "configs/eval/python/repository_holdout*.yaml"
-      - "benchmarks/python/repository_holdout_v1/**"
-      - "src/tiny_qwen_coder/evaluation/baseline.py"
-      - "src/tiny_qwen_coder/evaluation/_baseline_*.py"
-      - "src/tiny_qwen_coder/evaluation/humaneval.py"
-      - "src/tiny_qwen_coder/evaluation/_mbpp_*.py"
-      - "src/tiny_qwen_coder/evaluation/mbpp.py"
-      - "src/tiny_qwen_coder/evaluation/_repository_holdout_*.py"
-      - "src/tiny_qwen_coder/evaluation/repository_holdout.py"
-      - "src/tiny_qwen_coder/evaluation/execution.py"
-      - "src/tiny_qwen_coder/evaluation/regression.py"
-      - "src/tiny_qwen_coder/evaluation/results.py"
-      - "src/tiny_qwen_coder/evaluation/settings.py"
-      - "src/tiny_qwen_coder/languages/python.py"
-      - "pyproject.toml"
-      - "uv.lock"
 
 permissions:
   contents: read
