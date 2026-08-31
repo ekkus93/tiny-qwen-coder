@@ -53,7 +53,7 @@ def test_full_training_metrics_fail_closed_on_nonfinite_or_zero_values() -> None
 
 
 def test_full_training_extracts_finite_persisted_metrics() -> None:
-    history = (
+    history: tuple[dict[str, object], ...] = (
         {"loss": 2.0, "step": 1},
         {
             "train_loss": 1.5,
