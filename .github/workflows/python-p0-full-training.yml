@@ -1,0 +1,269 @@
+name: Python P0 Full Training
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/python-p0-full-training.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: python-p0-full-training-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  train:
+    name: Run full frozen Python P0 QLoRA training
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+    timeout-minutes: 1440
+
+    env:
+      TOKENIZERS_PARALLELISM: "false"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+
+    steps:
+      - name: Check out canonical source commit
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          clean: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Inspect NVIDIA GPU
+        run: |
+          set -euo pipefail
+          nvidia-smi
+
+      - name: Sync frozen QLoRA environment
+        run: uv sync --frozen --extra qlora
+
+      - name: Verify CUDA and QLoRA runtime
+        run: |
+          set -euo pipefail
+          uv run --frozen python - <<'PY'
+          import bitsandbytes
+          import torch
+
+          if not torch.cuda.is_available():
+              raise SystemExit("PyTorch cannot access CUDA on the self-hosted runner")
+          if not torch.cuda.is_bf16_supported():
+              raise SystemExit("CUDA device 0 does not support BF16")
+          properties = torch.cuda.get_device_properties(0)
+          print(f"torch={torch.__version__}")
+          print(f"bitsandbytes={bitsandbytes.__version__}")
+          print(f"cuda_runtime={torch.version.cuda}")
+          print(f"gpu={properties.name}")
+          print(f"total_memory_bytes={properties.total_memory}")
+          PY
+
+      - name: Confirm clean source tree
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain)"
+          git rev-parse HEAD
+
+      - name: Materialize frozen Python P0 corpus
+        run: |
+          set -euo pipefail
+          uv run --frozen python scripts/freeze_python_p0.py
+          test -f data/python/p0/dataset-manifest.json
+          test -f data/python/p0/dataset-manifest.sha256
+          test -f data/python/p0/train.jsonl
+          test -f data/python/p0/validation.jsonl
+
+      - name: Run mandatory training preflight
+        run: |
+          set -euo pipefail
+          uv run --frozen tiny-qwen-coder-train-preflight \
+            --config configs/train/python/p0.yaml \
+            --repo-root . \
+            --output "${RUNNER_TEMP}/python-p0-training-preflight.json"
+          cat "${RUNNER_TEMP}/python-p0-training-preflight.json"
+
+      - name: Run full Python P0 training
+        run: |
+          set -euo pipefail
+          uv run --frozen python -m tiny_qwen_coder.training.full_training \
+            --config configs/train/python/p0.yaml \
+            --repo-root . \
+            | tee "${RUNNER_TEMP}/python-p0-training-report.json"
+          test -f artifacts/train/python/p0/training-report.json
+          test -f artifacts/train/python/p0/adapter-manifest.json
+          test -f artifacts/train/python/p0/run-manifest.json
+          test -f artifacts/train/python/p0/training-metrics.jsonl
+          test -f artifacts/train/python/p0/adapter/adapter_config.json
+
+      - name: Verify P7-006 acceptance evidence
+        env:
+          EXPECTED_GIT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          uv run --frozen python - <<'PY'
+          import hashlib
+          import json
+          import math
+          import os
+          from pathlib import Path
+
+          root = Path("artifacts/train/python/p0")
+          report = json.loads((root / "training-report.json").read_text(encoding="utf-8"))
+          run_manifest = json.loads((root / "run-manifest.json").read_text(encoding="utf-8"))
+          adapter_manifest = json.loads((root / "adapter-manifest.json").read_text(encoding="utf-8"))
+          adapter_config = json.loads((root / "adapter" / "adapter_config.json").read_text(encoding="utf-8"))
+          resolved_config = json.loads((root / "training-config.json").read_text(encoding="utf-8"))
+
+          if report.get("source_training_config") != "configs/train/python/p0.yaml":
+              raise SystemExit("training report does not identify canonical Python P0 config")
+          if report.get("language") != "python" or report.get("adapter_id") != "language/python/p0":
+              raise SystemExit("training report identity is not canonical Python P0")
+          if run_manifest.get("git", {}).get("sha") != os.environ["EXPECTED_GIT_SHA"]:
+              raise SystemExit("run manifest Git SHA does not match workflow source commit")
+          if resolved_config.get("config_sha256") != report.get("source_training_config_sha256"):
+              raise SystemExit("resolved training config SHA-256 does not match report")
+
+          manifest_sha = hashlib.sha256((root / "dataset-manifest.json").read_bytes()).hexdigest()
+          if manifest_sha != report.get("dataset_manifest_sha256"):
+              raise SystemExit("dataset manifest SHA-256 does not match report")
+          if report.get("train_records") != 38000 or report.get("validation_records") != 2000:
+              raise SystemExit("full run did not use the frozen 38,000/2,000 P0 split")
+          if report.get("global_steps") != 4750:
+              raise SystemExit("full run did not complete the expected 4,750 optimizer steps")
+
+          for key in (
+              "training_loss",
+              "validation_loss",
+              "train_runtime_seconds",
+              "total_runtime_seconds",
+              "train_samples_per_second",
+              "train_steps_per_second",
+          ):
+              value = report.get(key)
+              if isinstance(value, bool) or not isinstance(value, (int, float)):
+                  raise SystemExit(f"{key} is not numeric")
+              if not math.isfinite(float(value)):
+                  raise SystemExit(f"{key} is not finite")
+              if key.endswith("seconds") or key.endswith("per_second"):
+                  if float(value) <= 0:
+                      raise SystemExit(f"{key} is not positive")
+
+          logged_losses = report.get("logged_training_losses")
+          if not isinstance(logged_losses, list) or not logged_losses:
+              raise SystemExit("training report has no logged training losses")
+          if any(
+              isinstance(value, bool)
+              or not isinstance(value, (int, float))
+              or not math.isfinite(float(value))
+              for value in logged_losses
+          ):
+              raise SystemExit("training report contains a non-finite logged loss")
+
+          peak_allocated = report.get("peak_allocated_vram_bytes")
+          peak_reserved = report.get("peak_reserved_vram_bytes")
+          if not isinstance(peak_allocated, int) or isinstance(peak_allocated, bool) or peak_allocated <= 0:
+              raise SystemExit("peak allocated VRAM is invalid")
+          if not isinstance(peak_reserved, int) or isinstance(peak_reserved, bool) or peak_reserved <= 0:
+              raise SystemExit("peak reserved VRAM is invalid")
+          if peak_allocated > peak_reserved:
+              raise SystemExit("peak allocated VRAM exceeds peak reserved VRAM")
+
+          checkpoint = root / report["final_checkpoint_dir"]
+          adapter = root / report["adapter_dir"]
+          if not checkpoint.is_dir() or not any(checkpoint.iterdir()):
+              raise SystemExit("final training checkpoint is missing")
+          if str(adapter_config.get("peft_type", "")).upper() != "LORA":
+              raise SystemExit("saved output is not a PEFT LoRA adapter")
+          if not any(
+              path.is_file() and path.stat().st_size > 0
+              for path in (adapter / "adapter_model.safetensors", adapter / "adapter_model.bin")
+          ):
+              raise SystemExit("saved LoRA adapter weights are missing or empty")
+
+          forbidden = [
+              adapter / "model.safetensors",
+              adapter / "model.safetensors.index.json",
+              adapter / "pytorch_model.bin",
+              adapter / "pytorch_model.bin.index.json",
+              *adapter.glob("model-*.safetensors"),
+              *adapter.glob("pytorch_model-*.bin"),
+              *checkpoint.rglob("model.safetensors"),
+              *checkpoint.rglob("model.safetensors.index.json"),
+              *checkpoint.rglob("pytorch_model.bin"),
+              *checkpoint.rglob("pytorch_model.bin.index.json"),
+              *checkpoint.rglob("model-*.safetensors"),
+              *checkpoint.rglob("pytorch_model-*.bin"),
+          ]
+          if any(path.is_file() for path in forbidden):
+              raise SystemExit("training output contains merged/full-model weights")
+
+          persisted = report.get("persisted_artifacts")
+          if not isinstance(persisted, list) or not persisted:
+              raise SystemExit("training report has no persisted-artifact inventory")
+          resolved_root = root.resolve()
+          for item in persisted:
+              if not isinstance(item, dict):
+                  raise SystemExit("persisted-artifact entry is not an object")
+              relative = item.get("path")
+              if not isinstance(relative, str) or not relative:
+                  raise SystemExit("persisted-artifact path is invalid")
+              path = (root / relative).resolve()
+              if not path.is_relative_to(resolved_root) or not path.is_file():
+                  raise SystemExit(f"persisted artifact is missing or escapes output root: {relative}")
+              if path.stat().st_size != item.get("size_bytes"):
+                  raise SystemExit(f"persisted artifact size mismatch: {relative}")
+              if hashlib.sha256(path.read_bytes()).hexdigest() != item.get("sha256"):
+                  raise SystemExit(f"persisted artifact SHA-256 mismatch: {relative}")
+          set_payload = json.dumps(persisted, sort_keys=True, separators=(",", ":"))
+          if hashlib.sha256(set_payload.encode("utf-8")).hexdigest() != report.get("artifact_set_sha256"):
+              raise SystemExit("persisted artifact-set SHA-256 does not match report")
+
+          if adapter_manifest.get("adapter_id") != "language/python/p0":
+              raise SystemExit("adapter manifest identity is not canonical P0")
+          summary = adapter_manifest.get("training_summary", {})
+          if summary.get("steps") != report["global_steps"]:
+              raise SystemExit("adapter manifest step count does not match training report")
+          if summary.get("peak_vram_bytes") != peak_reserved:
+              raise SystemExit("adapter manifest peak VRAM does not match training report")
+
+          print(json.dumps(report, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload canonical P7-006 training artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-p0-full-training-${{ github.sha }}
+          path: |
+            artifacts/train/python/p0/
+            ${{ runner.temp }}/python-p0-training-preflight.json
+            ${{ runner.temp }}/python-p0-training-report.json
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 90
+
+      - name: Upload partial P7-006 evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-p0-full-training-partial-${{ github.sha }}
+          path: |
+            artifacts/train/python/p0/
+            ${{ runner.temp }}/python-p0-training-preflight.json
+            ${{ runner.temp }}/python-p0-training-report.json
+          if-no-files-found: ignore
+          include-hidden-files: true
+          retention-days: 30
