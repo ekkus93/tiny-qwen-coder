@@ -1,0 +1,187 @@
+{
+  "adapter": {
+    "adapter_id": "language/python/p0",
+    "adapter_model_sha256": "c94606250e112f72362eb883a55f7b2c8af854d445f6bb6194352c2806a8f276",
+    "adapter_model_size_bytes": 65004840,
+    "training_git_sha": "02df92a9c2d347b9fb013dc25714fe066c6bcafe",
+    "training_run_id": "training-python-20260831T180916446466Z-02df92a9-eafc119d"
+  },
+  "adapter_status": {
+    "active_adapters": [
+      "default"
+    ],
+    "available_adapters": [
+      "default"
+    ],
+    "enabled": true,
+    "merged_adapters": [],
+    "num_adapter_layers": 248,
+    "trainable_params": 0
+  },
+  "base_model": {
+    "repository": "Qwen/Qwen3.5-4B",
+    "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+    "tokenizer_repository": "Qwen/Qwen3.5-4B",
+    "tokenizer_revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
+  },
+  "cases": [
+    {
+      "adapter": {
+        "generated_tokens": 25,
+        "latency_seconds": 0.9195018890313804,
+        "prompt_tokens": 82,
+        "text": "export function add(a: number, b: number): number {\n  return a + b;\n}\n",
+        "token_ids": [1479, 709, 884, 2784, 25, 1324, 11, 292, 25, 1324, 1590, 1324, 313, 198, 220, 460, 264, 478, 292, 26, 198, 92, 248046, 198, 248044]
+      },
+      "base": {
+        "generated_tokens": 30,
+        "latency_seconds": 1.9018084476701915,
+        "prompt_tokens": 82,
+        "text": "```typescript\nexport function add(a: number, b: number): number {\n  return a + b;\n}\n```\n",
+        "token_ids": [71093, 47887, 198, 1479, 709, 884, 2784, 25, 1324, 11, 292, 25, 1324, 1590, 1324, 313, 198, 220, 460, 264, 478, 292, 26, 198, 92, 198, 71093, 248046, 198, 248044]
+      },
+      "case_id": "typescript.add_numbers",
+      "format_adherence": {"adapter_detail": null, "adapter_passed": true, "base_detail": "forbidden pattern matched: ```", "base_passed": false, "transition": "improvement"},
+      "language": "typescript",
+      "prompt": "Return only TypeScript code. Implement `export function add(a: number, b: number): number` so it returns the sum of `a` and `b`.",
+      "semantic_shape": {"adapter_detail": null, "adapter_passed": true, "base_detail": null, "base_passed": true, "transition": "preserved_pass"}
+    },
+    {
+      "adapter": {
+        "generated_tokens": 28,
+        "latency_seconds": 0.9747383408248425,
+        "prompt_tokens": 88,
+        "text": "export function firstOrUndefined<T>(items: readonly T[]): T | undefined {\n  return items[0];\n}\n",
+        "token_ids": [1479, 709, 1118, 2126, 29572, 3025, 2163, 3494, 25, 5583, 345, 45096, 345, 735, 5438, 313, 198, 220, 460, 3470, 58, 15, 5098, 198, 92, 248046, 198, 248044]
+      },
+      "base": {
+        "generated_tokens": 42,
+        "latency_seconds": 0.9117223471403122,
+        "prompt_tokens": 88,
+        "text": "```typescript\nexport function firstOrUndefined<T>(items: readonly T[]): T | undefined {\n  return items.length > 0 ? items[0] : undefined;\n}\n```\n",
+        "token_ids": [71093, 47887, 198, 1479, 709, 1118, 2126, 29572, 3025, 2163, 3494, 25, 5583, 345, 45096, 345, 735, 5438, 313, 198, 220, 460, 3470, 1887, 835, 220, 15, 907, 3470, 58, 15, 60, 535, 5438, 26, 198, 92, 198, 71093, 248046, 198, 248044]
+      },
+      "case_id": "typescript.first_or_undefined",
+      "format_adherence": {"adapter_detail": null, "adapter_passed": true, "base_detail": "forbidden pattern matched: ```", "base_passed": false, "transition": "improvement"},
+      "language": "typescript",
+      "prompt": "Return only TypeScript code. Implement `export function firstOrUndefined<T>(items: readonly T[]): T | undefined` so it returns the first item, or `undefined` for an empty array.",
+      "semantic_shape": {"adapter_detail": null, "adapter_passed": true, "base_detail": null, "base_passed": true, "transition": "preserved_pass"}
+    },
+    {
+      "adapter": {
+        "generated_tokens": 26,
+        "latency_seconds": 0.9142612870782614,
+        "prompt_tokens": 78,
+        "text": "export async function doubleAsync(value: number): Promise<number> {\n  return value * 2;\n}\n",
+        "token_ids": [1479, 3203, 709, 1923, 6322, 3553, 25, 1324, 1590, 7076, 38653, 29, 313, 198, 220, 460, 869, 348, 220, 17, 26, 198, 92, 248046, 198, 248044]
+      },
+      "base": {
+        "generated_tokens": 31,
+        "latency_seconds": 0.6862389547750354,
+        "prompt_tokens": 78,
+        "text": "```typescript\nexport async function doubleAsync(value: number): Promise<number> {\n  return value * 2;\n}\n```\n",
+        "token_ids": [71093, 47887, 198, 1479, 3203, 709, 1923, 6322, 3553, 25, 1324, 1590, 7076, 38653, 29, 313, 198, 220, 460, 869, 348, 220, 17, 26, 198, 92, 198, 71093, 248046, 198, 248044]
+      },
+      "case_id": "typescript.async_double",
+      "format_adherence": {"adapter_detail": null, "adapter_passed": true, "base_detail": "forbidden pattern matched: ```", "base_passed": false, "transition": "improvement"},
+      "language": "typescript",
+      "prompt": "Return only TypeScript code. Implement `export async function doubleAsync(value: number): Promise<number>` so it resolves to `value * 2`.",
+      "semantic_shape": {"adapter_detail": null, "adapter_passed": true, "base_detail": null, "base_passed": true, "transition": "preserved_pass"}
+    },
+    {
+      "adapter": {
+        "generated_tokens": 30,
+        "latency_seconds": 1.044159626122564,
+        "prompt_tokens": 89,
+        "text": "pub fn add(a: i32, b: i32) -> i32 {\n    a + b\n}\n",
+        "token_ids": [9299, 5003, 884, 2784, 25, 585, 18, 17, 11, 292, 25, 585, 18, 17, 8, 1411, 585, 18, 17, 313, 198, 262, 264, 478, 292, 198, 92, 248046, 198, 248044]
+      },
+      "base": {
+        "generated_tokens": 35,
+        "latency_seconds": 0.7674379590898752,
+        "prompt_tokens": 89,
+        "text": "```rust\npub fn add(a: i32, b: i32) -> i32 {\n    a + b\n}\n```\n",
+        "token_ids": [71093, 34602, 198, 9299, 5003, 884, 2784, 25, 585, 18, 17, 11, 292, 25, 585, 18, 17, 8, 1411, 585, 18, 17, 313, 198, 262, 264, 478, 292, 198, 92, 198, 71093, 248046, 198, 248044]
+      },
+      "case_id": "rust.add_i32",
+      "format_adherence": {"adapter_detail": null, "adapter_passed": true, "base_detail": "forbidden pattern matched: ```", "base_passed": false, "transition": "improvement"},
+      "language": "rust",
+      "prompt": "Return only Rust code. Implement `pub fn add(a: i32, b: i32) -> i32` so it returns the sum of `a` and `b`.",
+      "semantic_shape": {"adapter_detail": null, "adapter_passed": true, "base_detail": null, "base_passed": true, "transition": "preserved_pass"}
+    },
+    {
+      "adapter": {
+        "generated_tokens": 32,
+        "latency_seconds": 1.1162057020701468,
+        "prompt_tokens": 91,
+        "text": "pub fn first_or_none<T: Clone>(items: &[T]) -> Option<T> {\n    items.first().cloned()\n}\n",
+        "token_ids": [9299, 5003, 1118, 8469, 30451, 3025, 25, 27007, 2163, 3494, 25, 43112, 51, 2387, 1411, 6743, 3025, 29, 313, 198, 262, 3470, 7155, 973, 549, 19083, 363, 198, 92, 248046, 198, 248044]
+      },
+      "base": {
+        "generated_tokens": 37,
+        "latency_seconds": 0.8069143923930824,
+        "prompt_tokens": 91,
+        "text": "```rust\npub fn first_or_none<T: Clone>(items: &[T]) -> Option<T> {\n    items.first().cloned()\n}\n```\n",
+        "token_ids": [71093, 34602, 198, 9299, 5003, 1118, 8469, 30451, 3025, 25, 27007, 2163, 3494, 25, 43112, 51, 2387, 1411, 6743, 3025, 29, 313, 198, 262, 3470, 7155, 973, 549, 19083, 363, 198, 92, 198, 71093, 248046, 198, 248044]
+      },
+      "case_id": "rust.first_or_none",
+      "format_adherence": {"adapter_detail": null, "adapter_passed": true, "base_detail": "forbidden pattern matched: ```", "base_passed": false, "transition": "improvement"},
+      "language": "rust",
+      "prompt": "Return only Rust code. Implement `pub fn first_or_none<T: Clone>(items: &[T]) -> Option<T>` so it returns a cloned first item, or `None` for an empty slice.",
+      "semantic_shape": {"adapter_detail": null, "adapter_passed": true, "base_detail": null, "base_passed": true, "transition": "preserved_pass"}
+    },
+    {
+      "adapter": {
+        "generated_tokens": 54,
+        "latency_seconds": 1.839275015052408,
+        "prompt_tokens": 101,
+        "text": "pub fn checked_div(a: i32, b: i32) -> Option<i32> {\n    if b == 0 {\n        None\n    } else {\n        Some(a / b)\n    }\n}\n",
+        "token_ids": [9299, 5003, 9770, 15759, 2784, 25, 585, 18, 17, 11, 292, 25, 585, 18, 17, 8, 1411, 6743, 21222, 18, 17, 29, 313, 198, 262, 413, 292, 606, 220, 15, 313, 198, 285, 2168, 198, 262, 333, 745, 313, 198, 285, 4188, 2784, 593, 292, 8, 198, 262, 333, 198, 92, 248046, 198, 248044]
+      },
+      "base": {
+        "generated_tokens": 59,
+        "latency_seconds": 1.248574798926711,
+        "prompt_tokens": 101,
+        "text": "```rust\npub fn checked_div(a: i32, b: i32) -> Option<i32> {\n    if b == 0 {\n        None\n    } else {\n        Some(a / b)\n    }\n}\n```\n",
+        "token_ids": [71093, 34602, 198, 9299, 5003, 9770, 15759, 2784, 25, 585, 18, 17, 11, 292, 25, 585, 18, 17, 8, 1411, 6743, 21222, 18, 17, 29, 313, 198, 262, 413, 292, 606, 220, 15, 313, 198, 285, 2168, 198, 262, 333, 745, 313, 198, 285, 4188, 2784, 593, 292, 8, 198, 262, 333, 198, 92, 198, 71093, 248046, 198, 248044]
+      },
+      "case_id": "rust.checked_div",
+      "format_adherence": {"adapter_detail": null, "adapter_passed": true, "base_detail": "forbidden pattern matched: ```", "base_passed": false, "transition": "improvement"},
+      "language": "rust",
+      "prompt": "Return only Rust code. Implement `pub fn checked_div(a: i32, b: i32) -> Option<i32>` so it returns `None` when `b == 0` and otherwise returns `Some(a / b)`.",
+      "semantic_shape": {"adapter_detail": null, "adapter_passed": true, "base_detail": null, "base_passed": true, "transition": "preserved_pass"}
+    }
+  ],
+  "decision_dimension": "semantic_shape",
+  "dimensions": {
+    "format_adherence": {
+      "languages": [
+        {"adapter_passed": 3, "base_passed": 0, "baseline_adequate": false, "catastrophic_regression": false, "delta_passed": 3, "language": "typescript", "total": 3},
+        {"adapter_passed": 3, "base_passed": 0, "baseline_adequate": false, "catastrophic_regression": false, "delta_passed": 3, "language": "rust", "total": 3}
+      ],
+      "overall": {"adapter_passed": 6, "base_passed": 0, "baseline_adequate_for_collapse_detection": false, "catastrophic_non_python_collapse_detected": false, "conclusion": "supplemental_only", "delta_passed": 6, "improvements": 6, "regressions": 0, "total_cases": 6}
+    },
+    "semantic_shape": {
+      "languages": [
+        {"adapter_passed": 3, "base_passed": 3, "baseline_adequate": true, "catastrophic_regression": false, "delta_passed": 0, "language": "typescript", "total": 3},
+        {"adapter_passed": 3, "base_passed": 3, "baseline_adequate": true, "catastrophic_regression": false, "delta_passed": 0, "language": "rust", "total": 3}
+      ],
+      "overall": {"adapter_passed": 6, "base_passed": 6, "baseline_adequate_for_collapse_detection": true, "catastrophic_non_python_collapse_detected": false, "conclusion": "no_catastrophic_regression", "delta_passed": 0, "improvements": 0, "regressions": 0, "total_cases": 6}
+    }
+  },
+  "gpu": {"base_load_seconds": 1.6320299510844052, "name": "NVIDIA GeForce RTX 4070 Ti SUPER", "peak_allocated_bytes": 9330175488, "peak_reserved_bytes": 9403629568, "total_bytes": 16688218112},
+  "max_new_tokens": 128,
+  "measurement_complete": true,
+  "measurement_version": "cross-language-smoke-v2",
+  "resolved_model_revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+  "same_base_object_after_attach": true,
+  "schema_version": 2,
+  "scoring_contract_sha256": "33c2459c64631ee7cd8903c36a6fe6ecb81df6ce6e1848bad096b5803cc77dd2",
+  "scoring_contract_version": "cross-language-smoke-scoring-v2",
+  "seed": 1729,
+  "source_git_sha": "56039856392b5a4a3eecad147518c3657ccd683f",
+  "suite_sha256": "7f6a6329cabbdb62c1823b0f16cad5bf8067300164c5a3b6ade84bcaaf802f52",
+  "system_prompt_sha256": "9a265a42bfbfbc1ed343e545fa67e5a8177262911656992457644d8dcbd361ae",
+  "system_prompt_version": "cross-language-smoke-v1",
+  "task_id": "P8-003"
+}
