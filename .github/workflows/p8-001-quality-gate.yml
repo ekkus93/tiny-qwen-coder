@@ -1,0 +1,111 @@
+name: P8-001 Temporary Quality Gate
+
+on:
+  push:
+    branches:
+      - ralph/p8-001-python-p0-evaluation
+    paths:
+      - ".github/workflows/p8-001-quality-gate.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  quality:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v5
+        with:
+          ref: ralph/p8-001-python-p0-evaluation
+
+      - name: Set permanent workflow policy and TODO note
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/python-p0-evaluation.yml')
+          text = workflow.read_text(encoding='utf-8')
+          old = '''on:\n  workflow_dispatch:\n  push:\n    branches:\n      - master\n    paths:\n      - ".github/workflows/python-p0-evaluation.yml"\n'''
+          new = '''on:\n  workflow_dispatch:\n'''
+          if old in text:
+              text = text.replace(old, new, 1)
+          elif new not in text:
+              raise SystemExit('P8-001 workflow trigger block is unexpected')
+          workflow.write_text(text, encoding='utf-8')
+
+          todo = Path('docs/TODO.md')
+          todo_text = todo.read_text(encoding='utf-8')
+          note = ('Implementation note: P8-001 reuses the exact frozen P6-005 HumanEval, MBPP, '
+                  'and repository-holdout contract and compares the canonical P7-006 '
+                  '`language/python/p0` adapter against the verified P6-005 baseline. '
+                  'Checkboxes remain open until canonical GPU generation, constrained scoring, '
+                  'and independent comparison verification pass.')
+          marker = '- Direct base-vs-adapter comparison artifact generated.\n'
+          if note not in todo_text:
+              if todo_text.count(marker) != 1:
+                  raise SystemExit('P8-001 TODO acceptance marker mismatch')
+              todo_text = todo_text.replace(marker, marker + '\n' + note + '\n', 1)
+              todo.write_text(todo_text, encoding='utf-8')
+          PY
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Sync frozen environment
+        run: uv sync --frozen
+
+      - name: Format P8-001 Python
+        run: |
+          set -euo pipefail
+          uv run --frozen ruff check --fix \
+            src/tiny_qwen_coder/evaluation/_python_p0_generation.py \
+            src/tiny_qwen_coder/evaluation/_python_p0_contract.py \
+            src/tiny_qwen_coder/evaluation/_python_p0_comparison.py \
+            src/tiny_qwen_coder/evaluation/python_p0.py \
+            tests/unit/test_python_p0_evaluation.py \
+            tests/unit/test_python_p0_evaluation_workflow.py
+          uv run --frozen ruff format \
+            src/tiny_qwen_coder/evaluation/_python_p0_generation.py \
+            src/tiny_qwen_coder/evaluation/_python_p0_contract.py \
+            src/tiny_qwen_coder/evaluation/_python_p0_comparison.py \
+            src/tiny_qwen_coder/evaluation/python_p0.py \
+            tests/unit/test_python_p0_evaluation.py \
+            tests/unit/test_python_p0_evaluation_workflow.py
+
+      - name: Quality gates
+        run: |
+          set -euo pipefail
+          uv run --frozen ruff format --check .
+          uv run --frozen ruff check .
+          uv run --frozen mypy src scripts tests
+          uv run --frozen pytest
+          git diff --check
+
+      - name: Commit validated implementation and remove temporary gate
+        run: |
+          set -euo pipefail
+          rm .github/workflows/p8-001-quality-gate.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            .github/workflows/python-p0-evaluation.yml \
+            configs/eval/python/p0_v1.yaml \
+            docs/P8_001_PYTHON_P0_EVALUATION.md \
+            docs/TODO.md \
+            src/tiny_qwen_coder/evaluation/_python_p0_generation.py \
+            src/tiny_qwen_coder/evaluation/_python_p0_contract.py \
+            src/tiny_qwen_coder/evaluation/_python_p0_comparison.py \
+            src/tiny_qwen_coder/evaluation/python_p0.py \
+            tests/unit/test_python_p0_evaluation.py \
+            tests/unit/test_python_p0_evaluation_workflow.py
+          git add -u .github/workflows/p8-001-quality-gate.yml
+          git diff --cached --check
+          git commit -m "style: validate P8-001 implementation"
+          git push origin HEAD:ralph/p8-001-python-p0-evaluation
