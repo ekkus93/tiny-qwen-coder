@@ -796,13 +796,15 @@ Implementation note: canonical run `33554096916` evaluated the exact frozen 12-c
 
 ## P8-003 — Add preliminary cross-language smoke tests
 
-- [ ] small TypeScript prompts.
-- [ ] small Rust prompts.
-- [ ] compare base vs Python adapter.
+- [x] small TypeScript prompts.
+- [x] small Rust prompts.
+- [x] compare base vs Python adapter.
 
 Acceptance criteria:
 
 - Catastrophic non-Python collapse would be detected before promotion.
+
+Implementation note: v1 run `33557769986` was correctly preserved as `inconclusive_base` because the strict code-only scorer rejected the unchanged base's otherwise language-correct fenced responses. The separately frozen v2 scoring contract (`33c2459c64631ee7cd8903c36a6fe6ecb81df6ce6e1848bad096b5803cc77dd2`) was then measured canonically in GPU run `33570451764` at source SHA `56039856392b5a4a3eecad147518c3657ccd683f`. On the decision-bearing `semantic_shape` dimension, TypeScript was base `3/3` vs Python P0 `3/3`, Rust was base `3/3` vs Python P0 `3/3`, and overall was `6/6` vs `6/6` with zero regressions and conclusion `no_catastrophic_regression`. The supplemental strict `format_adherence` dimension remained base `0/6` vs Python P0 `6/6`. P8-003 therefore detects no catastrophic non-Python semantic collapse, while not offsetting the material Python benchmark regression measured in P8-001.
 
 ## P8-004 — Write P0 experiment report
 
