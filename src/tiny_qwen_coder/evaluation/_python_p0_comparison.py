@@ -70,12 +70,21 @@ def aggregate(
     failed = value.get("failed")
     harness_errors = value.get("harness_errors")
     pass_at_1 = value.get("pass_at_1")
-    if suite_id not in EXPECTED_TOTALS or total != EXPECTED_TOTALS[suite_id]:
+    if suite_id not in EXPECTED_TOTALS:
+        raise PythonP0EvaluationError(f"unexpected P8-001 suite: {suite_id!r}")
+    expected_total = EXPECTED_TOTALS[suite_id]
+    if isinstance(total, bool) or not isinstance(total, int) or total != expected_total:
         raise PythonP0EvaluationError(f"{suite_id} total problem count drifted")
-    integers = (passed, failed, harness_errors)
-    if any(isinstance(item, bool) or not isinstance(item, int) for item in integers):
+    if (
+        isinstance(passed, bool)
+        or not isinstance(passed, int)
+        or isinstance(failed, bool)
+        or not isinstance(failed, int)
+        or isinstance(harness_errors, bool)
+        or not isinstance(harness_errors, int)
+    ):
         raise PythonP0EvaluationError(f"{suite_id} aggregate integer fields are invalid")
-    if cast(int, passed) + cast(int, failed) != cast(int, total):
+    if passed + failed != total:
         raise PythonP0EvaluationError(f"{suite_id} aggregate pass/fail counts are inconsistent")
     if harness_errors != 0:
         raise PythonP0EvaluationError(

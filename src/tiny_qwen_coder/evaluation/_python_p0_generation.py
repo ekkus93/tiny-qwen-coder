@@ -72,9 +72,7 @@ def _resolved_revision(model: nn.Module) -> str:
 
 def _parameter_dtypes(model: nn.Module) -> tuple[str, ...]:
     values = {
-        str(parameter.dtype)
-        for parameter in model.parameters()
-        if parameter.is_floating_point()
+        str(parameter.dtype) for parameter in model.parameters() if parameter.is_floating_point()
     }
     if not values:
         raise PythonP0GenerationError("adapted model exposes no floating parameters")
@@ -283,7 +281,9 @@ class HuggingFacePythonP0Generator:
         }
         ids = inputs.get("input_ids")
         if ids is None or ids.ndim != 2 or ids.shape[0] != 1 or ids.shape[1] <= 0:
-            raise PythonP0GenerationError("evaluation prompt did not tokenize to one non-empty batch")
+            raise PythonP0GenerationError(
+                "evaluation prompt did not tokenize to one non-empty batch"
+            )
         return inputs
 
     def generate(self, *, system_prompt: str, user_prompt: str) -> BaselineGeneratedResponse:

@@ -47,7 +47,11 @@ from tiny_qwen_coder.evaluation._python_p0_generation import (
     validate_python_p0_adapter,
 )
 from tiny_qwen_coder.evaluation.execution import ConstrainedExecutionHarness, discover_oci_runtime
-from tiny_qwen_coder.evaluation.humaneval import HumanEvalCompletion, HumanEvalEvaluator, HumanEvalProblem
+from tiny_qwen_coder.evaluation.humaneval import (
+    HumanEvalCompletion,
+    HumanEvalEvaluator,
+    HumanEvalProblem,
+)
 from tiny_qwen_coder.evaluation.mbpp import MBPPCompletion, MBPPEvaluator, MBPPProblem
 from tiny_qwen_coder.evaluation.repository_holdout import (
     RepositoryHoldoutCompletion,
@@ -192,7 +196,9 @@ def generate_python_p0_stage(
     )
     output_dir = Path(evaluation.output_dir)
     if (output_dir / EVALUATION_MANIFEST).exists() or (output_dir / COMPARISON).exists():
-        raise PythonP0EvaluationError("P8-001 generation refuses an already-scored output directory")
+        raise PythonP0EvaluationError(
+            "P8-001 generation refuses an already-scored output directory"
+        )
     if (output_dir / STAGE_MANIFEST).exists():
         validate_stage(
             output_dir=output_dir,

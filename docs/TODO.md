@@ -778,6 +778,8 @@ Acceptance criteria:
 
 - Direct base-vs-adapter comparison artifact generated.
 
+Implementation note: P8-001 reuses the exact frozen P6-005 HumanEval, MBPP, and repository-holdout contract and compares the canonical P7-006 `language/python/p0` adapter against the verified P6-005 baseline. Checkboxes remain open until canonical GPU generation, constrained scoring, and independent comparison verification pass.
+
 ## P8-002 — Run general/tool regression suite
 
 - [ ] instruction following.

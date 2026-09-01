@@ -76,12 +76,23 @@ class PythonP0EvaluationError(RuntimeError):
 
 
 class AdapterEvidence(Protocol):
-    adapter_id: str
-    family: str
-    adapter_model_sha256: str
-    adapter_model_size_bytes: int
-    training_run_id: str
-    training_git_sha: str
+    @property
+    def adapter_id(self) -> str: ...
+
+    @property
+    def family(self) -> str: ...
+
+    @property
+    def adapter_model_sha256(self) -> str: ...
+
+    @property
+    def adapter_model_size_bytes(self) -> int: ...
+
+    @property
+    def training_run_id(self) -> str: ...
+
+    @property
+    def training_git_sha(self) -> str: ...
 
 
 @dataclass(frozen=True, slots=True)
