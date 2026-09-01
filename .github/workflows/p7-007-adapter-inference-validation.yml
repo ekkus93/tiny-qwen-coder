@@ -1,0 +1,200 @@
+name: P7-007 Adapter Inference Validation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: p7-007-adapter-inference-validation
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate Python P0 LoRA enable/disable inference
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+    timeout-minutes: 180
+
+    env:
+      TOKENIZERS_PARALLELISM: "false"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      P7_006_RUN_ID: "33422910444"
+      P7_006_ARTIFACT_NAME: "python-p0-full-training-02df92a9c2d347b9fb013dc25714fe066c6bcafe"
+      EXPECTED_TRAINING_GIT_SHA: "02df92a9c2d347b9fb013dc25714fe066c6bcafe"
+      EXPECTED_ADAPTER_SHA256: "c94606250e112f72362eb883a55f7b2c8af854d445f6bb6194352c2806a8f276"
+      EXPECTED_ADAPTER_SIZE_BYTES: "65004840"
+      EXPECTED_BASE_REVISION: "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
+
+    steps:
+      - name: Check out validation source
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          clean: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Inspect NVIDIA GPU
+        run: |
+          set -euo pipefail
+          nvidia-smi
+
+      - name: Sync frozen environment
+        run: uv sync --frozen
+
+      - name: Verify CUDA runtime
+        run: |
+          set -euo pipefail
+          uv run --frozen python - <<'PY'
+          import torch
+
+          if not torch.cuda.is_available():
+              raise SystemExit("PyTorch cannot access CUDA on the self-hosted runner")
+          if not torch.cuda.is_bf16_supported():
+              raise SystemExit("CUDA device 0 does not support BF16")
+          properties = torch.cuda.get_device_properties(0)
+          print(f"torch={torch.__version__}")
+          print(f"cuda_runtime={torch.version.cuda}")
+          print(f"gpu={properties.name}")
+          print(f"total_memory_bytes={properties.total_memory}")
+          PY
+
+      - name: Download canonical P7-006 training artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ env.P7_006_ARTIFACT_NAME }}
+          path: ${{ runner.temp }}/p7-006-artifact
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ env.P7_006_RUN_ID }}
+
+      - name: Locate canonical P7-006 output fail closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t manifests < <(
+            find "${RUNNER_TEMP}/p7-006-artifact" \
+              -type f \
+              -path '*/artifacts/train/python/p0/adapter-manifest.json' \
+              -print | sort
+          )
+          if [[ "${#manifests[@]}" -ne 1 ]]; then
+            printf 'Expected exactly one canonical P7-006 adapter manifest; found %s\n' "${#manifests[@]}" >&2
+            printf '%s\n' "${manifests[@]}" >&2
+            exit 1
+          fi
+          training_output="$(dirname "${manifests[0]}")"
+          test -f "${training_output}/adapter/adapter_model.safetensors"
+          printf 'P7_006_TRAINING_OUTPUT=%s\n' "${training_output}" >> "${GITHUB_ENV}"
+          printf 'Resolved P7-006 training output: %s\n' "${training_output}"
+
+      - name: Run P7-007 adapter inference validation
+        run: |
+          set -euo pipefail
+          uv run --frozen python scripts/validate_adapter_inference.py \
+            --training-output "${P7_006_TRAINING_OUTPUT}" \
+            --base-config configs/base/qwen35-4b.yaml \
+            --max-new-tokens 128 \
+            --output artifacts/eval/python/p7-007/adapter-inference-validation.json
+
+      - name: Independently verify P7-007 acceptance report
+        run: |
+          set -euo pipefail
+          uv run --frozen python - <<'PY'
+          import json
+          import math
+          import os
+          from pathlib import Path
+
+          path = Path("artifacts/eval/python/p7-007/adapter-inference-validation.json")
+          report = json.loads(path.read_text(encoding="utf-8"))
+          if report.get("schema_version") != 1 or report.get("task_id") != "P7-007":
+              raise SystemExit("P7-007 report identity is invalid")
+          if report.get("accepted") is not True:
+              raise SystemExit("P7-007 report is not accepted")
+          if report.get("adapter_id") != "language/python/p0":
+              raise SystemExit("P7-007 report adapter identity is invalid")
+          if report.get("source_training_git_sha") != os.environ["EXPECTED_TRAINING_GIT_SHA"]:
+              raise SystemExit("P7-007 report does not reference the canonical P7-006 training commit")
+          if report.get("adapter_model_sha256") != os.environ["EXPECTED_ADAPTER_SHA256"]:
+              raise SystemExit("P7-007 adapter SHA-256 does not match the canonical P7-006 weights")
+          if report.get("adapter_model_size_bytes") != int(os.environ["EXPECTED_ADAPTER_SIZE_BYTES"]):
+              raise SystemExit("P7-007 adapter byte size does not match the canonical P7-006 weights")
+          base = report.get("base_model", {})
+          if base.get("repository") != "Qwen/Qwen3.5-4B":
+              raise SystemExit("P7-007 base repository is invalid")
+          if base.get("revision") != os.environ["EXPECTED_BASE_REVISION"]:
+              raise SystemExit("P7-007 base revision is invalid")
+          if report.get("resolved_model_revision") != os.environ["EXPECTED_BASE_REVISION"]:
+              raise SystemExit("loaded model resolved to a non-canonical revision")
+          if report.get("base_load_count") != 1:
+              raise SystemExit("P7-007 rebuilt the base model")
+          if report.get("same_base_object_after_attach") is not True:
+              raise SystemExit("PEFT attachment did not preserve the loaded base object")
+          for key in ("peak_allocated_vram_bytes", "peak_reserved_vram_bytes"):
+              value = report.get(key)
+              if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+                  raise SystemExit(f"{key} is not a positive integer")
+          for key in ("base_load_seconds", "adapter_load_seconds"):
+              value = report.get(key)
+              if isinstance(value, bool) or not isinstance(value, (int, float)):
+                  raise SystemExit(f"{key} is not numeric")
+              if not math.isfinite(float(value)) or float(value) <= 0:
+                  raise SystemExit(f"{key} is not finite and positive")
+          enabled = report.get("adapter_status_enabled", {})
+          disabled = report.get("adapter_status_disabled", {})
+          reenabled = report.get("adapter_status_reenabled", {})
+          if enabled.get("enabled") is not True or reenabled.get("enabled") is not True:
+              raise SystemExit("adapter is not enabled before/after the disable context")
+          if disabled.get("enabled") is not False:
+              raise SystemExit("adapter did not report disabled inside disable_adapter()")
+          if enabled.get("merged_adapters") or disabled.get("merged_adapters") or reenabled.get("merged_adapters"):
+              raise SystemExit("P7-007 observed merged adapter layers")
+          if any(status.get("trainable_params") != 0 for status in (enabled, disabled, reenabled)):
+              raise SystemExit("P7-007 inference adapter unexpectedly has trainable parameters")
+          prompts = report.get("prompts")
+          if not isinstance(prompts, list) or len(prompts) != 2:
+              raise SystemExit("P7-007 did not run the exact fixed two-prompt smoke set")
+          for prompt in prompts:
+              if prompt.get("base_recovered_exactly") is not True:
+                  raise SystemExit("disabled adapter did not recover exact base output")
+              if prompt.get("adapter_reenabled_exactly") is not True:
+                  raise SystemExit("re-enabled adapter did not recover exact adapted output")
+              for phase in ("base", "adapter_enabled", "adapter_disabled", "adapter_reenabled"):
+                  generation = prompt.get(phase, {})
+                  if not generation.get("token_ids"):
+                      raise SystemExit(f"{phase} generated no tokens")
+          print(json.dumps(report, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload compact P7-007 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: p7-007-adapter-inference-validation-${{ github.sha }}
+          path: artifacts/eval/python/p7-007/adapter-inference-validation.json
+          if-no-files-found: error
+          include-hidden-files: false
+          retention-days: 7
+
+      - name: Upload partial P7-007 evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p7-007-adapter-inference-validation-partial-${{ github.sha }}
+          path: artifacts/eval/python/p7-007/adapter-inference-validation.json
+          if-no-files-found: ignore
+          include-hidden-files: false
+          retention-days: 3
