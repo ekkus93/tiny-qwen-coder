@@ -7,11 +7,13 @@ import json
 from pathlib import Path
 
 import pytest
+from torch import nn
 
 from tiny_qwen_coder.identities import BaseModelIdentity
 from tiny_qwen_coder.runtime.adapter_validation import (
     AdapterInferenceValidationError,
     GenerationObservation,
+    _freeze_inference_parameters,
     validate_adapter_artifacts,
     validate_generation_recovery,
 )
@@ -227,6 +229,22 @@ def test_merged_or_full_model_weights_are_rejected(tmp_path: Path) -> None:
 
     with pytest.raises(AdapterInferenceValidationError, match="forbidden merged/full-model"):
         validate_adapter_artifacts(root, _base())
+
+
+
+def test_inference_freeze_is_reapplied_after_adapter_reactivation() -> None:
+    model = nn.Linear(2, 2)
+    assert any(parameter.requires_grad for parameter in model.parameters())
+
+    _freeze_inference_parameters(model)
+    assert all(not parameter.requires_grad for parameter in model.parameters())
+
+    for parameter in model.parameters():
+        parameter.requires_grad_(True)
+    assert any(parameter.requires_grad for parameter in model.parameters())
+
+    _freeze_inference_parameters(model)
+    assert all(not parameter.requires_grad for parameter in model.parameters())
 
 
 def test_disable_and_reenable_must_recover_exact_deterministic_outputs() -> None:

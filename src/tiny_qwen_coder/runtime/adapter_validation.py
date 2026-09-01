@@ -603,6 +603,21 @@ def _generate(
     )
 
 
+
+def _freeze_inference_parameters(model: nn.Module) -> None:
+    """Force and verify a fully frozen inference-only parameter state."""
+
+    model.requires_grad_(False)
+    trainable_names = tuple(
+        name for name, parameter in model.named_parameters() if parameter.requires_grad
+    )
+    if trainable_names:
+        preview = ", ".join(trainable_names[:5])
+        raise AdapterInferenceValidationError(
+            "could not freeze all inference parameters; still trainable: " + preview
+        )
+
+
 def _status_snapshot(model: object) -> AdapterStatusSnapshot:
     getter = getattr(model, "get_model_status", None)
     if not callable(getter):
@@ -804,6 +819,7 @@ def run_adapter_inference_validation(
         raise AdapterInferenceValidationError("PEFT returned an unexpected adapted model object")
     adapted = adapted_obj
     adapted.eval()
+    _freeze_inference_parameters(adapted)
     get_base = getattr(adapted, "get_base_model", None)
     if not callable(get_base):
         raise AdapterInferenceValidationError("PEFT model does not expose get_base_model()")
@@ -845,6 +861,9 @@ def run_adapter_inference_validation(
             for _prompt_id, prompt in _SMOKE_PROMPTS
         )
 
+    # PEFT adapter reactivation may restore requires_grad on LoRA parameters.
+    # Re-freeze explicitly before accepting inference-only state.
+    _freeze_inference_parameters(adapted)
     reenabled_status = _status_snapshot(adapted)
     _require_enabled_status(reenabled_status)
     reenabled_observations = tuple(
