@@ -1,0 +1,319 @@
+name: P8-001 Python P0 Evaluation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/python-p0-evaluation.yml"
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: p8-001-python-p0-evaluation
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    name: Generate Python P0 responses on GPU
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+    timeout-minutes: 300
+
+    env:
+      TOKENIZERS_PARALLELISM: "false"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      P7_006_RUN_ID: "33422910444"
+      P7_006_ARTIFACT_NAME: "python-p0-full-training-02df92a9c2d347b9fb013dc25714fe066c6bcafe"
+      EXPECTED_ADAPTER_SHA256: "c94606250e112f72362eb883a55f7b2c8af854d445f6bb6194352c2806a8f276"
+
+    steps:
+      - name: Check out canonical evaluation source
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          clean: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Inspect NVIDIA GPU
+        run: |
+          set -euo pipefail
+          nvidia-smi
+
+      - name: Sync frozen environment
+        run: uv sync --frozen
+
+      - name: Verify CUDA runtime
+        run: |
+          set -euo pipefail
+          uv run --frozen python - <<'PY'
+          import torch
+
+          if not torch.cuda.is_available():
+              raise SystemExit("PyTorch cannot access CUDA on the self-hosted runner")
+          if not torch.cuda.is_bf16_supported():
+              raise SystemExit("CUDA device 0 does not support BF16")
+          props = torch.cuda.get_device_properties(0)
+          print(f"torch={torch.__version__}")
+          print(f"cuda_runtime={torch.version.cuda}")
+          print(f"gpu={props.name}")
+          print(f"total_memory_bytes={props.total_memory}")
+          PY
+
+      - name: Confirm clean evaluation source
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain)"
+          git rev-parse HEAD
+
+      - name: Download canonical P7-006 training artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ env.P7_006_ARTIFACT_NAME }}
+          path: ${{ runner.temp }}/p7-006-artifact
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ env.P7_006_RUN_ID }}
+
+      - name: Locate canonical P7-006 output fail closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t manifests < <(
+            find "${RUNNER_TEMP}/p7-006-artifact" \
+              -type f \
+              -path '*/artifacts/train/python/p0/adapter-manifest.json' \
+              -print | sort
+          )
+          if [[ "${#manifests[@]}" -ne 1 ]]; then
+            printf 'Expected exactly one canonical P7-006 adapter manifest; found %s\n' "${#manifests[@]}" >&2
+            printf '%s\n' "${manifests[@]}" >&2
+            exit 1
+          fi
+          training_output="$(dirname "${manifests[0]}")"
+          test -f "${training_output}/adapter/adapter_model.safetensors"
+          actual_sha="$(sha256sum "${training_output}/adapter/adapter_model.safetensors" | awk '{print $1}')"
+          if [[ "${actual_sha}" != "${EXPECTED_ADAPTER_SHA256}" ]]; then
+            printf 'Canonical adapter SHA mismatch: %s\n' "${actual_sha}" >&2
+            exit 1
+          fi
+          printf 'P7_006_TRAINING_OUTPUT=%s\n' "${training_output}" >> "${GITHUB_ENV}"
+
+      - name: Generate exact P8-001 adapter responses
+        run: |
+          set -euo pipefail
+          uv run --frozen python -m tiny_qwen_coder.evaluation.python_p0 generate \
+            --training-output "${P7_006_TRAINING_OUTPUT}"
+          find artifacts/eval/python/p0-v1 -type f -print | sort
+
+      - name: Upload compact GPU generation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: p8-001-python-p0-generation-${{ github.sha }}
+          path: artifacts/eval/python/p0-v1/
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 7
+
+      - name: Upload partial GPU generation evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p8-001-python-p0-generation-partial-${{ github.sha }}
+          path: artifacts/eval/python/p0-v1/
+          if-no-files-found: ignore
+          include-hidden-files: true
+          retention-days: 3
+
+  score:
+    name: Score P0 responses and compare with P6 baseline
+    needs: generate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+
+    env:
+      TOKENIZERS_PARALLELISM: "false"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      P6_005_RUN_ID: "33301242379"
+      P6_005_ARTIFACT_NAME: "python-base-baseline-da537443ab80b1380bee0fc3c7d9d01ca0574f35"
+      EXECUTION_IMAGE: python:3.11.14-slim@sha256:c8271b1f627d0068857dce5b53e14a9558603b527e46f1f901722f935b786a39
+
+    steps:
+      - name: Check out canonical evaluation source
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          clean: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Sync frozen environment
+        run: uv sync --frozen
+
+      - name: Download P8-001 GPU generation evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: p8-001-python-p0-generation-${{ github.sha }}
+          path: artifacts/eval/python/p0-v1
+
+      - name: Download accepted P6-005 baseline artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ env.P6_005_ARTIFACT_NAME }}
+          path: ${{ runner.temp }}/p6-005-baseline
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ env.P6_005_RUN_ID }}
+
+      - name: Locate accepted P6-005 baseline fail closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t manifests < <(
+            find "${RUNNER_TEMP}/p6-005-baseline" \
+              -type f \
+              -path '*/artifacts/eval/python/base-baseline-v1/baseline-manifest.json' \
+              -print | sort
+          )
+          if [[ "${#manifests[@]}" -ne 1 ]]; then
+            printf 'Expected exactly one P6-005 baseline manifest; found %s\n' "${#manifests[@]}" >&2
+            printf '%s\n' "${manifests[@]}" >&2
+            exit 1
+          fi
+          printf 'P6_005_BASELINE_DIR=%s\n' "$(dirname "${manifests[0]}")" >> "${GITHUB_ENV}"
+
+      - name: Prepare constrained execution image
+        run: |
+          set -euo pipefail
+          docker --version
+          docker pull "${EXECUTION_IMAGE}"
+          docker image inspect "${EXECUTION_IMAGE}" >/dev/null
+
+      - name: Confirm clean evaluation source
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain)"
+          git rev-parse HEAD
+
+      - name: Score transported GPU responses under constrained execution
+        run: |
+          set -euo pipefail
+          uv run --frozen python -m tiny_qwen_coder.evaluation.python_p0 score \
+            --baseline-dir "${P6_005_BASELINE_DIR}"
+
+      - name: Independently verify persisted P8-001 evidence
+        run: |
+          set -euo pipefail
+          uv run --frozen python -m tiny_qwen_coder.evaluation.python_p0 verify \
+            --baseline-dir "${P6_005_BASELINE_DIR}" \
+            | tee "${RUNNER_TEMP}/p8-001-verified-comparison.json"
+
+      - name: Verify canonical comparison summary fail closed
+        run: |
+          set -euo pipefail
+          uv run --frozen python - <<'PY'
+          import json
+          import math
+          from pathlib import Path
+
+          path = Path("artifacts/eval/python/p0-v1/comparison.json")
+          report = json.loads(path.read_text(encoding="utf-8"))
+          if report.get("schema_version") != 1 or report.get("task_id") != "P8-001":
+              raise SystemExit("P8-001 comparison identity is invalid")
+          if report.get("evaluation_complete") is not True:
+              raise SystemExit("P8-001 comparison is incomplete")
+          adapter = report.get("adapter", {})
+          expected_adapter = {
+              "family": "language",
+              "adapter_id": "language/python/p0",
+              "adapter_model_sha256": "c94606250e112f72362eb883a55f7b2c8af854d445f6bb6194352c2806a8f276",
+              "adapter_model_size_bytes": 65004840,
+              "training_run_id": "training-python-20260831T180916446466Z-02df92a9-eafc119d",
+              "training_git_sha": "02df92a9c2d347b9fb013dc25714fe066c6bcafe",
+          }
+          if adapter != expected_adapter:
+              raise SystemExit("P8-001 comparison does not reference the accepted P7-006 adapter")
+          if report.get("baseline") != {
+              "baseline_id": "python-unchanged-base",
+              "source_git_sha": "da537443ab80b1380bee0fc3c7d9d01ca0574f35",
+              "artifact_set_sha256": "4bf616c3e84bdd74f8cf6467fc2d9d760f04d3b1b44660a81e365ff6f99a72fc",
+          }:
+              raise SystemExit("P8-001 comparison does not reference the accepted P6-005 baseline")
+          expected = {
+              "humaneval": (164, 128, 128 / 164),
+              "mbpp": (500, 290, 290 / 500),
+              "repository-holdout": (11, 6, 6 / 11),
+          }
+          suites = report.get("suites")
+          if not isinstance(suites, list) or len(suites) != 3:
+              raise SystemExit("P8-001 comparison does not contain exactly three coding suites")
+          for item in suites:
+              suite_id = item.get("suite_id")
+              if suite_id not in expected:
+                  raise SystemExit(f"unexpected P8-001 suite: {suite_id!r}")
+              total, base_passed, base_rate = expected[suite_id]
+              if item.get("total_problems") != total or item.get("base_passed") != base_passed:
+                  raise SystemExit(f"{suite_id} baseline counts drifted")
+              observed_rate = item.get("base_pass_at_1")
+              if not isinstance(observed_rate, (int, float)) or not math.isclose(
+                  float(observed_rate), base_rate, rel_tol=0.0, abs_tol=1e-15
+              ):
+                  raise SystemExit(f"{suite_id} baseline pass@1 drifted")
+              adapted_passed = item.get("adapter_passed")
+              adapted_rate = item.get("adapter_pass_at_1")
+              if isinstance(adapted_passed, bool) or not isinstance(adapted_passed, int):
+                  raise SystemExit(f"{suite_id} adapter passed count is invalid")
+              if not 0 <= adapted_passed <= total:
+                  raise SystemExit(f"{suite_id} adapter passed count is out of range")
+              if isinstance(adapted_rate, bool) or not isinstance(adapted_rate, (int, float)):
+                  raise SystemExit(f"{suite_id} adapter pass@1 is invalid")
+              if not math.isclose(float(adapted_rate), adapted_passed / total, rel_tol=0.0, abs_tol=1e-15):
+                  raise SystemExit(f"{suite_id} adapter pass@1 does not match pass count")
+          overall = report.get("overall", {})
+          if overall.get("total_problems") != 675 or overall.get("base_passed") != 424:
+              raise SystemExit("P8-001 overall baseline totals drifted")
+          print(json.dumps(report, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload canonical P8-001 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: p8-001-python-p0-evaluation-${{ github.sha }}
+          path: |
+            artifacts/eval/python/p0-v1/
+            ${{ runner.temp }}/p8-001-verified-comparison.json
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 7
+
+      - name: Upload partial P8-001 scoring evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p8-001-python-p0-scoring-partial-${{ github.sha }}
+          path: artifacts/eval/python/p0-v1/
+          if-no-files-found: ignore
+          include-hidden-files: true
+          retention-days: 3
