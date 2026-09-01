@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 from tiny_qwen_coder.evaluation.cross_language_smoke import (
     CASES,
@@ -222,29 +223,41 @@ def test_v1_observed_fenced_base_is_semantically_adequate_under_v2() -> None:
 
 
 def test_catastrophic_rule_uses_semantic_dimension_only() -> None:
-    no_collapse = _dimension_summary(
-        _rows(ts_base=3, ts_adapter=2, rust_base=3, rust_adapter=2), SEMANTIC_DIMENSION
-    )["overall"]
+    no_collapse = cast(
+        dict[str, object],
+        _dimension_summary(
+            _rows(ts_base=3, ts_adapter=2, rust_base=3, rust_adapter=2), SEMANTIC_DIMENSION
+        )["overall"],
+    )
     assert no_collapse["baseline_adequate_for_collapse_detection"] is True
     assert no_collapse["catastrophic_non_python_collapse_detected"] is False
     assert no_collapse["conclusion"] == "no_catastrophic_regression"
 
-    inconclusive = _dimension_summary(
-        _rows(ts_base=2, ts_adapter=0, rust_base=1, rust_adapter=1), SEMANTIC_DIMENSION
-    )["overall"]
+    inconclusive = cast(
+        dict[str, object],
+        _dimension_summary(
+            _rows(ts_base=2, ts_adapter=0, rust_base=1, rust_adapter=1), SEMANTIC_DIMENSION
+        )["overall"],
+    )
     assert inconclusive["baseline_adequate_for_collapse_detection"] is False
     assert inconclusive["catastrophic_non_python_collapse_detected"] is False
     assert inconclusive["conclusion"] == "inconclusive_base"
 
-    language_collapse = _dimension_summary(
-        _rows(ts_base=2, ts_adapter=0, rust_base=2, rust_adapter=2), SEMANTIC_DIMENSION
-    )["overall"]
+    language_collapse = cast(
+        dict[str, object],
+        _dimension_summary(
+            _rows(ts_base=2, ts_adapter=0, rust_base=2, rust_adapter=2), SEMANTIC_DIMENSION
+        )["overall"],
+    )
     assert language_collapse["catastrophic_non_python_collapse_detected"] is True
     assert language_collapse["conclusion"] == "catastrophic_regression"
 
-    format_only = _dimension_summary(
-        _rows(ts_base=3, ts_adapter=0, rust_base=3, rust_adapter=0), FORMAT_DIMENSION
-    )["overall"]
+    format_only = cast(
+        dict[str, object],
+        _dimension_summary(
+            _rows(ts_base=3, ts_adapter=0, rust_base=3, rust_adapter=0), FORMAT_DIMENSION
+        )["overall"],
+    )
     assert format_only["catastrophic_non_python_collapse_detected"] is False
     assert format_only["conclusion"] == "supplemental_only"
 
