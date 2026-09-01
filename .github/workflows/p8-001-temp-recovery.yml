@@ -1,0 +1,115 @@
+name: P8-001 Temporary Recovery
+
+on:
+  push:
+    branches:
+      - ralph/p8-001-python-p0-evaluation
+    paths:
+      - ".github/workflows/p8-001-temp-recovery.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  recover:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v5
+        with:
+          ref: ralph/p8-001-python-p0-evaluation
+
+      - name: Recover P8-001 files from checked-in payload
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          import base64
+          import io
+          import re
+          import tarfile
+          from pathlib import Path, PurePosixPath
+
+          source = Path('.github/workflows/p8-001-temp-bootstrap.yml')
+          text = source.read_text(encoding='utf-8')
+          match = re.search(r'^\s+PAYLOAD:\s+([A-Za-z0-9+/=]+)\s*$', text, re.MULTILINE)
+          if match is None:
+              raise SystemExit('could not find the checked-in P8-001 payload')
+          try:
+              payload = base64.b64decode(match.group(1), validate=True)
+          except ValueError as exc:
+              raise SystemExit(f'checked-in P8-001 payload is invalid base64: {exc}') from exc
+
+          expected = {
+              '.github/workflows/python-p0-evaluation.yml',
+              'configs/eval/python/p0_v1.yaml',
+              'docs/P8_001_PYTHON_P0_EVALUATION.md',
+              'src/tiny_qwen_coder/evaluation/python_p0.py',
+              'tests/unit/test_python_p0_evaluation.py',
+              'tests/unit/test_python_p0_evaluation_workflow.py',
+          }
+          with tarfile.open(fileobj=io.BytesIO(payload), mode='r:gz') as archive:
+              members = archive.getmembers()
+              names = {member.name for member in members}
+              if names != expected:
+                  missing = sorted(expected - names)
+                  extra = sorted(names - expected)
+                  raise SystemExit(f'P8-001 payload path mismatch: missing={missing!r} extra={extra!r}')
+              for member in members:
+                  path = PurePosixPath(member.name)
+                  if path.is_absolute() or '..' in path.parts or not member.isfile():
+                      raise SystemExit(f'unsafe P8-001 payload member: {member.name!r}')
+                  handle = archive.extractfile(member)
+                  if handle is None:
+                      raise SystemExit(f'could not read P8-001 payload member: {member.name!r}')
+                  target = Path(*path.parts)
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  target.write_bytes(handle.read())
+
+          todo = Path('docs/TODO.md')
+          todo_text = todo.read_text(encoding='utf-8')
+          note = "Implementation note: P8-001 uses the exact frozen P6-005 HumanEval, MBPP, and repository-holdout evaluation contract and compares the canonical P7-006 `language/python/p0` adapter against the verified P6-005 baseline artifact. Checkboxes remain open until canonical GPU generation, constrained scoring, and independent comparison verification pass."
+          marker = "- Direct base-vs-adapter comparison artifact generated.\n"
+          if note not in todo_text:
+              if todo_text.count(marker) != 1:
+                  raise SystemExit('P8-001 acceptance marker mismatch')
+              todo_text = todo_text.replace(marker, marker + "\n" + note + "\n", 1)
+              todo.write_text(todo_text, encoding='utf-8')
+          PY
+          rm .github/workflows/p8-001-temp-bootstrap.yml
+          rm .github/workflows/p8-001-temp-recovery.yml
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Sync frozen environment
+        run: uv sync --frozen
+
+      - name: Format P8-001 Python
+        run: uv run --frozen ruff format src/tiny_qwen_coder/evaluation/python_p0.py tests/unit/test_python_p0_evaluation.py tests/unit/test_python_p0_evaluation_workflow.py
+
+      - name: Quality gates
+        run: |
+          set -euo pipefail
+          uv run --frozen ruff format --check .
+          uv run --frozen ruff check .
+          uv run --frozen mypy src scripts tests
+          uv run --frozen pytest
+          git diff --check
+
+      - name: Commit implementation
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/python-p0-evaluation.yml configs/eval/python/p0_v1.yaml docs/P8_001_PYTHON_P0_EVALUATION.md docs/TODO.md src/tiny_qwen_coder/evaluation/python_p0.py tests/unit/test_python_p0_evaluation.py tests/unit/test_python_p0_evaluation_workflow.py
+          git add -u .github/workflows/p8-001-temp-bootstrap.yml .github/workflows/p8-001-temp-recovery.yml
+          git diff --cached --check
+          git commit -m "feat: implement P8-001 Python P0 evaluation"
+          git push origin HEAD:ralph/p8-001-python-p0-evaluation
