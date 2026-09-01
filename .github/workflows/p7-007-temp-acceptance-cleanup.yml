@@ -1,0 +1,88 @@
+name: P7-007 Temporary Acceptance Cleanup
+
+on:
+  push:
+    branches:
+      - ralph/p7-007-adapter-inference-validation
+    paths:
+      - ".github/workflows/p7-007-temp-acceptance-cleanup.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v5
+        with:
+          ref: ralph/p7-007-adapter-inference-validation
+
+      - name: Freeze accepted P7-007 state
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/p7-007-adapter-inference-validation.yml')
+          text = workflow.read_text(encoding='utf-8')
+          trigger = '''on:\n  workflow_dispatch:\n  push:\n    branches:\n      - ralph/p7-007-adapter-inference-validation\n    paths:\n      - ".github/workflows/p7-007-adapter-inference-validation.yml"\n'''
+          if text.count(trigger) != 1:
+              raise SystemExit('P7-007 temporary push trigger does not match expected state')
+          text = text.replace(trigger, 'on:\n  workflow_dispatch:\n', 1)
+          attempt = '      P7_007_ATTEMPT: "2"\n'
+          if text.count(attempt) != 1:
+              raise SystemExit('P7-007 attempt marker does not match expected state')
+          text = text.replace(attempt, '', 1)
+          workflow.write_text(text, encoding='utf-8')
+
+          todo = Path('docs/TODO.md')
+          text = todo.read_text(encoding='utf-8')
+          old = '''## P7-007 — Validate adapter load/inference\n\n- [ ] Load canonical base.\n- [ ] attach Python adapter.\n- [ ] generate fixed smoke prompts.\n- [ ] disable adapter and recover base behavior.\n'''
+          new = '''## P7-007 — Validate adapter load/inference\n\n- [x] Load canonical base.\n- [x] attach Python adapter.\n- [x] generate fixed smoke prompts.\n- [x] disable adapter and recover base behavior.\n'''
+          if text.count(old) != 1:
+              raise SystemExit('P7-007 TODO block does not match expected state')
+          todo.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          doc = Path('docs/P7_007_ADAPTER_LOAD_INFERENCE.md')
+          text = doc.read_text(encoding='utf-8')
+          old_contract = '''8. exits the context, explicitly re-freezes all parameters, verifies the adapter\n   is enabled again, and requires exact reproduction of the earlier adapted\n   token IDs and decoded text; and\n'''
+          new_contract = '''8. exits the context, restores the default adapter through PEFT's public\n   `set_adapter("default", inference_mode=True)` API, independently re-freezes\n   and verifies all parameters, and requires exact reproduction of the earlier\n   adapted token IDs and decoded text; and\n'''
+          if text.count(old_contract) != 1:
+              raise SystemExit('P7-007 contract paragraph does not match expected state')
+          text = text.replace(old_contract, new_contract, 1)
+
+          old_peft = '''PEFT 0.20.0 can restore `requires_grad=True` on active LoRA parameters when\n`disable_adapter()` restores the adapter on context exit. P7-007 does not relax\nthe inference-only requirement around that behavior: it explicitly applies\n`requires_grad_(False)` to the same already-loaded PEFT model and scans the\nactual parameters to prove that none remain trainable before accepting the\nre-enabled state.\n'''
+          new_peft = '''PEFT 0.20.0 can restore `requires_grad=True` on active LoRA parameters when\n`disable_adapter()` restores the adapter on context exit. P7-007 does not relax\nthe inference-only requirement around that behavior: it restores the default\nadapter through PEFT's public `set_adapter(..., inference_mode=True)` API, then\nindependently applies `requires_grad_(False)` to the same already-loaded model\nand scans the actual parameters to prove that none remain trainable.\n'''
+          if text.count(old_peft) != 1:
+              raise SystemExit('P7-007 PEFT behavior paragraph does not match expected state')
+          text = text.replace(old_peft, new_peft, 1)
+
+          marker = '## Acceptance evidence\n\n'
+          if text.count(marker) != 1:
+              raise SystemExit('P7-007 acceptance marker does not match expected state')
+          prefix = text.split(marker, 1)[0] + marker
+          accepted = '''The first one-shot GPU validation, run `33508371761`, failed closed after\n`disable_adapter()` restored LoRA parameters as trainable. That exposed the PEFT\n0.20.0 state-restoration behavior described above; no acceptance report was\nemitted from that failed attempt.\n\nThe corrected canonical GPU validation, run `33509937071` at source commit\n`94521a8597bef9c1dac8aadc61e33ba44fe6e148`, passed the validator and the\nindependent acceptance verifier against the exact P7-006 artifact. Evidence:\n\n- accepted adapter: `language/python/p0`;\n- base revision: `851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a`;\n- source training Git SHA: `02df92a9c2d347b9fb013dc25714fe066c6bcafe`;\n- adapter SHA-256: `c94606250e112f72362eb883a55f7b2c8af854d445f6bb6194352c2806a8f276`;\n- adapter size: `65,004,840` bytes;\n- base load count: `1`;\n- PEFT attachment preserved the same loaded base object;\n- enabled / disabled / re-enabled trainable parameter counts: `0 / 0 / 0`;\n- PEFT adapter layers: `248`, unmerged throughout;\n- both fixed prompts recovered the exact base token stream while disabled;\n- both fixed prompts recovered the exact adapted token stream after re-enable;\n- both fixed prompts produced an adapter output different from the base output;\n- base load time: `1.6808244129642844` seconds;\n- adapter attach time: `0.5116119259037077` seconds;\n- peak allocated VRAM: `9,330,650,112` bytes;\n- peak reserved VRAM: `9,403,629,568` bytes;\n- GPU: `NVIDIA GeForce RTX 4070 Ti SUPER`; and\n- compact evidence artifact ID: `9801209638`, digest\n  `sha256:36a0dab10ab61472cb49c9bead7a040fdb3c224b936999b095ce62422e4470f2`.\n\nP7-007 is accepted. The final workflow is manual-only; the temporary branch push\ntrigger used for the canonical GPU acceptance run is not retained.\n'''
+          doc.write_text(prefix + accepted, encoding='utf-8')
+          PY
+
+      - name: Remove temporary cleanup workflow
+        run: git rm .github/workflows/p7-007-temp-acceptance-cleanup.yml
+
+      - name: Validate cleanup diff
+        run: |
+          set -euo pipefail
+          git diff --check
+          grep -A2 '^on:' .github/workflows/p7-007-adapter-inference-validation.yml
+          grep -A6 '^## P7-007' docs/TODO.md
+          grep -A35 '^## Acceptance evidence' docs/P7_007_ADAPTER_LOAD_INFERENCE.md
+
+      - name: Commit accepted state
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/p7-007-adapter-inference-validation.yml docs/TODO.md docs/P7_007_ADAPTER_LOAD_INFERENCE.md
+          git commit -m "docs: accept P7-007 adapter inference validation"
+          git push origin HEAD:ralph/p7-007-adapter-inference-validation
