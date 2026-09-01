@@ -6,6 +6,8 @@ from pathlib import Path
 import pytest
 
 from tiny_qwen_coder.evaluation import python_p0_regression as p8
+from tiny_qwen_coder.evaluation._baseline_artifacts import file_sha256
+from tiny_qwen_coder.evaluation._python_p0_contract import artifact_set_sha256
 from tiny_qwen_coder.evaluation.regression import (
     load_frozen_general_tool_regression_suite,
     regression_suite_sha256,
@@ -80,14 +82,18 @@ def test_p8_002_stage_rehashes_checkpoint(monkeypatch: pytest.MonkeyPatch, tmp_p
         "adapter": p8._adapter_identity(),
         "checkpoint": {
             "path": p8.CHECKPOINT.as_posix(),
-            "sha256": p8.file_sha256(checkpoint),
+            "sha256": file_sha256(checkpoint),
         },
     }
     p8._write_json(tmp_path / p8.STAGE_MANIFEST, stage)
-    p8._validate_stage(source_git_sha="a" * 40, generation_contract="contract")
+    p8._validate_stage(
+        source_git_sha="a" * 40, generation_contract="contract", settings_sha256="settings"
+    )
     checkpoint.write_text("tampered\n", encoding="utf-8")
     with pytest.raises(p8.PythonP0RegressionError, match="checkpoint hash drifted"):
-        p8._validate_stage(source_git_sha="a" * 40, generation_contract="contract")
+        p8._validate_stage(
+            source_git_sha="a" * 40, generation_contract="contract", settings_sha256="settings"
+        )
 
 
 def test_p8_002_evidence_manifest_rejects_tampering(
@@ -99,7 +105,7 @@ def test_p8_002_evidence_manifest_rejects_tampering(
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("{}\n", encoding="utf-8")
     artifacts = [
-        {"path": relative.as_posix(), "sha256": p8.file_sha256(tmp_path / relative)}
+        {"path": relative.as_posix(), "sha256": file_sha256(tmp_path / relative)}
         for relative in (p8.STAGE_MANIFEST, p8.CHECKPOINT, p8.COMPARISON)
     ]
     p8._write_json(
@@ -109,7 +115,7 @@ def test_p8_002_evidence_manifest_rejects_tampering(
             "task_id": "P8-002",
             "source_git_sha": "a" * 40,
             "artifacts": artifacts,
-            "artifact_set_sha256": p8.artifact_set_sha256(artifacts),
+            "artifact_set_sha256": artifact_set_sha256(artifacts),
         },
     )
     (tmp_path / p8.COMPARISON).write_text('{"tampered":true}\n', encoding="utf-8")

@@ -7,14 +7,13 @@ import json
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict
 from pathlib import Path
-from typing import cast
 
-from tiny_qwen_coder.config import load_evaluation_config
+from tiny_qwen_coder.config import EvaluationConfig, load_evaluation_config
 from tiny_qwen_coder.evaluation._baseline_artifacts import (
     file_sha256,
     validate_python_baseline_artifacts,
 )
-from tiny_qwen_coder.evaluation._baseline_generation import BaselineGenerator, prompt_sha256
+from tiny_qwen_coder.evaluation._baseline_generation import BaselineGenerator
 from tiny_qwen_coder.evaluation._baseline_provenance import load_baseline_base_model_identity
 from tiny_qwen_coder.evaluation._baseline_runner import (
     _generate_items,
@@ -26,6 +25,7 @@ from tiny_qwen_coder.evaluation._python_p0_contract import (
     EXPECTED_BASELINE_ARTIFACT_SET_SHA256,
     EXPECTED_BASELINE_ID,
     EXPECTED_BASELINE_SOURCE_SHA,
+    PersistedAdapterEvidence,
     adapter_generation_contract,
     artifact_set_sha256,
     validate_contract,
@@ -42,14 +42,17 @@ from tiny_qwen_coder.evaluation._python_p0_generation import (
 )
 from tiny_qwen_coder.evaluation.regression import (
     RegressionCategory,
+    RegressionSuite,
     load_frozen_general_tool_regression_suite,
     regression_suite_sha256,
     score_regression_suite,
 )
 from tiny_qwen_coder.evaluation.settings import (
+    FrozenEvaluationSettings,
     evaluation_settings_sha256,
     load_frozen_evaluation_settings,
 )
+from tiny_qwen_coder.identities import BaseModelIdentity
 
 TASK_ID = "P8-002"
 SCHEMA_VERSION = 1
@@ -98,7 +101,9 @@ def _write_json(path: Path, value: Mapping[str, object]) -> None:
     path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def _context() -> tuple[object, object, object, str, str, object]:
+def _context() -> tuple[
+    EvaluationConfig, FrozenEvaluationSettings, BaseModelIdentity, str, str, RegressionSuite
+]:
     evaluation = load_evaluation_config(DEFAULT_CONFIG)
     settings = load_frozen_evaluation_settings()
     base_model = load_baseline_base_model_identity(Path(evaluation.base_config))
@@ -121,7 +126,9 @@ def _adapter_identity() -> dict[str, object]:
     }
 
 
-def _validate_stage(*, source_git_sha: str, generation_contract: str) -> dict[str, object]:
+def _validate_stage(
+    *, source_git_sha: str, generation_contract: str, settings_sha256: str
+) -> dict[str, object]:
     stage = _read_json(OUTPUT_DIR / STAGE_MANIFEST, context="P8-002 generation stage")
     expected_keys = {
         "schema_version",
@@ -146,6 +153,8 @@ def _validate_stage(*, source_git_sha: str, generation_contract: str) -> dict[st
         raise PythonP0RegressionError("P8-002 frozen suite version drifted")
     if stage.get("suite_sha256") != EXPECTED_SUITE_SHA256 or stage.get("case_count") != 12:
         raise PythonP0RegressionError("P8-002 frozen suite fingerprint/count drifted")
+    if stage.get("evaluation_settings_sha256") != settings_sha256:
+        raise PythonP0RegressionError("P8-002 frozen evaluation-settings hash drifted")
     if stage.get("generation_contract_sha256") != generation_contract:
         raise PythonP0RegressionError("P8-002 generation contract drifted")
     if stage.get("adapter") != _adapter_identity():
@@ -249,7 +258,14 @@ def _baseline_cases(baseline_dir: Path) -> dict[str, dict[str, object]]:
 def _build_comparison(*, baseline_dir: Path) -> dict[str, object]:
     evaluation, settings, base_model, system_version, system_prompt, suite = _context()
     source_git_sha, _ = _preflight_source_tree(Path("."))
-    persisted_adapter = cast(object, type("Adapter", (), _adapter_identity())())
+    persisted_adapter = PersistedAdapterEvidence(
+        adapter_id=EXPECTED_ADAPTER_ID,
+        family=EXPECTED_ADAPTER_FAMILY,
+        adapter_model_sha256=EXPECTED_ADAPTER_SHA256,
+        adapter_model_size_bytes=EXPECTED_ADAPTER_SIZE_BYTES,
+        training_run_id=EXPECTED_TRAINING_RUN_ID,
+        training_git_sha=EXPECTED_TRAINING_GIT_SHA,
+    )
     contract = adapter_generation_contract(
         base_model=base_model,
         settings=settings,
@@ -257,7 +273,11 @@ def _build_comparison(*, baseline_dir: Path) -> dict[str, object]:
         system_prompt=system_prompt,
         adapter=persisted_adapter,
     )
-    _validate_stage(source_git_sha=source_git_sha, generation_contract=contract)
+    _validate_stage(
+        source_git_sha=source_git_sha,
+        generation_contract=contract,
+        settings_sha256=evaluation_settings_sha256(settings),
+    )
 
     prompts = tuple((case.id, case.prompt) for case in suite.cases)
     responses = _generate_items(
@@ -407,9 +427,9 @@ def verify(baseline_dir: Path) -> dict[str, object]:
         digest = item.get("sha256")
         if path != expected_paths[index] or not isinstance(digest, str):
             raise PythonP0RegressionError("P8-002 evidence artifact identity is invalid")
-        if file_sha256(OUTPUT_DIR / cast(str, path)) != digest:
+        if file_sha256(OUTPUT_DIR / path) != digest:
             raise PythonP0RegressionError(f"P8-002 evidence hash drifted: {path}")
-        observed.append({"path": cast(str, path), "sha256": digest})
+        observed.append({"path": path, "sha256": digest})
     if manifest.get("artifact_set_sha256") != artifact_set_sha256(observed):
         raise PythonP0RegressionError("P8-002 artifact-set hash drifted")
     persisted = _read_json(OUTPUT_DIR / COMPARISON, context="P8-002 comparison")
