@@ -10,34 +10,27 @@ import time
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
-import torch
-from torch import nn
-
-from tiny_qwen_coder.evaluation._baseline_runner import _preflight_source_tree
-from tiny_qwen_coder.reporting import load_base_model_identity
-from tiny_qwen_coder.reproducibility import seed_everything
-from tiny_qwen_coder.runtime.adapter_validation import (
-    AdapterInferenceValidationError,
-    GenerationObservation,
-    VerifiedAdapterArtifacts,
-    _floating_parameter_dtypes,
-    _freeze_inference_parameters,
-    _generate,
-    _require_enabled_status,
-    _resolved_revision,
-    _status_snapshot,
-    validate_adapter_artifacts,
-)
+if TYPE_CHECKING:
+    from tiny_qwen_coder.runtime.adapter_validation import (
+        GenerationObservation,
+        VerifiedAdapterArtifacts,
+    )
 
 TASK_ID = "P8-003"
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
+MEASUREMENT_VERSION = "cross-language-smoke-v2"
 DEFAULT_BASE_CONFIG = Path("configs/base/qwen35-4b.yaml")
-DEFAULT_OUTPUT = Path("artifacts/eval/python/p0-cross-language-smoke-v1/report.json")
+DEFAULT_OUTPUT = Path("artifacts/eval/python/p0-cross-language-smoke-v2/report.json")
 DEFAULT_SEED = 1729
 DEFAULT_MAX_NEW_TOKENS = 128
 SYSTEM_PROMPT_VERSION = "cross-language-smoke-v1"
+SCORING_CONTRACT_VERSION = "cross-language-smoke-scoring-v2"
+FORMAT_DIMENSION = "format_adherence"
+SEMANTIC_DIMENSION = "semantic_shape"
+DECISION_DIMENSION = SEMANTIC_DIMENSION
+_FENCE_TAGS = {"typescript": "typescript", "rust": "rust"}
 SYSTEM_PROMPT = (
     "You are a coding assistant. Follow the user's requested programming language exactly. "
     "When the user requests only code, return only code with no Markdown fences or explanation."
@@ -186,6 +179,45 @@ def suite_sha256() -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def _scoring_contract_payload() -> dict[str, object]:
+    return {
+        "version": SCORING_CONTRACT_VERSION,
+        "dimensions": {
+            FORMAT_DIMENSION: {
+                "markdown_fences": "reject",
+                "structural_patterns": "frozen_suite",
+                "truncation": "generated_tokens_must_be_less_than_max_new_tokens",
+            },
+            SEMANTIC_DIMENSION: {
+                "plain_code": "score_directly",
+                "markdown_fences": "allow_exactly_one_whole_response_fence",
+                "whole_response_match": "after_trimming_outer_whitespace",
+                "required_language_tags": dict(sorted(_FENCE_TAGS.items())),
+                "language_tag_comparison": "case_insensitive_exact",
+                "prose_outside_fence": "reject",
+                "malformed_or_multiple_fences": "reject",
+                "structural_patterns": "frozen_suite_after_unwrap",
+                "truncation": "generated_tokens_must_be_less_than_max_new_tokens",
+            },
+        },
+        "collapse_decision_dimension": DECISION_DIMENSION,
+    }
+
+
+def scoring_contract_sha256() -> str:
+    """Return the frozen v2 scoring-contract fingerprint."""
+
+    payload = json.dumps(
+        _scoring_contract_payload(), sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+EXPECTED_SCORING_CONTRACT_SHA256 = (
+    "33c2459c64631ee7cd8903c36a6fe6ecb81df6ce6e1848bad096b5803cc77dd2"
+)
+
+
 def score_text(
     case: SmokeCase,
     text: str,
@@ -193,7 +225,7 @@ def score_text(
     generated_tokens: int,
     max_new_tokens: int,
 ) -> TextScore:
-    """Score one response without executing generated code."""
+    """Score strict code-only format adherence plus structural shape."""
 
     if not text.strip():
         return TextScore(False, "empty response")
@@ -212,6 +244,49 @@ def score_text(
     return TextScore(True, None)
 
 
+def _semantic_code(case: SmokeCase, text: str) -> tuple[str | None, str | None]:
+    stripped = text.strip()
+    if "```" not in stripped:
+        return stripped, None
+    match = re.fullmatch(
+        r"```(?P<tag>[A-Za-z0-9_+-]+)[ \t]*\r?\n(?P<code>.*?)\r?\n```",
+        stripped,
+        flags=re.DOTALL,
+    )
+    if match is None:
+        return None, "Markdown fence must be exactly one whole-response fenced block"
+    tag = match.group("tag").casefold()
+    expected_tag = _FENCE_TAGS[case.language]
+    if tag != expected_tag:
+        return None, f"Markdown fence language tag must be {expected_tag!r}, got {tag!r}"
+    code = match.group("code")
+    if "```" in code:
+        return None, "nested or multiple Markdown fences are not allowed"
+    if not code.strip():
+        return None, "empty fenced code response"
+    return code, None
+
+
+def score_semantic_text(
+    case: SmokeCase,
+    text: str,
+    *,
+    generated_tokens: int,
+    max_new_tokens: int,
+) -> TextScore:
+    """Score language semantics while tolerating one correctly tagged whole-response fence."""
+
+    code, wrapper_error = _semantic_code(case, text)
+    if wrapper_error is not None or code is None:
+        return TextScore(False, wrapper_error or "invalid semantic response wrapper")
+    return score_text(
+        case,
+        code,
+        generated_tokens=generated_tokens,
+        max_new_tokens=max_new_tokens,
+    )
+
+
 def _transition(base: bool, adapter: bool) -> str:
     if base and not adapter:
         return "regression"
@@ -222,15 +297,25 @@ def _transition(base: bool, adapter: bool) -> str:
     return "preserved_fail"
 
 
-def _language_summary(cases: Sequence[Mapping[str, object]]) -> list[dict[str, object]]:
+def _score_block(item: Mapping[str, object], dimension: str) -> Mapping[str, object]:
+    value = item.get(dimension)
+    if not isinstance(value, Mapping):
+        raise CrossLanguageSmokeError(f"missing {dimension} score block")
+    return value
+
+
+def _language_summary(
+    cases: Sequence[Mapping[str, object]], *, dimension: str = SEMANTIC_DIMENSION
+) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     for language in ("typescript", "rust"):
         relevant = [item for item in cases if item.get("language") == language]
         if len(relevant) != 3:
             raise CrossLanguageSmokeError(f"expected exactly three {language} cases")
-        base_passed = sum(item.get("base_passed") is True for item in relevant)
-        adapter_passed = sum(item.get("adapter_passed") is True for item in relevant)
-        catastrophic = base_passed >= 2 and adapter_passed == 0
+        score_blocks = [_score_block(item, dimension) for item in relevant]
+        base_passed = sum(item.get("base_passed") is True for item in score_blocks)
+        adapter_passed = sum(item.get("adapter_passed") is True for item in score_blocks)
+        catastrophic = dimension == DECISION_DIMENSION and base_passed >= 2 and adapter_passed == 0
         rows.append(
             {
                 "language": language,
@@ -246,22 +331,30 @@ def _language_summary(cases: Sequence[Mapping[str, object]]) -> list[dict[str, o
 
 
 def _overall_summary(
-    cases: Sequence[Mapping[str, object]], languages: Sequence[Mapping[str, object]]
+    cases: Sequence[Mapping[str, object]],
+    languages: Sequence[Mapping[str, object]],
+    *,
+    dimension: str = SEMANTIC_DIMENSION,
 ) -> dict[str, object]:
-    base_passed = sum(item.get("base_passed") is True for item in cases)
-    adapter_passed = sum(item.get("adapter_passed") is True for item in cases)
-    regressions = sum(item.get("transition") == "regression" for item in cases)
-    improvements = sum(item.get("transition") == "improvement" for item in cases)
+    score_blocks = [_score_block(item, dimension) for item in cases]
+    base_passed = sum(item.get("base_passed") is True for item in score_blocks)
+    adapter_passed = sum(item.get("adapter_passed") is True for item in score_blocks)
+    regressions = sum(item.get("transition") == "regression" for item in score_blocks)
+    improvements = sum(item.get("transition") == "improvement" for item in score_blocks)
     baseline_adequate = all(item.get("baseline_adequate") is True for item in languages)
     language_collapse = any(item.get("catastrophic_regression") is True for item in languages)
     overall_collapse = base_passed >= 4 and adapter_passed * 2 <= base_passed
-    catastrophic = baseline_adequate and (language_collapse or overall_collapse)
-    if not baseline_adequate:
-        conclusion = "inconclusive_base"
-    elif catastrophic:
-        conclusion = "catastrophic_regression"
+    if dimension == DECISION_DIMENSION:
+        catastrophic = baseline_adequate and (language_collapse or overall_collapse)
+        if not baseline_adequate:
+            conclusion = "inconclusive_base"
+        elif catastrophic:
+            conclusion = "catastrophic_regression"
+        else:
+            conclusion = "no_catastrophic_regression"
     else:
-        conclusion = "no_catastrophic_regression"
+        catastrophic = False
+        conclusion = "supplemental_only"
     return {
         "total_cases": len(cases),
         "base_passed": base_passed,
@@ -275,7 +368,17 @@ def _overall_summary(
     }
 
 
-def _adapter_identity(artifacts: VerifiedAdapterArtifacts) -> dict[str, object]:
+def _dimension_summary(
+    cases: Sequence[Mapping[str, object]], dimension: str
+) -> dict[str, object]:
+    languages = _language_summary(cases, dimension=dimension)
+    return {
+        "languages": languages,
+        "overall": _overall_summary(cases, languages, dimension=dimension),
+    }
+
+
+def _adapter_identity(artifacts: "VerifiedAdapterArtifacts") -> dict[str, object]:
     manifest = artifacts.manifest
     identity = {
         "adapter_id": manifest.adapter_id,
@@ -298,7 +401,7 @@ def _adapter_identity(artifacts: VerifiedAdapterArtifacts) -> dict[str, object]:
     return identity
 
 
-def _observation_dict(observation: GenerationObservation) -> dict[str, object]:
+def _observation_dict(observation: "GenerationObservation") -> dict[str, object]:
     return {
         "text": observation.text,
         "token_ids": list(observation.token_ids),
@@ -308,43 +411,77 @@ def _observation_dict(observation: GenerationObservation) -> dict[str, object]:
     }
 
 
+def _score_pair(
+    case: SmokeCase,
+    base_observation: "GenerationObservation",
+    adapter_observation: "GenerationObservation",
+    *,
+    max_new_tokens: int,
+) -> dict[str, object]:
+    base_format = score_text(
+        case,
+        base_observation.text,
+        generated_tokens=base_observation.generated_tokens,
+        max_new_tokens=max_new_tokens,
+    )
+    adapter_format = score_text(
+        case,
+        adapter_observation.text,
+        generated_tokens=adapter_observation.generated_tokens,
+        max_new_tokens=max_new_tokens,
+    )
+    base_semantic = score_semantic_text(
+        case,
+        base_observation.text,
+        generated_tokens=base_observation.generated_tokens,
+        max_new_tokens=max_new_tokens,
+    )
+    adapter_semantic = score_semantic_text(
+        case,
+        adapter_observation.text,
+        generated_tokens=adapter_observation.generated_tokens,
+        max_new_tokens=max_new_tokens,
+    )
+    return {
+        "case_id": case.case_id,
+        "language": case.language,
+        "prompt": case.prompt,
+        FORMAT_DIMENSION: {
+            "base_passed": base_format.passed,
+            "adapter_passed": adapter_format.passed,
+            "transition": _transition(base_format.passed, adapter_format.passed),
+            "base_detail": base_format.detail,
+            "adapter_detail": adapter_format.detail,
+        },
+        SEMANTIC_DIMENSION: {
+            "base_passed": base_semantic.passed,
+            "adapter_passed": adapter_semantic.passed,
+            "transition": _transition(base_semantic.passed, adapter_semantic.passed),
+            "base_detail": base_semantic.detail,
+            "adapter_detail": adapter_semantic.detail,
+        },
+        "base": _observation_dict(base_observation),
+        "adapter": _observation_dict(adapter_observation),
+    }
+
+
 def _score_cases(
-    base: Sequence[GenerationObservation],
-    adapter: Sequence[GenerationObservation],
+    base: Sequence["GenerationObservation"],
+    adapter: Sequence["GenerationObservation"],
     *,
     max_new_tokens: int,
 ) -> list[dict[str, object]]:
     if len(base) != len(CASES) or len(adapter) != len(CASES):
         raise CrossLanguageSmokeError("P8-003 generation count drifted")
-    rows: list[dict[str, object]] = []
-    for case, base_observation, adapter_observation in zip(CASES, base, adapter, strict=True):
-        base_score = score_text(
+    return [
+        _score_pair(
             case,
-            base_observation.text,
-            generated_tokens=base_observation.generated_tokens,
+            base_observation,
+            adapter_observation,
             max_new_tokens=max_new_tokens,
         )
-        adapter_score = score_text(
-            case,
-            adapter_observation.text,
-            generated_tokens=adapter_observation.generated_tokens,
-            max_new_tokens=max_new_tokens,
-        )
-        rows.append(
-            {
-                "case_id": case.case_id,
-                "language": case.language,
-                "prompt": case.prompt,
-                "base_passed": base_score.passed,
-                "adapter_passed": adapter_score.passed,
-                "transition": _transition(base_score.passed, adapter_score.passed),
-                "base_detail": base_score.detail,
-                "adapter_detail": adapter_score.detail,
-                "base": _observation_dict(base_observation),
-                "adapter": _observation_dict(adapter_observation),
-            }
-        )
-    return rows
+        for case, base_observation, adapter_observation in zip(CASES, base, adapter, strict=True)
+    ]
 
 
 def run_cross_language_smoke(
@@ -356,8 +493,26 @@ def run_cross_language_smoke(
 ) -> dict[str, object]:
     """Generate and score base/Python-P0 TypeScript and Rust smoke responses."""
 
+    import torch
+    from torch import nn
+
+    from tiny_qwen_coder.evaluation._baseline_runner import _preflight_source_tree
+    from tiny_qwen_coder.reporting import load_base_model_identity
+    from tiny_qwen_coder.reproducibility import seed_everything
+    from tiny_qwen_coder.runtime.adapter_validation import (
+        _floating_parameter_dtypes,
+        _freeze_inference_parameters,
+        _generate,
+        _require_enabled_status,
+        _resolved_revision,
+        _status_snapshot,
+        validate_adapter_artifacts,
+    )
+
     if suite_sha256() != EXPECTED_SUITE_SHA256:
         raise CrossLanguageSmokeError("P8-003 frozen suite fingerprint drifted")
+    if scoring_contract_sha256() != EXPECTED_SCORING_CONTRACT_SHA256:
+        raise CrossLanguageSmokeError("P8-003 v2 scoring-contract fingerprint drifted")
     if max_new_tokens <= 0:
         raise CrossLanguageSmokeError("max_new_tokens must be greater than zero")
     if not torch.cuda.is_available():
@@ -461,15 +616,21 @@ def run_cross_language_smoke(
         for case in CASES
     )
     rows = _score_cases(base_observations, adapter_observations, max_new_tokens=max_new_tokens)
-    languages = _language_summary(rows)
-    overall = _overall_summary(rows, languages)
+    dimensions = {
+        FORMAT_DIMENSION: _dimension_summary(rows, FORMAT_DIMENSION),
+        SEMANTIC_DIMENSION: _dimension_summary(rows, SEMANTIC_DIMENSION),
+    }
     torch.cuda.synchronize(device)
     return {
         "schema_version": SCHEMA_VERSION,
         "task_id": TASK_ID,
+        "measurement_version": MEASUREMENT_VERSION,
         "measurement_complete": True,
         "source_git_sha": source_git_sha,
         "suite_sha256": EXPECTED_SUITE_SHA256,
+        "scoring_contract_version": SCORING_CONTRACT_VERSION,
+        "scoring_contract_sha256": EXPECTED_SCORING_CONTRACT_SHA256,
+        "decision_dimension": DECISION_DIMENSION,
         "system_prompt_version": SYSTEM_PROMPT_VERSION,
         "system_prompt_sha256": hashlib.sha256(SYSTEM_PROMPT.encode("utf-8")).hexdigest(),
         "seed": DEFAULT_SEED,
@@ -487,8 +648,7 @@ def run_cross_language_smoke(
             "base_load_seconds": base_load_seconds,
         },
         "cases": rows,
-        "languages": languages,
-        "overall": overall,
+        "dimensions": dimensions,
     }
 
 
@@ -501,12 +661,19 @@ def _mapping(value: object, *, context: str) -> dict[str, object]:
 def verify_report(path: Path, *, base_config: Path = DEFAULT_BASE_CONFIG) -> dict[str, object]:
     """Recompute deterministic P8-003 scoring and provenance from a persisted report."""
 
+    from tiny_qwen_coder.evaluation._baseline_runner import _preflight_source_tree
+    from tiny_qwen_coder.reporting import load_base_model_identity
+
     try:
         raw: object = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise CrossLanguageSmokeError(f"could not read P8-003 report: {path}") from exc
     report = _mapping(raw, context="P8-003 report")
-    if report.get("schema_version") != SCHEMA_VERSION or report.get("task_id") != TASK_ID:
+    if (
+        report.get("schema_version") != SCHEMA_VERSION
+        or report.get("task_id") != TASK_ID
+        or report.get("measurement_version") != MEASUREMENT_VERSION
+    ):
         raise CrossLanguageSmokeError("P8-003 report identity drifted")
     if report.get("measurement_complete") is not True:
         raise CrossLanguageSmokeError("P8-003 report is not complete")
@@ -518,6 +685,13 @@ def verify_report(path: Path, *, base_config: Path = DEFAULT_BASE_CONFIG) -> dic
         or suite_sha256() != EXPECTED_SUITE_SHA256
     ):
         raise CrossLanguageSmokeError("P8-003 suite identity drifted")
+    if (
+        report.get("scoring_contract_version") != SCORING_CONTRACT_VERSION
+        or report.get("scoring_contract_sha256") != EXPECTED_SCORING_CONTRACT_SHA256
+        or scoring_contract_sha256() != EXPECTED_SCORING_CONTRACT_SHA256
+        or report.get("decision_dimension") != DECISION_DIMENSION
+    ):
+        raise CrossLanguageSmokeError("P8-003 v2 scoring contract drifted")
     if report.get("system_prompt_version") != SYSTEM_PROMPT_VERSION:
         raise CrossLanguageSmokeError("P8-003 system prompt version drifted")
     if report.get("system_prompt_sha256") != hashlib.sha256(SYSTEM_PROMPT.encode()).hexdigest():
@@ -578,25 +752,43 @@ def verify_report(path: Path, *, base_config: Path = DEFAULT_BASE_CONFIG) -> dic
             raise CrossLanguageSmokeError(
                 f"P8-003 generated token count is invalid: {case.case_id}"
             )
-        base_score = score_text(
+        base_format = score_text(
             case, base_text, generated_tokens=base_tokens, max_new_tokens=max_new_tokens
         )
-        adapter_score = score_text(
+        adapter_format = score_text(
             case, adapter_text, generated_tokens=adapter_tokens, max_new_tokens=max_new_tokens
         )
-        if (
-            item.get("base_passed") is not base_score.passed
-            or item.get("adapter_passed") is not adapter_score.passed
-            or item.get("base_detail") != base_score.detail
-            or item.get("adapter_detail") != adapter_score.detail
-            or item.get("transition") != _transition(base_score.passed, adapter_score.passed)
-        ):
+        base_semantic = score_semantic_text(
+            case, base_text, generated_tokens=base_tokens, max_new_tokens=max_new_tokens
+        )
+        adapter_semantic = score_semantic_text(
+            case, adapter_text, generated_tokens=adapter_tokens, max_new_tokens=max_new_tokens
+        )
+        expected_scores = {
+            FORMAT_DIMENSION: {
+                "base_passed": base_format.passed,
+                "adapter_passed": adapter_format.passed,
+                "transition": _transition(base_format.passed, adapter_format.passed),
+                "base_detail": base_format.detail,
+                "adapter_detail": adapter_format.detail,
+            },
+            SEMANTIC_DIMENSION: {
+                "base_passed": base_semantic.passed,
+                "adapter_passed": adapter_semantic.passed,
+                "transition": _transition(base_semantic.passed, adapter_semantic.passed),
+                "base_detail": base_semantic.detail,
+                "adapter_detail": adapter_semantic.detail,
+            },
+        }
+        if any(item.get(dimension) != scores for dimension, scores in expected_scores.items()):
             raise CrossLanguageSmokeError(f"P8-003 stored score drifted: {case.case_id}")
         recomputed.append(item)
 
-    languages = _language_summary(recomputed)
-    overall = _overall_summary(recomputed, languages)
-    if report.get("languages") != languages or report.get("overall") != overall:
+    dimensions = {
+        FORMAT_DIMENSION: _dimension_summary(recomputed, FORMAT_DIMENSION),
+        SEMANTIC_DIMENSION: _dimension_summary(recomputed, SEMANTIC_DIMENSION),
+    }
+    if report.get("dimensions") != dimensions:
         raise CrossLanguageSmokeError("P8-003 aggregate score drifted")
     return report
 
@@ -641,10 +833,7 @@ def cross_language_smoke_main(argv: Sequence[str] | None = None) -> None:
         print(report_json(report), end="")
         print(f"P8-003 report: {output}")
         return
-    try:
-        report = verify_report(cast(Path, args.report), base_config=cast(Path, args.base_config))
-    except AdapterInferenceValidationError as exc:
-        raise CrossLanguageSmokeError(str(exc)) from exc
+    report = verify_report(cast(Path, args.report), base_config=cast(Path, args.base_config))
     print(report_json(report), end="")
 
 
