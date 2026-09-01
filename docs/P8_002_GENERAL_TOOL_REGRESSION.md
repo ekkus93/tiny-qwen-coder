@@ -21,6 +21,26 @@ The permanent workflow is manual-only. GPU generation downloads and revalidates 
 
 Hosted scoring downloads only that compact generation evidence and the accepted P6-005 baseline artifact. The full P6 artifact is revalidated before any baseline result participates in the comparison. Missing P8 checkpoints cause a hard failure; hosted scoring cannot silently regenerate responses.
 
+## Accepted canonical result
+
+Canonical workflow run `33554096916` on source `0485c375bcc384d0a0dfdfb423db740a4b78b109` passed GPU generation, P6 baseline validation, scoring, independent verification, and evidence upload. The final evidence artifact is GitHub Actions artifact `9818707785` (`p8-002-python-p0-general-tool-regression-0485c375bcc384d0a0dfdfb423db740a4b78b109`), with uploaded ZIP SHA-256 `d023e9d1563518fcba4ff1528d0290996004df943f834798d057ff7b22acc74b`.
+
+| Category | Base | Python P0 | Delta |
+| --- | ---: | ---: | ---: |
+| instruction following | `0/2` | `0/2` | `0` |
+| JSON structured output | `2/2` | `2/2` | `0` |
+| simple reasoning | `0/2` | `0/2` | `0` |
+| shell reasoning | `0/2` | `0/2` | `0` |
+| Git reasoning | `0/2` | `0/2` | `0` |
+| tool-call formatting/selection | `0/2` | `0/2` | `0` |
+| **Overall** | **`2/12`** | **`2/12`** | **`0`** |
+
+There were zero base-pass→adapter-fail regressions and zero base-fail→adapter-pass improvements. The two JSON cases were preserved passes. All ten remaining cases were preserved fails.
+
+Pass/fail equality does not mean every output was identical. In particular, the arithmetic case changed from base `14` to adapter `17 - 5 + 8 = 20`, and the Git staging case changed from base `git add -A` to adapter `git add .`. Those behavioral mutations are preserved in the evidence for P8-004 analysis.
+
+The frozen v1 suite also reveals exact-format sensitivity: several otherwise plausible responses include a trailing newline and therefore fail exact-text/tool-block matching. Because the suite was frozen before P0 training, P8-002 does not alter those expectations after seeing results. Any normalization change belongs in a future suite version and must not rewrite this comparison.
+
 ## Comparison
 
 The final comparison records:

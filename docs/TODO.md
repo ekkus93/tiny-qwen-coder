@@ -782,15 +782,17 @@ Implementation note: canonical run `33538724658` completed GPU generation, const
 
 ## P8-002 — Run general/tool regression suite
 
-- [ ] instruction following.
-- [ ] JSON.
-- [ ] reasoning.
-- [ ] shell/Git.
-- [ ] tool-call formatting/selection.
+- [x] instruction following.
+- [x] JSON.
+- [x] reasoning.
+- [x] shell/Git.
+- [x] tool-call formatting/selection.
 
 Acceptance criteria:
 
 - Regressions quantified, not hand-waved.
+
+Implementation note: canonical run `33554096916` evaluated the exact frozen 12-case `general_tool_regression` v1 suite against the accepted P6-005 baseline and independently verified the evidence. The unchanged base scored `2/12` and Python P0 also scored `2/12`: zero pass/fail regressions, zero improvements, and no category-level score delta. Both models preserved the two JSON passes. Two `preserved_fail` cases changed output despite equal scores: arithmetic changed from base `14` to adapter `17 - 5 + 8 = 20`, and Git staging changed from `git add -A` to `git add .`. The frozen suite is also sensitive to exact trailing-newline/tool-block formatting; this is recorded as a future-suite concern and is not retroactively changed after observing P0.
 
 ## P8-003 — Add preliminary cross-language smoke tests
 
