@@ -60,6 +60,19 @@ The accepted P6-005 reference values are rechecked before comparison:
 - repository holdout: `6 / 11` (`0.5454545454545454`)
 - combined: `424 / 675`
 
+## Accepted canonical result
+
+Canonical workflow run `33538724658` on source `6aaea1bef3b6df97b2bf8d61103a89f6ee7fa43c` completed successfully. GPU generation produced all 675 responses, hosted scoring executed generated code through the constrained OCI harness, the independent verifier recomputed the comparison, and the canonical evidence artifact was uploaded as GitHub Actions artifact `9814936298` (`p8-001-python-p0-evaluation-6aaea1bef3b6df97b2bf8d61103a89f6ee7fa43c`).
+
+| Suite | Base | Python P0 | Absolute delta |
+| --- | ---: | ---: | ---: |
+| HumanEval | `128/164` (`0.7804878048780488`) | `88/164` (`0.5365853658536586`) | `-40` / `-0.24390243902439024` |
+| MBPP | `290/500` (`0.58`) | `97/500` (`0.194`) | `-193` / `-0.38599999999999995` |
+| repository holdout | `6/11` (`0.5454545454545454`) | `2/11` (`0.18181818181818182`) | `-4` / `-0.3636363636363636` |
+| **Combined** | **`424/675` (`0.6281481481481481`)** | **`187/675` (`0.277037037037037`)** | **`-237` / `-0.3511111111111111`** |
+
+The result is a strong regression across every coding suite. P8-001 intentionally makes no promotion decision, but this P0 result is preserved as negative experimental evidence for P8-004/P8-005 and the Phase 9 experiment matrix.
+
 ## Persisted artifacts
 
 The final compact evidence directory is `artifacts/eval/python/p0-v1/` and contains:
@@ -77,6 +90,6 @@ The final compact evidence directory is `artifacts/eval/python/p0-v1/` and conta
 
 ## Workflow trigger lifecycle
 
-While P8-001 is being introduced, `.github/workflows/python-p0-evaluation.yml` has a one-shot `master` push trigger limited to that workflow path, plus manual dispatch. This allows the merge that introduces the workflow to launch the canonical GPU evaluation without making unrelated commits expensive. After canonical acceptance evidence is captured, the push trigger should be removed so future P8-001 reruns are explicit/manual only.
+Canonical acceptance evidence has been captured. `.github/workflows/python-p0-evaluation.yml` is permanently `workflow_dispatch`-only, so future expensive reruns require explicit operator intent. Normal pushes and merges cannot launch the 675-generation GPU evaluation.
 
-P8-001 must not be marked complete merely because the implementation or CPU CI passes. Completion requires a successful canonical GPU generation run, constrained scoring, independent evidence verification, and a persisted direct base-vs-adapter comparison.
+P8-001 is complete because canonical GPU generation, constrained scoring, independent evidence verification, and a persisted direct base-vs-adapter comparison all passed in run `33538724658`.
