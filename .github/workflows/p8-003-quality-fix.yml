@@ -1,0 +1,55 @@
+name: P8-003 one-shot quality fix
+
+on:
+  push:
+    branches:
+      - ralph/p8-003-cross-language-smoke
+    paths:
+      - ".github/workflows/p8-003-quality-fix.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  quality:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ralph/p8-003-cross-language-smoke
+          clean: true
+          fetch-depth: 1
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - name: Sync frozen environment
+        run: uv sync --frozen
+      - name: Format and apply safe lint fixes to P8-003 files
+        run: |
+          set -euo pipefail
+          uv run --frozen ruff format src/tiny_qwen_coder/evaluation/cross_language_smoke.py tests/unit/test_cross_language_smoke.py
+          uv run --frozen ruff check --fix src/tiny_qwen_coder/evaluation/cross_language_smoke.py tests/unit/test_cross_language_smoke.py
+      - name: Run complete quality gates
+        run: |
+          set -euo pipefail
+          uv run --frozen ruff format --check .
+          uv run --frozen ruff check .
+          uv run --frozen mypy src scripts tests
+          uv run --frozen pytest
+          git diff --check
+      - name: Commit validated cleanup
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/tiny_qwen_coder/evaluation/cross_language_smoke.py tests/unit/test_cross_language_smoke.py
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo "No cleanup changes required"
+            exit 0
+          fi
+          git commit -m "style: normalize P8-003 implementation"
+          git push origin HEAD:ralph/p8-003-cross-language-smoke
