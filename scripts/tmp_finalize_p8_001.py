@@ -1,0 +1,74 @@
+from pathlib import Path
+
+
+def replace_once(text: str, old: str, new: str, label: str) -> str:
+    if old not in text:
+        raise SystemExit(f"{label} did not match expected state")
+    return text.replace(old, new, 1)
+
+
+todo = Path("docs/TODO.md")
+text = todo.read_text(encoding="utf-8")
+old = """## P8-001 — Evaluate Python P0 adapter
+
+- [ ] HumanEval.
+- [ ] MBPP.
+- [ ] custom Python suite.
+- [ ] same frozen generation config as baseline.
+
+Acceptance criteria:
+
+- Direct base-vs-adapter comparison artifact generated.
+
+Implementation note: P8-001 reuses the exact frozen P6-005 HumanEval, MBPP, and repository-holdout contract and compares the canonical P7-006 `language/python/p0` adapter against the verified P6-005 baseline. Checkboxes remain open until canonical GPU generation, constrained scoring, and independent comparison verification pass.
+"""
+new = """## P8-001 — Evaluate Python P0 adapter
+
+- [x] HumanEval.
+- [x] MBPP.
+- [x] custom Python suite.
+- [x] same frozen generation config as baseline.
+
+Acceptance criteria:
+
+- Direct base-vs-adapter comparison artifact generated.
+
+Implementation note: canonical run `33538724658` completed GPU generation, constrained scoring, independent verification, and evidence upload for the accepted P7-006 `language/python/p0` adapter. HumanEval fell from `128/164` (`0.7804878048780488`) to `88/164` (`0.5365853658536586`); MBPP fell from `290/500` (`0.58`) to `97/500` (`0.194`); repository holdout fell from `6/11` (`0.5454545454545454`) to `2/11` (`0.18181818181818182`). Combined coding performance fell from `424/675` (`0.6281481481481481`) to `187/675` (`0.277037037037037`), a delta of `-237` passes / `-0.3511111111111111` micro pass rate. P8-001 is therefore complete as a measurement; promotion/rejection remains a later Phase 8 decision.
+"""
+todo.write_text(replace_once(text, old, new, "P8-001 TODO block"), encoding="utf-8")
+
+doc = Path("docs/P8_001_PYTHON_P0_EVALUATION.md")
+text = doc.read_text(encoding="utf-8")
+marker = "## Persisted artifacts\n"
+accepted = """## Accepted canonical result
+
+Canonical workflow run `33538724658` on source `6aaea1bef3b6df97b2bf8d61103a89f6ee7fa43c` completed successfully. GPU generation produced all 675 responses, hosted scoring executed generated code through the constrained OCI harness, the independent verifier recomputed the comparison, and the canonical evidence artifact was uploaded as GitHub Actions artifact `9814936298` (`p8-001-python-p0-evaluation-6aaea1bef3b6df97b2bf8d61103a89f6ee7fa43c`).
+
+| Suite | Base | Python P0 | Absolute delta |
+| --- | ---: | ---: | ---: |
+| HumanEval | `128/164` (`0.7804878048780488`) | `88/164` (`0.5365853658536586`) | `-40` / `-0.24390243902439024` |
+| MBPP | `290/500` (`0.58`) | `97/500` (`0.194`) | `-193` / `-0.38599999999999995` |
+| repository holdout | `6/11` (`0.5454545454545454`) | `2/11` (`0.18181818181818182`) | `-4` / `-0.3636363636363636` |
+| **Combined** | **`424/675` (`0.6281481481481481`)** | **`187/675` (`0.277037037037037`)** | **`-237` / `-0.3511111111111111`** |
+
+The result is a strong regression across every coding suite. P8-001 intentionally makes no promotion decision, but this P0 result is preserved as negative experimental evidence for P8-004/P8-005 and the Phase 9 experiment matrix.
+
+"""
+if "## Accepted canonical result\n" not in text:
+    text = replace_once(text, marker, accepted + marker, "P8-001 evidence marker")
+old_lifecycle = """## Workflow trigger lifecycle
+
+While P8-001 is being introduced, `.github/workflows/python-p0-evaluation.yml` has a one-shot `master` push trigger limited to that workflow path, plus manual dispatch. This allows the merge that introduces the workflow to launch the canonical GPU evaluation without making unrelated commits expensive. After canonical acceptance evidence is captured, the push trigger should be removed so future P8-001 reruns are explicit/manual only.
+
+P8-001 must not be marked complete merely because the implementation or CPU CI passes. Completion requires a successful canonical GPU generation run, constrained scoring, independent evidence verification, and a persisted direct base-vs-adapter comparison.
+"""
+new_lifecycle = """## Workflow trigger lifecycle
+
+Canonical acceptance evidence has been captured. `.github/workflows/python-p0-evaluation.yml` is permanently `workflow_dispatch`-only, so future expensive reruns require explicit operator intent. Normal pushes and merges cannot launch the 675-generation GPU evaluation.
+
+P8-001 is complete because canonical GPU generation, constrained scoring, independent evidence verification, and a persisted direct base-vs-adapter comparison all passed in run `33538724658`.
+"""
+doc.write_text(
+    replace_once(text, old_lifecycle, new_lifecycle, "P8-001 workflow lifecycle"),
+    encoding="utf-8",
+)
