@@ -376,7 +376,7 @@ def _dimension_summary(cases: Sequence[Mapping[str, object]], dimension: str) ->
     }
 
 
-def _adapter_identity(artifacts: "VerifiedAdapterArtifacts") -> dict[str, object]:
+def _adapter_identity(artifacts: VerifiedAdapterArtifacts) -> dict[str, object]:
     manifest = artifacts.manifest
     identity = {
         "adapter_id": manifest.adapter_id,
@@ -399,7 +399,7 @@ def _adapter_identity(artifacts: "VerifiedAdapterArtifacts") -> dict[str, object
     return identity
 
 
-def _observation_dict(observation: "GenerationObservation") -> dict[str, object]:
+def _observation_dict(observation: GenerationObservation) -> dict[str, object]:
     return {
         "text": observation.text,
         "token_ids": list(observation.token_ids),
@@ -411,8 +411,8 @@ def _observation_dict(observation: "GenerationObservation") -> dict[str, object]
 
 def _score_pair(
     case: SmokeCase,
-    base_observation: "GenerationObservation",
-    adapter_observation: "GenerationObservation",
+    base_observation: GenerationObservation,
+    adapter_observation: GenerationObservation,
     *,
     max_new_tokens: int,
 ) -> dict[str, object]:
@@ -464,8 +464,8 @@ def _score_pair(
 
 
 def _score_cases(
-    base: Sequence["GenerationObservation"],
-    adapter: Sequence["GenerationObservation"],
+    base: Sequence[GenerationObservation],
+    adapter: Sequence[GenerationObservation],
     *,
     max_new_tokens: int,
 ) -> list[dict[str, object]]:
