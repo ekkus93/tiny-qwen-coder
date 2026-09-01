@@ -368,9 +368,7 @@ def _overall_summary(
     }
 
 
-def _dimension_summary(
-    cases: Sequence[Mapping[str, object]], dimension: str
-) -> dict[str, object]:
+def _dimension_summary(cases: Sequence[Mapping[str, object]], dimension: str) -> dict[str, object]:
     languages = _language_summary(cases, dimension=dimension)
     return {
         "languages": languages,
