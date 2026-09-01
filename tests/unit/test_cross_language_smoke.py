@@ -126,9 +126,7 @@ def test_semantic_score_accepts_plain_or_one_matching_whole_response_fence() -> 
         "export function add(a: number, b: number): number { return a + b; }",
         "```typescript\nexport function add(a: number, b: number): number { return a + b; }\n```",
     ):
-        assert score_semantic_text(
-            typescript, text, generated_tokens=25, max_new_tokens=128
-        ).passed
+        assert score_semantic_text(typescript, text, generated_tokens=25, max_new_tokens=128).passed
 
     assert score_semantic_text(
         rust,
@@ -192,13 +190,7 @@ def test_v1_observed_fenced_base_is_semantically_adequate_under_v2() -> None:
             "}\n"
             "```\n"
         ),
-        (
-            "```rust\n"
-            "pub fn add(a: i32, b: i32) -> i32 {\n"
-            "    a + b\n"
-            "}\n"
-            "```\n"
-        ),
+        ("```rust\npub fn add(a: i32, b: i32) -> i32 {\n    a + b\n}\n```\n"),
         (
             "```rust\n"
             "pub fn first_or_none<T: Clone>(items: &[T]) -> Option<T> {\n"
