@@ -40,7 +40,7 @@ best-effort continuation is allowed.
 
 ## GPU inference contract
 
-The CUDA validator then:
+The CUDA validator:
 
 1. loads the exact pinned base checkpoint once in BF16;
 2. verifies the resolved upstream model revision;
@@ -53,18 +53,19 @@ The CUDA validator then:
 6. generates the same fixed prompts with the adapter enabled;
 7. enters PEFT's `disable_adapter()` context on the same loaded model and
    requires exact base token IDs and decoded text;
-8. exits the context, explicitly re-freezes all parameters, verifies the adapter
-   is enabled again, and requires exact reproduction of the earlier adapted
-   token IDs and decoded text; and
+8. exits the context, restores the default adapter through PEFT's public
+   `set_adapter("default", inference_mode=True)` API, independently re-freezes
+   and verifies all parameters, and requires exact reproduction of the earlier
+   adapted token IDs and decoded text; and
 9. records GPU memory, load times, identities, status snapshots, and all four
    deterministic generations in the acceptance report.
 
 PEFT 0.20.0 can restore `requires_grad=True` on active LoRA parameters when
 `disable_adapter()` restores the adapter on context exit. P7-007 does not relax
-the inference-only requirement around that behavior: it explicitly applies
-`requires_grad_(False)` to the same already-loaded PEFT model and scans the
-actual parameters to prove that none remain trainable before accepting the
-re-enabled state.
+the inference-only requirement around that behavior: it restores the default
+adapter through PEFT's public `set_adapter(..., inference_mode=True)` API, then
+independently applies `requires_grad_(False)` to the same already-loaded model
+and scans the actual parameters to prove that none remain trainable.
 
 The adapter is *not* required to change the output of every smoke prompt. That
 would be an invalid acceptance criterion because a correct specialized model may
@@ -87,13 +88,37 @@ The command emits the JSON report only after all acceptance conditions pass.
 
 ## Acceptance evidence
 
-The first one-shot GPU validation, run `33508371761`, successfully verified the
-CUDA runtime, downloaded and located the exact P7-006 artifact, loaded the
-canonical base, attached the LoRA, and exercised the disable/re-enable path. It
-failed closed because PEFT 0.20.0 restored LoRA parameters as trainable when the
-`disable_adapter()` context exited. The validator now explicitly re-freezes and
-verifies the same model before accepting the restored adapter state.
+The first one-shot GPU validation, run `33508371761`, failed closed after
+`disable_adapter()` restored LoRA parameters as trainable. That exposed the PEFT
+0.20.0 state-restoration behavior described above; no acceptance report was
+emitted from that failed attempt.
 
-Final GPU acceptance remains pending on branch
-`ralph/p7-007-adapter-inference-validation`. The branch-only GPU trigger will be
-removed after acceptance so the merged workflow remains manual-only.
+The corrected canonical GPU validation, run `33509937071` at source commit
+`94521a8597bef9c1dac8aadc61e33ba44fe6e148`, passed both the validator and the
+independent acceptance verifier against the exact P7-006 artifact.
+
+Measured evidence:
+
+- accepted adapter: `language/python/p0`;
+- exact base revision: `851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a`;
+- source training Git SHA: `02df92a9c2d347b9fb013dc25714fe066c6bcafe`;
+- adapter SHA-256: `c94606250e112f72362eb883a55f7b2c8af854d445f6bb6194352c2806a8f276`;
+- adapter size: `65,004,840` bytes;
+- base load count: `1`;
+- PEFT attachment preserved the same loaded base object;
+- enabled / disabled / re-enabled trainable parameter counts: `0 / 0 / 0`;
+- PEFT adapter layers: `248`, unmerged throughout;
+- both fixed prompts recovered the exact base token stream while disabled;
+- both fixed prompts recovered the exact adapted token stream after re-enable;
+- both fixed prompts produced adapter outputs different from their base outputs;
+- base load time: `1.6808244129642844` seconds;
+- adapter attach time: `0.5116119259037077` seconds;
+- peak allocated VRAM: `9,330,650,112` bytes;
+- peak reserved VRAM: `9,403,629,568` bytes;
+- GPU: `NVIDIA GeForce RTX 4070 Ti SUPER`; and
+- compact evidence artifact ID: `9801209638`, digest
+  `sha256:36a0dab10ab61472cb49c9bead7a040fdb3c224b936999b095ce62422e4470f2`.
+
+P7-007 is accepted. The final GPU-validation workflow is manual-only; the
+branch-only push trigger used to obtain the canonical acceptance run is not
+retained.
