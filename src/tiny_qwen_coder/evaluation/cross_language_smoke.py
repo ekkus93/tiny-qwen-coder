@@ -238,6 +238,7 @@ def _language_summary(cases: Sequence[Mapping[str, object]]) -> list[dict[str, o
                 "base_passed": base_passed,
                 "adapter_passed": adapter_passed,
                 "delta_passed": adapter_passed - base_passed,
+                "baseline_adequate": base_passed >= 2,
                 "catastrophic_regression": catastrophic,
             }
         )
@@ -251,8 +252,16 @@ def _overall_summary(
     adapter_passed = sum(item.get("adapter_passed") is True for item in cases)
     regressions = sum(item.get("transition") == "regression" for item in cases)
     improvements = sum(item.get("transition") == "improvement" for item in cases)
+    baseline_adequate = all(item.get("baseline_adequate") is True for item in languages)
     language_collapse = any(item.get("catastrophic_regression") is True for item in languages)
     overall_collapse = base_passed >= 4 and adapter_passed * 2 <= base_passed
+    catastrophic = baseline_adequate and (language_collapse or overall_collapse)
+    if not baseline_adequate:
+        conclusion = "inconclusive_base"
+    elif catastrophic:
+        conclusion = "catastrophic_regression"
+    else:
+        conclusion = "no_catastrophic_regression"
     return {
         "total_cases": len(cases),
         "base_passed": base_passed,
@@ -260,7 +269,9 @@ def _overall_summary(
         "delta_passed": adapter_passed - base_passed,
         "regressions": regressions,
         "improvements": improvements,
-        "catastrophic_non_python_collapse_detected": language_collapse or overall_collapse,
+        "baseline_adequate_for_collapse_detection": baseline_adequate,
+        "catastrophic_non_python_collapse_detected": catastrophic,
+        "conclusion": conclusion,
     }
 
 
@@ -499,6 +510,9 @@ def verify_report(path: Path, *, base_config: Path = DEFAULT_BASE_CONFIG) -> dic
         raise CrossLanguageSmokeError("P8-003 report identity drifted")
     if report.get("measurement_complete") is not True:
         raise CrossLanguageSmokeError("P8-003 report is not complete")
+    source_git_sha, _ = _preflight_source_tree(Path("."))
+    if report.get("source_git_sha") != source_git_sha:
+        raise CrossLanguageSmokeError("P8-003 report source Git SHA drifted")
     if (
         report.get("suite_sha256") != EXPECTED_SUITE_SHA256
         or suite_sha256() != EXPECTED_SUITE_SHA256

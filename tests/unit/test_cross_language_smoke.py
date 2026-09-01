@@ -109,17 +109,30 @@ def test_catastrophic_rule_is_frozen_before_gpu_measurement() -> None:
     no_collapse_rows = _rows(ts_base=3, ts_adapter=2, rust_base=3, rust_adapter=2)
     no_collapse_languages = _language_summary(no_collapse_rows)
     no_collapse = _overall_summary(no_collapse_rows, no_collapse_languages)
+    assert no_collapse["baseline_adequate_for_collapse_detection"] is True
     assert no_collapse["catastrophic_non_python_collapse_detected"] is False
+    assert no_collapse["conclusion"] == "no_catastrophic_regression"
 
-    language_collapse_rows = _rows(ts_base=2, ts_adapter=0, rust_base=1, rust_adapter=1)
+    inconclusive_rows = _rows(ts_base=2, ts_adapter=0, rust_base=1, rust_adapter=1)
+    inconclusive_languages = _language_summary(inconclusive_rows)
+    inconclusive = _overall_summary(inconclusive_rows, inconclusive_languages)
+    assert inconclusive["baseline_adequate_for_collapse_detection"] is False
+    assert inconclusive["catastrophic_non_python_collapse_detected"] is False
+    assert inconclusive["conclusion"] == "inconclusive_base"
+
+    language_collapse_rows = _rows(ts_base=2, ts_adapter=0, rust_base=2, rust_adapter=2)
     language_collapse_languages = _language_summary(language_collapse_rows)
     language_collapse = _overall_summary(language_collapse_rows, language_collapse_languages)
+    assert language_collapse["baseline_adequate_for_collapse_detection"] is True
     assert language_collapse["catastrophic_non_python_collapse_detected"] is True
+    assert language_collapse["conclusion"] == "catastrophic_regression"
 
     overall_collapse_rows = _rows(ts_base=3, ts_adapter=1, rust_base=3, rust_adapter=2)
     overall_collapse_languages = _language_summary(overall_collapse_rows)
     overall_collapse = _overall_summary(overall_collapse_rows, overall_collapse_languages)
+    assert overall_collapse["baseline_adequate_for_collapse_detection"] is True
     assert overall_collapse["catastrophic_non_python_collapse_detected"] is True
+    assert overall_collapse["conclusion"] == "catastrophic_regression"
 
 
 def test_p8_003_workflow_is_manual_only_and_pins_exact_p0_adapter() -> None:
