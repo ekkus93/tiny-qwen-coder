@@ -603,7 +603,6 @@ def _generate(
     )
 
 
-
 def _freeze_inference_parameters(model: nn.Module) -> None:
     """Force and verify a fully frozen inference-only parameter state."""
 

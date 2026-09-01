@@ -231,7 +231,6 @@ def test_merged_or_full_model_weights_are_rejected(tmp_path: Path) -> None:
         validate_adapter_artifacts(root, _base())
 
 
-
 def test_inference_freeze_is_reapplied_after_adapter_reactivation() -> None:
     model = nn.Linear(2, 2)
     assert any(parameter.requires_grad for parameter in model.parameters())
