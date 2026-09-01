@@ -131,10 +131,63 @@ The canonical workflow `.github/workflows/python-p0-cross-language-smoke.yml` is
 
 There is no CPU/full-precision/model-substitution fallback. A missing GPU, base revision drift, tokenizer/template drift, adapter provenance mismatch, malformed evidence, unexpected PEFT state, source-identity mismatch, prompt-suite drift, or scoring-contract drift fails closed.
 
+## Accepted V2 measurement
+
+The canonical v2 GPU measurement is GitHub Actions run `33570451764` at source Git SHA `56039856392b5a4a3eecad147518c3657ccd683f`.
+
+The run completed every required step successfully: CUDA/BF16 validation, clean-source verification, exact P7-006 artifact download and hash validation, frozen v2 generation, independent report verification, and evidence upload.
+
+Evidence identity:
+
+- artifact ID: `9824776245`
+- artifact name: `p8-003-v2-python-p0-cross-language-56039856392b5a4a3eecad147518c3657ccd683f`
+- artifact ZIP SHA-256: `ae57a061ddd02ff76f5dde4d454165f4d4421efc51778acade8d9537d8787b1a`
+- persisted/independently verified report SHA-256: `de386ec1eca9fcfed4f797db223d686d7ef131292c9b9624b5d33d87d42357ee`
+- measurement version: `cross-language-smoke-v2`
+- scoring contract: `cross-language-smoke-scoring-v2`
+- scoring contract SHA-256: `33c2459c64631ee7cd8903c36a6fe6ecb81df6ce6e1848bad096b5803cc77dd2`
+- exact resolved Qwen revision: `851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a`
+- same resident base object after adapter attachment: `true`
+- adapter enabled, unmerged, inference-only: `true`
+- GPU: `NVIDIA GeForce RTX 4070 Ti SUPER`
+- peak allocated VRAM: `9330175488` bytes
+- peak reserved VRAM: `9403629568` bytes
+- `measurement_complete`: `true`
+
+The report embedded in the artifact and the independently verified report are byte-identical.
+
+### Decision-bearing semantic result
+
+| Language | Base | Python P0 | Regressions |
+| --- | ---: | ---: | ---: |
+| TypeScript | `3/3` | `3/3` | `0` |
+| Rust | `3/3` | `3/3` | `0` |
+| **Overall** | **`6/6`** | **`6/6`** | **`0`** |
+
+The unchanged base is adequate for collapse detection in both languages. The v2 semantic conclusion is therefore:
+
+`no_catastrophic_regression`
+
+and:
+
+`catastrophic_non_python_collapse_detected: false`
+
+### Supplemental format result
+
+The strict `format_adherence` result remains:
+
+| Language | Base | Python P0 |
+| --- | ---: | ---: |
+| TypeScript | `0/3` | `3/3` |
+| Rust | `0/3` | `3/3` |
+| **Overall** | **`0/6`** | **`6/6`** |
+
+All six base responses were semantically acceptable but enclosed in one correctly tagged whole-response Markdown fence. Python P0 produced corresponding unfenced code. V2 therefore confirms that the v1 `0/6 → 6/6` observation was a formatting/instruction-adherence difference, not evidence of a six-case TypeScript/Rust semantic gain.
+
+The accepted report, including all raw generations and token IDs, is preserved at `docs/evidence/P8_003_V2_VERIFIED_REPORT_33570451764.json`. That repository copy is JSON-normalized; the exact byte identity of the canonical artifact report is the report SHA-256 recorded above.
+
 ## Interpretation
 
-V1 remains a valid but inconclusive format-sensitive measurement. It must never be rewritten as a successful semantic comparison after the fact.
+P8-003 is complete. Under the frozen v2 decision contract, the Python P0 adapter did **not** cause catastrophic loss of the basic TypeScript/Rust semantic shapes covered by this six-case diagnostic.
 
-V2 is a new measurement whose semantic rule was frozen after diagnosing v1 and before observing any v2 GPU output. The already-observed v1 strings suggest that the v2 semantic base should be adequate, but that is only a regression-test/design check. P8-003 remains open until a fresh canonical v2 GPU run is independently verified and its result is recorded.
-
-P8-003 is supplemental diagnostic evidence for P8-004. The decisive Python result remains P8-001, where P0 materially regressed HumanEval, MBPP, and the repository holdout. A conclusive clean P8-003 v2 result would only narrow the failure mode; it would not erase the Python regression.
+That result narrows the failure mode; it does not rehabilitate P0. P8-001 remains the decisive Python-coding result: HumanEval, MBPP, the repository holdout, and the combined Python coding score all materially regressed after P0 training. The P8-003 result should therefore be carried into P8-004 as evidence that the observed damage is not a blanket collapse of these basic non-Python coding behaviors.
