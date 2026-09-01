@@ -2,11 +2,6 @@ name: P7-007 Adapter Inference Validation
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - ralph/p7-007-adapter-inference-validation
-    paths:
-      - ".github/workflows/p7-007-adapter-inference-validation.yml"
 
 permissions:
   actions: read
@@ -28,7 +23,6 @@ jobs:
     env:
       TOKENIZERS_PARALLELISM: "false"
       HF_HUB_DISABLE_TELEMETRY: "1"
-      P7_007_ATTEMPT: "2"
       P7_006_RUN_ID: "33422910444"
       P7_006_ARTIFACT_NAME: "python-p0-full-training-02df92a9c2d347b9fb013dc25714fe066c6bcafe"
       EXPECTED_TRAINING_GIT_SHA: "02df92a9c2d347b9fb013dc25714fe066c6bcafe"
