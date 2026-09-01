@@ -1,0 +1,70 @@
+name: P7-007 Temporary State Fix
+
+on:
+  push:
+    branches:
+      - ralph/p7-007-adapter-inference-validation
+    paths:
+      - ".github/workflows/p7-007-temp-state-fix.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ralph/p7-007-adapter-inference-validation
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - name: Patch validator and tests
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/tiny_qwen_coder/runtime/adapter_validation.py")
+          text = path.read_text(encoding="utf-8")
+          anchor = '''def _require_disabled_status(status: AdapterStatusSnapshot) -> None:\n    if status.enabled:\n        raise AdapterInferenceValidationError("disable_adapter() did not disable adapter layers")\n    if status.merged_adapters:\n        raise AdapterInferenceValidationError("disabled adapter unexpectedly reports merged layers")\n    if status.trainable_params != 0:\n        raise AdapterInferenceValidationError("disabled inference adapter has trainable parameters")\n\n\n'''
+          addition = '''def restore_inference_only_adapter(model: object) -> None:\n    """Restore PEFT adapter state after disable_adapter() without rebuilding the base."""\n\n    setter = getattr(model, "set_adapter", None)\n    if not callable(setter):\n        raise AdapterInferenceValidationError("PEFT model does not expose set_adapter()")\n    try:\n        setter("default", inference_mode=True)\n    except (TypeError, ValueError) as exc:\n        raise AdapterInferenceValidationError(\n            "could not restore the default adapter in inference-only mode after disable_adapter()"\n        ) from exc\n\n\n'''
+          if text.count(anchor) != 1:
+              raise SystemExit("disabled-status anchor mismatch")
+          text = text.replace(anchor, anchor + addition, 1)
+          old = '''    reenabled_status = _status_snapshot(adapted)\n    _require_enabled_status(reenabled_status)\n'''
+          new = '''    restore_inference_only_adapter(adapted)\n    reenabled_status = _status_snapshot(adapted)\n    _require_enabled_status(reenabled_status)\n'''
+          if text.count(old) != 1:
+              raise SystemExit("re-enable anchor mismatch")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          tests_path = Path("tests/unit/test_adapter_inference_validation.py")
+          tests = tests_path.read_text(encoding="utf-8")
+          old_import = '''    GenerationObservation,\n    validate_adapter_artifacts,\n    validate_generation_recovery,\n)\n'''
+          new_import = '''    GenerationObservation,\n    restore_inference_only_adapter,\n    validate_adapter_artifacts,\n    validate_generation_recovery,\n)\n'''
+          if tests.count(old_import) != 1:
+              raise SystemExit("test import anchor mismatch")
+          tests = tests.replace(old_import, new_import, 1)
+          tests += '''\n\nclass _FakePeftInferenceAdapter:\n    def __init__(self) -> None:\n        self.calls: list[tuple[str, bool]] = []\n\n    def set_adapter(self, adapter_name: str, *, inference_mode: bool = False) -> None:\n        self.calls.append((adapter_name, inference_mode))\n\n\ndef test_restore_inference_only_adapter_explicitly_refreezes_default_adapter() -> None:\n    adapter = _FakePeftInferenceAdapter()\n\n    restore_inference_only_adapter(adapter)\n\n    assert adapter.calls == [("default", True)]\n\n\ndef test_restore_inference_only_adapter_fails_without_public_setter() -> None:\n    with pytest.raises(AdapterInferenceValidationError, match="does not expose set_adapter"):\n        restore_inference_only_adapter(object())\n'''
+          tests_path.write_text(tests, encoding="utf-8")
+          PY
+      - name: Sync
+        run: uv sync --frozen
+      - name: Format and test
+        run: |
+          uv run --frozen ruff format src/tiny_qwen_coder/runtime/adapter_validation.py tests/unit/test_adapter_inference_validation.py
+          uv run --frozen ruff check src/tiny_qwen_coder/runtime/adapter_validation.py tests/unit/test_adapter_inference_validation.py
+          uv run --frozen mypy src/tiny_qwen_coder/runtime/adapter_validation.py tests/unit/test_adapter_inference_validation.py
+          uv run --frozen pytest tests/unit/test_adapter_inference_validation.py
+      - name: Commit
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/tiny_qwen_coder/runtime/adapter_validation.py tests/unit/test_adapter_inference_validation.py
+          git diff --cached --check
+          git commit -m "fix: preserve inference-only PEFT state"
+          git push origin HEAD:ralph/p7-007-adapter-inference-validation
