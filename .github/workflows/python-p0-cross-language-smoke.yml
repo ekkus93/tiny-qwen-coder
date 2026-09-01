@@ -89,13 +89,13 @@ jobs:
           fi
           printf 'P7_006_TRAINING_OUTPUT=%s\n' "${training_output}" >> "${GITHUB_ENV}"
 
-      - name: Run frozen P8-003 smoke
+      - name: Run frozen P8-003 v2 smoke
         run: |
           set -euo pipefail
           uv run --frozen python -m tiny_qwen_coder.evaluation.cross_language_smoke run \
             --training-output "${P7_006_TRAINING_OUTPUT}"
 
-      - name: Independently verify P8-003 report
+      - name: Independently verify P8-003 v2 report
         run: |
           set -euo pipefail
           uv run --frozen python -m tiny_qwen_coder.evaluation.cross_language_smoke verify \
@@ -104,9 +104,9 @@ jobs:
       - name: Upload canonical P8-003 evidence
         uses: actions/upload-artifact@v4
         with:
-          name: p8-003-python-p0-cross-language-${{ github.sha }}
+          name: p8-003-v2-python-p0-cross-language-${{ github.sha }}
           path: |
-            artifacts/eval/python/p0-cross-language-smoke-v1/report.json
+            artifacts/eval/python/p0-cross-language-smoke-v2/report.json
             ${{ runner.temp }}/p8-003-verified-report.json
           if-no-files-found: error
           include-hidden-files: true
@@ -116,8 +116,8 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: p8-003-python-p0-cross-language-partial-${{ github.sha }}
-          path: artifacts/eval/python/p0-cross-language-smoke-v1/
+          name: p8-003-v2-python-p0-cross-language-partial-${{ github.sha }}
+          path: artifacts/eval/python/p0-cross-language-smoke-v2/
           if-no-files-found: ignore
           include-hidden-files: true
           retention-days: 3
