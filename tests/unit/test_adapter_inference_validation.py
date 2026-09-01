@@ -14,6 +14,7 @@ from tiny_qwen_coder.runtime.adapter_validation import (
     AdapterInferenceValidationError,
     GenerationObservation,
     _freeze_inference_parameters,
+    restore_inference_only_adapter,
     validate_adapter_artifacts,
     validate_generation_recovery,
 )
@@ -286,3 +287,24 @@ def test_reenable_mismatch_is_not_silently_accepted() -> None:
             adapter_disabled=_observation("base", (1, 2)),
             adapter_reenabled=_observation("changed", (3, 5)),
         )
+
+
+class _FakePeftInferenceAdapter:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, bool]] = []
+
+    def set_adapter(self, adapter_name: str, *, inference_mode: bool = False) -> None:
+        self.calls.append((adapter_name, inference_mode))
+
+
+def test_restore_inference_only_adapter_explicitly_refreezes_default_adapter() -> None:
+    adapter = _FakePeftInferenceAdapter()
+
+    restore_inference_only_adapter(adapter)
+
+    assert adapter.calls == [("default", True)]
+
+
+def test_restore_inference_only_adapter_fails_without_public_setter() -> None:
+    with pytest.raises(AdapterInferenceValidationError, match="does not expose set_adapter"):
+        restore_inference_only_adapter(object())

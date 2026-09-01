@@ -679,6 +679,20 @@ def _require_disabled_status(status: AdapterStatusSnapshot) -> None:
         raise AdapterInferenceValidationError("disabled inference adapter has trainable parameters")
 
 
+def restore_inference_only_adapter(model: object) -> None:
+    """Restore PEFT adapter state after disable_adapter() without rebuilding the base."""
+
+    setter = getattr(model, "set_adapter", None)
+    if not callable(setter):
+        raise AdapterInferenceValidationError("PEFT model does not expose set_adapter()")
+    try:
+        setter("default", inference_mode=True)
+    except (TypeError, ValueError) as exc:
+        raise AdapterInferenceValidationError(
+            "could not restore the default adapter in inference-only mode after disable_adapter()"
+        ) from exc
+
+
 def validate_generation_recovery(
     *,
     prompt_id: str,
@@ -860,8 +874,9 @@ def run_adapter_inference_validation(
             for _prompt_id, prompt in _SMOKE_PROMPTS
         )
 
-    # PEFT adapter reactivation may restore requires_grad on LoRA parameters.
-    # Re-freeze explicitly before accepting inference-only state.
+    # PEFT 0.20 disable_adapter() re-enables through inference_mode=False.
+    # Restore the public PEFT inference contract, then independently verify all params are frozen.
+    restore_inference_only_adapter(adapted)
     _freeze_inference_parameters(adapted)
     reenabled_status = _status_snapshot(adapted)
     _require_enabled_status(reenabled_status)
