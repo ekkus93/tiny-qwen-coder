@@ -2,11 +2,6 @@ name: P8-001 Python P0 Evaluation
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - master
-    paths:
-      - ".github/workflows/python-p0-evaluation.yml"
 
 permissions:
   actions: read
