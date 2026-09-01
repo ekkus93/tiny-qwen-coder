@@ -173,13 +173,19 @@ class AdapterInferenceValidationReport:
         if self.base_load_count != 1:
             raise AdapterInferenceValidationError("canonical base must be loaded exactly once")
         if not self.same_base_object_after_attach:
-            raise AdapterInferenceValidationError("PEFT attachment rebuilt or replaced the base model")
+            raise AdapterInferenceValidationError(
+                "PEFT attachment rebuilt or replaced the base model"
+            )
         if not self.prompts:
             raise AdapterInferenceValidationError("P7-007 requires fixed smoke prompts")
         if any(not item.base_recovered_exactly for item in self.prompts):
-            raise AdapterInferenceValidationError("disabled adapter did not recover exact base behavior")
+            raise AdapterInferenceValidationError(
+                "disabled adapter did not recover exact base behavior"
+            )
         if any(not item.adapter_reenabled_exactly for item in self.prompts):
-            raise AdapterInferenceValidationError("re-enabled adapter did not recover adapted behavior")
+            raise AdapterInferenceValidationError(
+                "re-enabled adapter did not recover adapted behavior"
+            )
 
 
 class _Tokenizer(Protocol):
@@ -279,7 +285,9 @@ def validate_adapter_artifacts(
     for relative in _REQUIRED_OUTPUT_FILES:
         path = root / relative
         if not path.is_file():
-            raise AdapterInferenceValidationError(f"required P7-006 artifact is missing: {relative}")
+            raise AdapterInferenceValidationError(
+                f"required P7-006 artifact is missing: {relative}"
+            )
     for pattern in _FORBIDDEN_MODEL_PATTERNS:
         matches = tuple((root / "adapter").glob(pattern))
         if matches:
@@ -316,10 +324,16 @@ def validate_adapter_artifacts(
     training_report = _load_json_object(root / "training-report.json", label="training report")
     training_config = _load_json_object(root / "training-config.json", label="training config")
     run_manifest = _load_json_object(root / "run-manifest.json", label="run manifest")
-    adapter_config = _load_json_object(root / "adapter" / "adapter_config.json", label="PEFT config")
+    adapter_config = _load_json_object(
+        root / "adapter" / "adapter_config.json", label="PEFT config"
+    )
 
-    _require_equal(training_report.get("adapter_id"), manifest.adapter_id, field="training_report.adapter_id")
-    _require_equal(training_report.get("language"), manifest.language, field="training_report.language")
+    _require_equal(
+        training_report.get("adapter_id"), manifest.adapter_id, field="training_report.adapter_id"
+    )
+    _require_equal(
+        training_report.get("language"), manifest.language, field="training_report.language"
+    )
     _require_equal(training_report.get("global_steps"), 4750, field="training_report.global_steps")
     _require_equal(
         training_report.get("source_training_config"),
@@ -338,8 +352,16 @@ def validate_adapter_artifacts(
     )
 
     resolved_base = _require_mapping(training_config.get("base"), field="training_config.base")
-    _require_equal(resolved_base.get("model_repository"), base_model.repository, field="training_config.base.model_repository")
-    _require_equal(resolved_base.get("model_revision"), base_model.revision, field="training_config.base.model_revision")
+    _require_equal(
+        resolved_base.get("model_repository"),
+        base_model.repository,
+        field="training_config.base.model_repository",
+    )
+    _require_equal(
+        resolved_base.get("model_revision"),
+        base_model.revision,
+        field="training_config.base.model_revision",
+    )
     _require_equal(
         resolved_base.get("tokenizer_repository"),
         base_model.tokenizer_repository,
@@ -365,8 +387,14 @@ def validate_adapter_artifacts(
     )
 
     run_base = _require_mapping(run_manifest.get("base_model"), field="run_manifest.base_model")
-    _require_equal(run_base.get("repository"), base_model.repository, field="run_manifest.base_model.repository")
-    _require_equal(run_base.get("revision"), base_model.revision, field="run_manifest.base_model.revision")
+    _require_equal(
+        run_base.get("repository"),
+        base_model.repository,
+        field="run_manifest.base_model.repository",
+    )
+    _require_equal(
+        run_base.get("revision"), base_model.revision, field="run_manifest.base_model.revision"
+    )
     _require_equal(
         run_base.get("tokenizer_repository"),
         base_model.tokenizer_repository,
@@ -378,7 +406,9 @@ def validate_adapter_artifacts(
         field="run_manifest.base_model.tokenizer_revision",
     )
     run_adapter = _require_mapping(run_manifest.get("adapter"), field="run_manifest.adapter")
-    _require_equal(run_adapter.get("adapter_id"), manifest.adapter_id, field="run_manifest.adapter.adapter_id")
+    _require_equal(
+        run_adapter.get("adapter_id"), manifest.adapter_id, field="run_manifest.adapter.adapter_id"
+    )
     _require_equal(run_adapter.get("family"), manifest.family, field="run_manifest.adapter.family")
     _require_equal(run_manifest.get("language"), manifest.language, field="run_manifest.language")
     run_git = _require_mapping(run_manifest.get("git"), field="run_manifest.git")
@@ -387,17 +417,27 @@ def validate_adapter_artifacts(
     training_run_id = _require_str(run_manifest, "run_id", field="run_manifest")
     _require_equal(training_run_id, manifest.training.run_id, field="run_manifest.run_id")
 
-    _require_equal(str(adapter_config.get("peft_type", "")).upper(), "LORA", field="adapter_config.peft_type")
+    _require_equal(
+        str(adapter_config.get("peft_type", "")).upper(), "LORA", field="adapter_config.peft_type"
+    )
     _require_equal(adapter_config.get("task_type"), "CAUSAL_LM", field="adapter_config.task_type")
-    _require_equal(adapter_config.get("inference_mode"), True, field="adapter_config.inference_mode")
+    _require_equal(
+        adapter_config.get("inference_mode"), True, field="adapter_config.inference_mode"
+    )
     _require_equal(
         adapter_config.get("base_model_name_or_path"),
         base_model.repository,
         field="adapter_config.base_model_name_or_path",
     )
     _require_equal(adapter_config.get("r"), manifest.lora.rank, field="adapter_config.r")
-    _require_equal(adapter_config.get("lora_alpha"), manifest.lora.alpha, field="adapter_config.lora_alpha")
-    _require_equal(adapter_config.get("lora_dropout"), manifest.lora.dropout, field="adapter_config.lora_dropout")
+    _require_equal(
+        adapter_config.get("lora_alpha"), manifest.lora.alpha, field="adapter_config.lora_alpha"
+    )
+    _require_equal(
+        adapter_config.get("lora_dropout"),
+        manifest.lora.dropout,
+        field="adapter_config.lora_dropout",
+    )
     _require_equal(adapter_config.get("bias"), manifest.lora.bias, field="adapter_config.bias")
     _require_equal(
         adapter_config.get("peft_version"),
@@ -405,7 +445,9 @@ def validate_adapter_artifacts(
         field="adapter_config.peft_version",
     )
     config_targets = adapter_config.get("target_modules")
-    if not isinstance(config_targets, list) or any(not isinstance(item, str) for item in config_targets):
+    if not isinstance(config_targets, list) or any(
+        not isinstance(item, str) for item in config_targets
+    ):
         raise AdapterInferenceValidationError("adapter_config.target_modules must be a string list")
     _require_equal(
         tuple(sorted(cast(list[str], config_targets))),
@@ -464,7 +506,13 @@ def _resolved_revision(model: nn.Module) -> str:
 
 def _floating_parameter_dtypes(model: nn.Module) -> tuple[str, ...]:
     return tuple(
-        sorted({str(parameter.dtype) for parameter in model.parameters() if parameter.is_floating_point()})
+        sorted(
+            {
+                str(parameter.dtype)
+                for parameter in model.parameters()
+                if parameter.is_floating_point()
+            }
+        )
     )
 
 
@@ -495,7 +543,9 @@ def _prepare_inputs(
             inputs[str(key)] = value.to(device)
     ids = inputs.get("input_ids")
     if ids is None or ids.ndim != 2 or ids.shape[0] != 1 or ids.shape[1] <= 0:
-        raise AdapterInferenceValidationError("smoke prompt did not tokenize to one non-empty batch")
+        raise AdapterInferenceValidationError(
+            "smoke prompt did not tokenize to one non-empty batch"
+        )
     return inputs
 
 
@@ -556,7 +606,9 @@ def _generate(
 def _status_snapshot(model: object) -> AdapterStatusSnapshot:
     getter = getattr(model, "get_model_status", None)
     if not callable(getter):
-        raise AdapterInferenceValidationError("loaded PEFT model does not expose get_model_status()")
+        raise AdapterInferenceValidationError(
+            "loaded PEFT model does not expose get_model_status()"
+        )
     status: object = getter()
 
     def tuple_of_strings(name: str) -> tuple[str, ...]:
@@ -599,7 +651,9 @@ def _require_enabled_status(status: AdapterStatusSnapshot) -> None:
     if status.merged_adapters:
         raise AdapterInferenceValidationError("P7-007 requires an unmerged LoRA adapter")
     if status.trainable_params != 0:
-        raise AdapterInferenceValidationError("inference adapter unexpectedly has trainable parameters")
+        raise AdapterInferenceValidationError(
+            "inference adapter unexpectedly has trainable parameters"
+        )
 
 
 def _require_disabled_status(status: AdapterStatusSnapshot) -> None:
@@ -687,7 +741,9 @@ def run_adapter_inference_validation(
         revision=base_model.tokenizer_revision,
     )
     if not isinstance(tokenizer_obj, PreTrainedTokenizerBase):
-        raise AdapterInferenceValidationError("Transformers returned an unexpected tokenizer object")
+        raise AdapterInferenceValidationError(
+            "Transformers returned an unexpected tokenizer object"
+        )
     tokenizer = cast(_Tokenizer, tokenizer_obj)
     if not isinstance(tokenizer.chat_template, str) or not tokenizer.chat_template:
         raise AdapterInferenceValidationError("canonical tokenizer does not expose a chat template")
@@ -753,7 +809,9 @@ def run_adapter_inference_validation(
         raise AdapterInferenceValidationError("PEFT model does not expose get_base_model()")
     same_base_object = id(get_base()) == base_object_id
     if not same_base_object:
-        raise AdapterInferenceValidationError("PEFT attachment did not preserve the loaded base object")
+        raise AdapterInferenceValidationError(
+            "PEFT attachment did not preserve the loaded base object"
+        )
 
     enabled_status = _status_snapshot(adapted)
     _require_enabled_status(enabled_status)
