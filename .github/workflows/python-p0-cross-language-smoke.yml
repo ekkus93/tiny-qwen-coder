@@ -1,0 +1,123 @@
+name: Python P0 cross-language smoke
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: python-p0-cross-language-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    name: Compare base vs Python P0 on TypeScript and Rust
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+    timeout-minutes: 60
+    env:
+      TOKENIZERS_PARALLELISM: "false"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      P7_006_RUN_ID: "33422910444"
+      P7_006_ARTIFACT_NAME: "python-p0-full-training-02df92a9c2d347b9fb013dc25714fe066c6bcafe"
+      EXPECTED_ADAPTER_SHA256: "c94606250e112f72362eb883a55f7b2c8af854d445f6bb6194352c2806a8f276"
+    steps:
+      - name: Check out evaluation source
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          clean: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Verify CUDA runtime
+        run: |
+          set -euo pipefail
+          nvidia-smi
+          uv sync --frozen
+          uv run --frozen python - <<'PY'
+          import torch
+
+          if not torch.cuda.is_available():
+              raise SystemExit("P8-003 requires CUDA")
+          if not torch.cuda.is_bf16_supported():
+              raise SystemExit("P8-003 requires BF16-capable CUDA")
+          print(torch.cuda.get_device_name(0))
+          PY
+
+      - name: Confirm clean evaluation source
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain)"
+          git rev-parse HEAD
+
+      - name: Download canonical P7-006 artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ env.P7_006_ARTIFACT_NAME }}
+          path: ${{ runner.temp }}/p7-006-artifact
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ env.P7_006_RUN_ID }}
+
+      - name: Locate canonical P7-006 output fail closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t manifests < <(find "${RUNNER_TEMP}/p7-006-artifact" -type f -path '*/artifacts/train/python/p0/adapter-manifest.json' -print | sort)
+          if [[ "${#manifests[@]}" -ne 1 ]]; then
+            printf 'Expected exactly one P7-006 adapter manifest; found %s\n' "${#manifests[@]}" >&2
+            exit 1
+          fi
+          training_output="$(dirname "${manifests[0]}")"
+          actual_sha="$(sha256sum "${training_output}/adapter/adapter_model.safetensors" | awk '{print $1}')"
+          if [[ "${actual_sha}" != "${EXPECTED_ADAPTER_SHA256}" ]]; then
+            printf 'P7-006 adapter SHA mismatch: %s\n' "${actual_sha}" >&2
+            exit 1
+          fi
+          printf 'P7_006_TRAINING_OUTPUT=%s\n' "${training_output}" >> "${GITHUB_ENV}"
+
+      - name: Run frozen P8-003 smoke
+        run: |
+          set -euo pipefail
+          uv run --frozen python -m tiny_qwen_coder.evaluation.cross_language_smoke run \
+            --training-output "${P7_006_TRAINING_OUTPUT}"
+
+      - name: Independently verify P8-003 report
+        run: |
+          set -euo pipefail
+          uv run --frozen python -m tiny_qwen_coder.evaluation.cross_language_smoke verify \
+            | tee "${RUNNER_TEMP}/p8-003-verified-report.json"
+
+      - name: Upload canonical P8-003 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: p8-003-python-p0-cross-language-${{ github.sha }}
+          path: |
+            artifacts/eval/python/p0-cross-language-smoke-v1/report.json
+            ${{ runner.temp }}/p8-003-verified-report.json
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 7
+
+      - name: Upload partial P8-003 evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p8-003-python-p0-cross-language-partial-${{ github.sha }}
+          path: artifacts/eval/python/p0-cross-language-smoke-v1/
+          if-no-files-found: ignore
+          include-hidden-files: true
+          retention-days: 3
