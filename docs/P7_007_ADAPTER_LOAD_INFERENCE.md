@@ -46,16 +46,25 @@ The CUDA validator then:
 2. verifies the resolved upstream model revision;
 3. generates two fixed, non-benchmark Python smoke prompts greedily with the
    unchanged base;
-4. attaches the P0 LoRA with `is_trainable=False`;
+4. attaches the P0 LoRA with `is_trainable=False` and explicitly freezes all
+   parameters for inference;
 5. verifies the PEFT adapter is active, unmerged, and has zero trainable
    parameters;
 6. generates the same fixed prompts with the adapter enabled;
 7. enters PEFT's `disable_adapter()` context on the same loaded model and
    requires exact base token IDs and decoded text;
-8. exits the context, verifies the adapter is enabled again, and requires exact
-   reproduction of the earlier adapted token IDs and decoded text; and
+8. exits the context, explicitly re-freezes all parameters, verifies the adapter
+   is enabled again, and requires exact reproduction of the earlier adapted
+   token IDs and decoded text; and
 9. records GPU memory, load times, identities, status snapshots, and all four
    deterministic generations in the acceptance report.
+
+PEFT 0.20.0 can restore `requires_grad=True` on active LoRA parameters when
+`disable_adapter()` restores the adapter on context exit. P7-007 does not relax
+the inference-only requirement around that behavior: it explicitly applies
+`requires_grad_(False)` to the same already-loaded PEFT model and scans the
+actual parameters to prove that none remain trainable before accepting the
+re-enabled state.
 
 The adapter is *not* required to change the output of every smoke prompt. That
 would be an invalid acceptance criterion because a correct specialized model may
