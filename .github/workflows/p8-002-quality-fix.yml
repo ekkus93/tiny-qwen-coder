@@ -1,0 +1,74 @@
+name: P8-002 temporary quality fix
+
+on:
+  push:
+    branches:
+      - ralph/p8-002-general-tool-regression
+    paths:
+      - ".github/workflows/p8-002-quality-fix.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ralph/p8-002-general-tool-regression
+          clean: true
+          fetch-depth: 1
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - name: Apply narrow static-type cleanup
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("src/tiny_qwen_coder/evaluation/python_p0_regression.py")
+          text = path.read_text(encoding="utf-8")
+          replacements = [
+              ("from tiny_qwen_coder.config import load_evaluation_config", "from tiny_qwen_coder.config import EvaluationConfig, load_evaluation_config"),
+              ("from tiny_qwen_coder.evaluation._baseline_generation import BaselineGenerator, prompt_sha256", "from tiny_qwen_coder.evaluation._baseline_generation import BaselineGenerator"),
+              ("    DEFAULT_CONFIG,\n", "    DEFAULT_CONFIG,\n    PersistedAdapterEvidence,\n"),
+              ("    RegressionCategory,\n", "    RegressionCategory,\n    RegressionSuite,\n"),
+              ("from tiny_qwen_coder.evaluation.settings import (\n    evaluation_settings_sha256,", "from tiny_qwen_coder.evaluation.settings import (\n    FrozenEvaluationSettings,\n    evaluation_settings_sha256,"),
+              ("    load_frozen_evaluation_settings,\n)\n", "    load_frozen_evaluation_settings,\n)\nfrom tiny_qwen_coder.identities import BaseModelIdentity\n"),
+              ("def _context() -> tuple[object, object, object, str, str, object]:", "def _context() -> tuple[\n    EvaluationConfig, FrozenEvaluationSettings, BaseModelIdentity, str, str, RegressionSuite\n]:"),
+              ("    persisted_adapter = cast(object, type(\"Adapter\", (), _adapter_identity())())", "    persisted_adapter = PersistedAdapterEvidence(\n        adapter_id=EXPECTED_ADAPTER_ID,\n        family=EXPECTED_ADAPTER_FAMILY,\n        adapter_model_sha256=EXPECTED_ADAPTER_SHA256,\n        adapter_model_size_bytes=EXPECTED_ADAPTER_SIZE_BYTES,\n        training_run_id=EXPECTED_TRAINING_RUN_ID,\n        training_git_sha=EXPECTED_TRAINING_GIT_SHA,\n    )"),
+          ]
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit(f"expected P8-002 source pattern missing: {old!r}")
+              text = text.replace(old, new, 1)
+          path.write_text(text, encoding="utf-8")
+          PY
+      - name: Sync and validate
+        run: |
+          set -euo pipefail
+          uv sync --frozen
+          uv run --frozen ruff check --fix src/tiny_qwen_coder/evaluation/python_p0_regression.py tests/unit/test_python_p0_regression.py tests/unit/test_python_p0_regression_workflow.py
+          uv run --frozen ruff format src/tiny_qwen_coder/evaluation/python_p0_regression.py tests/unit/test_python_p0_regression.py tests/unit/test_python_p0_regression_workflow.py
+          uv run --frozen ruff format --check .
+          uv run --frozen ruff check .
+          uv run --frozen mypy src scripts tests
+          uv run --frozen pytest
+          git diff --check
+      - name: Commit validated source cleanup
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/tiny_qwen_coder/evaluation/python_p0_regression.py tests/unit/test_python_p0_regression.py tests/unit/test_python_p0_regression_workflow.py
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo "No cleanup changes required"
+            exit 0
+          fi
+          git commit -m "fix: satisfy P8-002 quality gates"
+          git push origin HEAD:ralph/p8-002-general-tool-regression
