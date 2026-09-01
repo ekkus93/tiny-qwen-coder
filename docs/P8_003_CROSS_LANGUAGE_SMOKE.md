@@ -41,12 +41,14 @@ The workflow downloads the canonical P7-006 GitHub Actions artifact and refuses 
 
 The detection rule is frozen before seeing P8-003 GPU output.
 
-A catastrophic non-Python collapse is flagged if either condition holds:
+The probe is conclusive only when the unchanged base passes at least two of three TypeScript cases **and** at least two of three Rust cases. If either base-language score is below `2/3`, the run is recorded as `inconclusive_base`; it must not be interpreted as evidence that Python P0 avoided cross-language collapse, and P8-003 remains open.
+
+Once the base signal is adequate, a catastrophic non-Python collapse is flagged if either condition holds:
 
 1. For TypeScript or Rust individually, the base passes at least two of the three cases and Python P0 passes zero.
 2. Across all six cases, the base passes at least four and Python P0 passes half or fewer of the number passed by the base.
 
-The measurement remains valid even if this flag is true. A negative model result is evidence, not an evaluation-harness failure.
+A conclusive run records one of `catastrophic_regression` or `no_catastrophic_regression`. The measurement remains valid even when a catastrophic regression is detected. A negative model result is evidence, not an evaluation-harness failure.
 
 ## Runtime contract
 
@@ -60,11 +62,11 @@ The canonical workflow `.github/workflows/python-p0-cross-language-smoke.yml` is
 6. attaches the LoRA to that same resident base object and verifies it remains unmerged/inference-only;
 7. generates the same six prompts with Python P0 enabled;
 8. scores every response and records per-case transitions plus per-language/overall totals;
-9. independently rereads and recomputes the persisted report;
+9. independently rereads and recomputes the persisted report, including the source Git identity;
 10. uploads compact evidence for seven days, or partial evidence for three days on failure.
 
-There is no CPU/full-precision/model-substitution fallback. A missing GPU, base revision drift, tokenizer/template drift, adapter provenance mismatch, malformed evidence, or unexpected PEFT state fails closed.
+There is no CPU/full-precision/model-substitution fallback. A missing GPU, base revision drift, tokenizer/template drift, adapter provenance mismatch, malformed evidence, unexpected PEFT state, or source-identity mismatch fails closed.
 
 ## Interpretation
 
-P8-003 is supplemental diagnostic evidence for P8-004. The decisive Python result remains P8-001, where P0 materially regressed HumanEval, MBPP, and the repository holdout. A clean P8-003 result would only narrow the failure mode: it would suggest the Python adapter's largest observed damage is concentrated in Python/coding-task behavior rather than a wholesale inability to emit basic TypeScript/Rust-shaped code.
+P8-003 is supplemental diagnostic evidence for P8-004. The decisive Python result remains P8-001, where P0 materially regressed HumanEval, MBPP, and the repository holdout. A conclusive clean P8-003 result would only narrow the failure mode: it would suggest the Python adapter's largest observed damage is concentrated in Python/coding-task behavior rather than a wholesale inability to emit basic TypeScript/Rust-shaped code.
