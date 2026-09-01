@@ -27,6 +27,23 @@ jobs:
           enable-cache: true
       - name: Sync frozen environment
         run: uv sync --frozen
+      - name: Apply strict P8-003 typing fix
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/tiny_qwen_coder/evaluation/cross_language_smoke.py")
+          text = path.read_text(encoding="utf-8")
+          old_import = "    GenerationObservation,\n"
+          new_import = "    GenerationObservation,\n    VerifiedAdapterArtifacts,\n"
+          old_sig = "def _adapter_identity(artifacts: object) -> dict[str, object]:"
+          new_sig = "def _adapter_identity(artifacts: VerifiedAdapterArtifacts) -> dict[str, object]:"
+          if text.count(old_import) != 1 or text.count(old_sig) != 1:
+              raise SystemExit("P8-003 strict typing patch did not match expected source")
+          text = text.replace(old_import, new_import, 1).replace(old_sig, new_sig, 1)
+          path.write_text(text, encoding="utf-8")
+          PY
       - name: Format and apply safe lint fixes to P8-003 files
         run: |
           set -euo pipefail
@@ -51,5 +68,5 @@ jobs:
             echo "No cleanup changes required"
             exit 0
           fi
-          git commit -m "style: normalize P8-003 implementation"
+          git commit -m "fix: satisfy P8-003 quality gates"
           git push origin HEAD:ralph/p8-003-cross-language-smoke
