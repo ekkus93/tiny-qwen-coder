@@ -1,0 +1,93 @@
+name: P7-007 Temporary Freeze Patch
+
+on:
+  push:
+    branches:
+      - ralph/p7-007-adapter-inference-validation
+    paths:
+      - ".github/workflows/p7-007-temp-freeze-patch.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v5
+        with:
+          ref: ralph/p7-007-adapter-inference-validation
+
+      - name: Apply fail-closed inference freeze patch
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          runtime = Path("src/tiny_qwen_coder/runtime/adapter_validation.py")
+          text = runtime.read_text(encoding="utf-8")
+
+          status_anchor = "\ndef _status_snapshot(model: object) -> AdapterStatusSnapshot:\n"
+          helper = '''\ndef _freeze_inference_parameters(model: nn.Module) -> None:\n    \"\"\"Force and verify a fully frozen inference-only parameter state.\"\"\"\n\n    model.requires_grad_(False)\n    trainable_names = tuple(\n        name for name, parameter in model.named_parameters() if parameter.requires_grad\n    )\n    if trainable_names:\n        preview = ", ".join(trainable_names[:5])\n        raise AdapterInferenceValidationError(\n            \"could not freeze all inference parameters; still trainable: \" + preview\n        )\n\n\n'''
+          if status_anchor not in text:
+              raise SystemExit("status helper insertion anchor not found")
+          text = text.replace(status_anchor, "\n" + helper + "def _status_snapshot(model: object) -> AdapterStatusSnapshot:\n", 1)
+
+          load_anchor = "    adapted = adapted_obj\n    adapted.eval()\n"
+          if load_anchor not in text:
+              raise SystemExit("adapter-load freeze anchor not found")
+          text = text.replace(
+              load_anchor,
+              load_anchor + "    _freeze_inference_parameters(adapted)\n",
+              1,
+          )
+
+          reenable_anchor = "\n    reenabled_status = _status_snapshot(adapted)\n"
+          if reenable_anchor not in text:
+              raise SystemExit("adapter re-enable freeze anchor not found")
+          text = text.replace(
+              reenable_anchor,
+              "\n    # PEFT adapter reactivation may restore requires_grad on LoRA parameters.\n"
+              "    # Re-freeze explicitly before accepting inference-only state.\n"
+              "    _freeze_inference_parameters(adapted)\n"
+              "    reenabled_status = _status_snapshot(adapted)\n",
+              1,
+          )
+          runtime.write_text(text, encoding="utf-8")
+
+          tests = Path("tests/unit/test_adapter_inference_validation.py")
+          test_text = tests.read_text(encoding="utf-8")
+          import_anchor = "import pytest\n"
+          if import_anchor not in test_text:
+              raise SystemExit("test torch import anchor not found")
+          test_text = test_text.replace(import_anchor, "import pytest\nfrom torch import nn\n", 1)
+
+          symbol_anchor = "    GenerationObservation,\n"
+          if symbol_anchor not in test_text:
+              raise SystemExit("test helper import anchor not found")
+          test_text = test_text.replace(
+              symbol_anchor,
+              symbol_anchor + "    _freeze_inference_parameters,\n",
+              1,
+          )
+
+          test_anchor = "\ndef test_disable_and_reenable_must_recover_exact_deterministic_outputs() -> None:\n"
+          regression = '''\ndef test_inference_freeze_is_reapplied_after_adapter_reactivation() -> None:\n    model = nn.Linear(2, 2)\n    assert any(parameter.requires_grad for parameter in model.parameters())\n\n    _freeze_inference_parameters(model)\n    assert all(not parameter.requires_grad for parameter in model.parameters())\n\n    for parameter in model.parameters():\n        parameter.requires_grad_(True)\n    assert any(parameter.requires_grad for parameter in model.parameters())\n\n    _freeze_inference_parameters(model)\n    assert all(not parameter.requires_grad for parameter in model.parameters())\n\n\n'''
+          if test_anchor not in test_text:
+              raise SystemExit("test insertion anchor not found")
+          test_text = test_text.replace(test_anchor, "\n" + regression + test_anchor.lstrip("\n"), 1)
+          tests.write_text(test_text, encoding="utf-8")
+          PY
+
+      - name: Remove temporary patch workflow
+        run: git rm .github/workflows/p7-007-temp-freeze-patch.yml
+
+      - name: Commit patch
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/tiny_qwen_coder/runtime/adapter_validation.py tests/unit/test_adapter_inference_validation.py
+          git commit -m "fix: refreeze LoRA after PEFT adapter reactivation"
+          git push origin HEAD:ralph/p7-007-adapter-inference-validation
