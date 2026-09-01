@@ -750,14 +750,16 @@ Acceptance criteria:
 
 ## P7-007 — Validate adapter load/inference
 
-- [ ] Load canonical base.
-- [ ] attach Python adapter.
-- [ ] generate fixed smoke prompts.
-- [ ] disable adapter and recover base behavior.
+- [x] Load canonical base.
+- [x] attach Python adapter.
+- [x] generate fixed smoke prompts.
+- [x] disable adapter and recover base behavior.
 
 Acceptance criteria:
 
 - Adapter can be enabled/disabled without rebuilding the full model.
+
+Implementation note: GPU run `33509937071` validated the exact P7-006 Python P0 adapter against the pinned Qwen3.5-4B base. The base loaded once, PEFT preserved the same underlying base object, disabled inference exactly recovered base token IDs/text, re-enabled inference exactly recovered adapted token IDs/text, and all adapter states remained unmerged with zero trainable parameters. PEFT 0.20.0 reactivation is handled fail closed by explicitly restoring inference mode and independently verifying all parameters are frozen.
 
 ---
 
