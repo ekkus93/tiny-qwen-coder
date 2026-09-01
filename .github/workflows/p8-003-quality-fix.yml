@@ -27,22 +27,41 @@ jobs:
           enable-cache: true
       - name: Sync frozen environment
         run: uv sync --frozen
-      - name: Apply strict P8-003 typing fix
+      - name: Apply P8-003 conclusiveness safeguards
         run: |
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
 
-          path = Path("src/tiny_qwen_coder/evaluation/cross_language_smoke.py")
-          text = path.read_text(encoding="utf-8")
-          old_import = "    GenerationObservation,\n"
-          new_import = "    GenerationObservation,\n    VerifiedAdapterArtifacts,\n"
-          old_sig = "def _adapter_identity(artifacts: object) -> dict[str, object]:"
-          new_sig = "def _adapter_identity(artifacts: VerifiedAdapterArtifacts) -> dict[str, object]:"
-          if text.count(old_import) != 1 or text.count(old_sig) != 1:
-              raise SystemExit("P8-003 strict typing patch did not match expected source")
-          text = text.replace(old_import, new_import, 1).replace(old_sig, new_sig, 1)
-          path.write_text(text, encoding="utf-8")
+          source = Path("src/tiny_qwen_coder/evaluation/cross_language_smoke.py")
+          text = source.read_text(encoding="utf-8")
+          replacements = [
+              (
+                  '''                "delta_passed": adapter_passed - base_passed,\n                "catastrophic_regression": catastrophic,\n''',
+                  '''                "delta_passed": adapter_passed - base_passed,\n                "baseline_adequate": base_passed >= 2,\n                "catastrophic_regression": catastrophic,\n''',
+              ),
+              (
+                  '''    language_collapse = any(item.get("catastrophic_regression") is True for item in languages)\n    overall_collapse = base_passed >= 4 and adapter_passed * 2 <= base_passed\n    return {\n        "total_cases": len(cases),\n        "base_passed": base_passed,\n        "adapter_passed": adapter_passed,\n        "delta_passed": adapter_passed - base_passed,\n        "regressions": regressions,\n        "improvements": improvements,\n        "catastrophic_non_python_collapse_detected": language_collapse or overall_collapse,\n    }\n''',
+                  '''    baseline_adequate = all(item.get("baseline_adequate") is True for item in languages)\n    language_collapse = any(item.get("catastrophic_regression") is True for item in languages)\n    overall_collapse = base_passed >= 4 and adapter_passed * 2 <= base_passed\n    catastrophic = baseline_adequate and (language_collapse or overall_collapse)\n    if not baseline_adequate:\n        conclusion = "inconclusive_base"\n    elif catastrophic:\n        conclusion = "catastrophic_regression"\n    else:\n        conclusion = "no_catastrophic_regression"\n    return {\n        "total_cases": len(cases),\n        "base_passed": base_passed,\n        "adapter_passed": adapter_passed,\n        "delta_passed": adapter_passed - base_passed,\n        "regressions": regressions,\n        "improvements": improvements,\n        "baseline_adequate_for_collapse_detection": baseline_adequate,\n        "catastrophic_non_python_collapse_detected": catastrophic,\n        "conclusion": conclusion,\n    }\n''',
+              ),
+              (
+                  '''    if report.get("measurement_complete") is not True:\n        raise CrossLanguageSmokeError("P8-003 report is not complete")\n''',
+                  '''    if report.get("measurement_complete") is not True:\n        raise CrossLanguageSmokeError("P8-003 report is not complete")\n    source_git_sha, _ = _preflight_source_tree(Path("."))\n    if report.get("source_git_sha") != source_git_sha:\n        raise CrossLanguageSmokeError("P8-003 report source Git SHA drifted")\n''',
+              ),
+          ]
+          for old, new in replacements:
+              if text.count(old) != 1:
+                  raise SystemExit("P8-003 source safeguard patch did not match expected state")
+              text = text.replace(old, new, 1)
+          source.write_text(text, encoding="utf-8")
+
+          test = Path("tests/unit/test_cross_language_smoke.py")
+          text = test.read_text(encoding="utf-8")
+          old = '''def test_catastrophic_rule_is_frozen_before_gpu_measurement() -> None:\n    no_collapse_rows = _rows(ts_base=3, ts_adapter=2, rust_base=3, rust_adapter=2)\n    no_collapse_languages = _language_summary(no_collapse_rows)\n    no_collapse = _overall_summary(no_collapse_rows, no_collapse_languages)\n    assert no_collapse["catastrophic_non_python_collapse_detected"] is False\n\n    language_collapse_rows = _rows(ts_base=2, ts_adapter=0, rust_base=1, rust_adapter=1)\n    language_collapse_languages = _language_summary(language_collapse_rows)\n    language_collapse = _overall_summary(language_collapse_rows, language_collapse_languages)\n    assert language_collapse["catastrophic_non_python_collapse_detected"] is True\n\n    overall_collapse_rows = _rows(ts_base=3, ts_adapter=1, rust_base=3, rust_adapter=2)\n    overall_collapse_languages = _language_summary(overall_collapse_rows)\n    overall_collapse = _overall_summary(overall_collapse_rows, overall_collapse_languages)\n    assert overall_collapse["catastrophic_non_python_collapse_detected"] is True\n'''
+          new = '''def test_catastrophic_rule_is_frozen_before_gpu_measurement() -> None:\n    no_collapse_rows = _rows(ts_base=3, ts_adapter=2, rust_base=3, rust_adapter=2)\n    no_collapse_languages = _language_summary(no_collapse_rows)\n    no_collapse = _overall_summary(no_collapse_rows, no_collapse_languages)\n    assert no_collapse["baseline_adequate_for_collapse_detection"] is True\n    assert no_collapse["catastrophic_non_python_collapse_detected"] is False\n    assert no_collapse["conclusion"] == "no_catastrophic_regression"\n\n    inconclusive_rows = _rows(ts_base=2, ts_adapter=0, rust_base=1, rust_adapter=1)\n    inconclusive_languages = _language_summary(inconclusive_rows)\n    inconclusive = _overall_summary(inconclusive_rows, inconclusive_languages)\n    assert inconclusive["baseline_adequate_for_collapse_detection"] is False\n    assert inconclusive["catastrophic_non_python_collapse_detected"] is False\n    assert inconclusive["conclusion"] == "inconclusive_base"\n\n    language_collapse_rows = _rows(ts_base=2, ts_adapter=0, rust_base=2, rust_adapter=2)\n    language_collapse_languages = _language_summary(language_collapse_rows)\n    language_collapse = _overall_summary(language_collapse_rows, language_collapse_languages)\n    assert language_collapse["baseline_adequate_for_collapse_detection"] is True\n    assert language_collapse["catastrophic_non_python_collapse_detected"] is True\n    assert language_collapse["conclusion"] == "catastrophic_regression"\n\n    overall_collapse_rows = _rows(ts_base=3, ts_adapter=1, rust_base=3, rust_adapter=2)\n    overall_collapse_languages = _language_summary(overall_collapse_rows)\n    overall_collapse = _overall_summary(overall_collapse_rows, overall_collapse_languages)\n    assert overall_collapse["baseline_adequate_for_collapse_detection"] is True\n    assert overall_collapse["catastrophic_non_python_collapse_detected"] is True\n    assert overall_collapse["conclusion"] == "catastrophic_regression"\n'''
+          if text.count(old) != 1:
+              raise SystemExit("P8-003 test safeguard patch did not match expected state")
+          test.write_text(text.replace(old, new, 1), encoding="utf-8")
           PY
       - name: Format and apply safe lint fixes to P8-003 files
         run: |
@@ -68,5 +87,5 @@ jobs:
             echo "No cleanup changes required"
             exit 0
           fi
-          git commit -m "fix: satisfy P8-003 quality gates"
+          git commit -m "fix: make P8-003 collapse result conclusive"
           git push origin HEAD:ralph/p8-003-cross-language-smoke
