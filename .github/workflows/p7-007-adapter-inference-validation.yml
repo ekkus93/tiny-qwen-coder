@@ -2,6 +2,11 @@ name: P7-007 Adapter Inference Validation
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - ralph/p7-007-adapter-inference-validation
+    paths:
+      - ".github/workflows/p7-007-adapter-inference-validation.yml"
 
 permissions:
   actions: read
