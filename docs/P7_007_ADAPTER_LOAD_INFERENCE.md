@@ -87,7 +87,13 @@ The command emits the JSON report only after all acceptance conditions pass.
 
 ## Acceptance evidence
 
-GPU acceptance is pending on branch `ralph/p7-007-adapter-inference-validation`.
-The workflow remains manual-only while CPU quality gates are established. A temporary
-branch-only one-shot trigger will be armed only after those gates pass, then removed
-after GPU acceptance so the final merged workflow remains manual-only.
+The first one-shot GPU validation, run `33508371761`, successfully verified the
+CUDA runtime, downloaded and located the exact P7-006 artifact, loaded the
+canonical base, attached the LoRA, and exercised the disable/re-enable path. It
+failed closed because PEFT 0.20.0 restored LoRA parameters as trainable when the
+`disable_adapter()` context exited. The validator now explicitly re-freezes and
+verifies the same model before accepting the restored adapter state.
+
+Final GPU acceptance remains pending on branch
+`ralph/p7-007-adapter-inference-validation`. The branch-only GPU trigger will be
+removed after acceptance so the merged workflow remains manual-only.
