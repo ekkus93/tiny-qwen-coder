@@ -1,0 +1,19 @@
+schema_version: 1
+base_config: configs/base/qwen35-4b.yaml
+language: python
+adapter_id: language/python/p0
+suites:
+  - humaneval
+  - mbpp
+  - repository-holdout
+output_dir: artifacts/eval/python/p0-v1
+seed: 1729
+generation:
+  temperature: 0
+  top_p: 1
+  top_k: 0
+  max_new_tokens: 512
+  prompt_version: canonical-evaluation-prompt-v1
+execution:
+  timeout_seconds: 10
+  network_enabled: false

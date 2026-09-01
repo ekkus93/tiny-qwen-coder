@@ -769,14 +769,16 @@ Goal: determine whether the first adapter genuinely improved Python without unac
 
 ## P8-001 — Evaluate Python P0 adapter
 
-- [ ] HumanEval.
-- [ ] MBPP.
-- [ ] custom Python suite.
-- [ ] same frozen generation config as baseline.
+- [x] HumanEval.
+- [x] MBPP.
+- [x] custom Python suite.
+- [x] same frozen generation config as baseline.
 
 Acceptance criteria:
 
 - Direct base-vs-adapter comparison artifact generated.
+
+Implementation note: canonical run `33538724658` completed GPU generation, constrained scoring, independent verification, and evidence upload for the accepted P7-006 `language/python/p0` adapter. HumanEval fell from `128/164` (`0.7804878048780488`) to `88/164` (`0.5365853658536586`); MBPP fell from `290/500` (`0.58`) to `97/500` (`0.194`); repository holdout fell from `6/11` (`0.5454545454545454`) to `2/11` (`0.18181818181818182`). Combined coding performance fell from `424/675` (`0.6281481481481481`) to `187/675` (`0.277037037037037`), a delta of `-237` passes / `-0.3511111111111111` micro pass rate. P8-001 is therefore complete as a measurement; promotion/rejection remains a later Phase 8 decision.
 
 ## P8-002 — Run general/tool regression suite
 
