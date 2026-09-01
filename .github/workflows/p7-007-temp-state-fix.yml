@@ -39,9 +39,11 @@ jobs:
 
           old = '''    # PEFT adapter reactivation may restore requires_grad on LoRA parameters.\n    # Re-freeze explicitly before accepting inference-only state.\n    _freeze_inference_parameters(adapted)\n    reenabled_status = _status_snapshot(adapted)\n'''
           new = '''    # PEFT 0.20 disable_adapter() re-enables through inference_mode=False.\n    # Restore the public PEFT inference contract, then independently verify all params are frozen.\n    restore_inference_only_adapter(adapted)\n    _freeze_inference_parameters(adapted)\n    reenabled_status = _status_snapshot(adapted)\n'''
-          if text.count(old) != 1:
-              raise SystemExit("re-enable freeze anchor mismatch")
-          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          if "restore_inference_only_adapter(adapted)" not in text:
+              if text.count(old) != 1:
+                  raise SystemExit("re-enable freeze anchor mismatch")
+              text = text.replace(old, new, 1)
+          path.write_text(text, encoding="utf-8")
 
           tests_path = Path("tests/unit/test_adapter_inference_validation.py")
           tests = tests_path.read_text(encoding="utf-8")
@@ -71,4 +73,6 @@ jobs:
           git add src/tiny_qwen_coder/runtime/adapter_validation.py tests/unit/test_adapter_inference_validation.py
           git diff --cached --check
           git commit -m "fix: restore PEFT inference state after disable"
+          git fetch origin ralph/p7-007-adapter-inference-validation
+          git rebase origin/ralph/p7-007-adapter-inference-validation
           git push origin HEAD:ralph/p7-007-adapter-inference-validation
