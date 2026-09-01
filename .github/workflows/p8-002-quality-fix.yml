@@ -25,13 +25,14 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
-      - name: Apply narrow static-type cleanup
+      - name: Apply narrow quality fixes
         run: |
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
-          path = Path("src/tiny_qwen_coder/evaluation/python_p0_regression.py")
-          text = path.read_text(encoding="utf-8")
+
+          source = Path("src/tiny_qwen_coder/evaluation/python_p0_regression.py")
+          text = source.read_text(encoding="utf-8")
           replacements = [
               ("from tiny_qwen_coder.config import load_evaluation_config", "from tiny_qwen_coder.config import EvaluationConfig, load_evaluation_config"),
               ("from tiny_qwen_coder.evaluation._baseline_generation import BaselineGenerator, prompt_sha256", "from tiny_qwen_coder.evaluation._baseline_generation import BaselineGenerator"),
@@ -41,12 +42,36 @@ jobs:
               ("    load_frozen_evaluation_settings,\n)\n", "    load_frozen_evaluation_settings,\n)\nfrom tiny_qwen_coder.identities import BaseModelIdentity\n"),
               ("def _context() -> tuple[object, object, object, str, str, object]:", "def _context() -> tuple[\n    EvaluationConfig, FrozenEvaluationSettings, BaseModelIdentity, str, str, RegressionSuite\n]:"),
               ("    persisted_adapter = cast(object, type(\"Adapter\", (), _adapter_identity())())", "    persisted_adapter = PersistedAdapterEvidence(\n        adapter_id=EXPECTED_ADAPTER_ID,\n        family=EXPECTED_ADAPTER_FAMILY,\n        adapter_model_sha256=EXPECTED_ADAPTER_SHA256,\n        adapter_model_size_bytes=EXPECTED_ADAPTER_SIZE_BYTES,\n        training_run_id=EXPECTED_TRAINING_RUN_ID,\n        training_git_sha=EXPECTED_TRAINING_GIT_SHA,\n    )"),
+              ("def _validate_stage(*, source_git_sha: str, generation_contract: str) -> dict[str, object]:", "def _validate_stage(\n    *, source_git_sha: str, generation_contract: str, settings_sha256: str\n) -> dict[str, object]:"),
+              ("    if stage.get(\"generation_contract_sha256\") != generation_contract:\n        raise PythonP0RegressionError(\"P8-002 generation contract drifted\")", "    if stage.get(\"evaluation_settings_sha256\") != settings_sha256:\n        raise PythonP0RegressionError(\"P8-002 frozen evaluation-settings hash drifted\")\n    if stage.get(\"generation_contract_sha256\") != generation_contract:\n        raise PythonP0RegressionError(\"P8-002 generation contract drifted\")"),
+              ("    _validate_stage(source_git_sha=source_git_sha, generation_contract=contract)", "    _validate_stage(\n        source_git_sha=source_git_sha,\n        generation_contract=contract,\n        settings_sha256=evaluation_settings_sha256(settings),\n    )"),
+              ("file_sha256(OUTPUT_DIR / cast(str, path))", "file_sha256(OUTPUT_DIR / path)"),
+              ("observed.append({\"path\": cast(str, path), \"sha256\": digest})", "observed.append({\"path\": path, \"sha256\": digest})"),
           ]
           for old, new in replacements:
               if old not in text:
                   raise SystemExit(f"expected P8-002 source pattern missing: {old!r}")
               text = text.replace(old, new, 1)
-          path.write_text(text, encoding="utf-8")
+          source.write_text(text, encoding="utf-8")
+
+          test = Path("tests/unit/test_python_p0_regression.py")
+          text = test.read_text(encoding="utf-8")
+          old_import = "from tiny_qwen_coder.evaluation import python_p0_regression as p8\n"
+          new_import = (
+              "from tiny_qwen_coder.evaluation import python_p0_regression as p8\n"
+              "from tiny_qwen_coder.evaluation._baseline_artifacts import file_sha256\n"
+              "from tiny_qwen_coder.evaluation._python_p0_contract import artifact_set_sha256\n"
+          )
+          if old_import not in text:
+              raise SystemExit("P8-002 test import marker missing")
+          text = text.replace(old_import, new_import, 1)
+          text = text.replace("p8.file_sha256", "file_sha256")
+          text = text.replace("p8.artifact_set_sha256", "artifact_set_sha256")
+          text = text.replace(
+              'p8._validate_stage(source_git_sha="a" * 40, generation_contract="contract")',
+              'p8._validate_stage(\n        source_git_sha="a" * 40, generation_contract="contract", settings_sha256="settings"\n    )',
+          )
+          test.write_text(text, encoding="utf-8")
           PY
       - name: Sync and validate
         run: |
