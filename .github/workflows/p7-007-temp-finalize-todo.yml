@@ -1,0 +1,42 @@
+name: P7-007 Temporary TODO Finalizer
+
+on:
+  push:
+    branches:
+      - ralph/p7-007-adapter-inference-validation
+    paths:
+      - ".github/workflows/p7-007-temp-finalize-todo.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ralph/p7-007-adapter-inference-validation
+      - name: Mark P7-007 complete
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("docs/TODO.md")
+          text = path.read_text(encoding="utf-8")
+          old = '''## P7-007 — Validate adapter load/inference\n\n- [ ] Load canonical base.\n- [ ] attach Python adapter.\n- [ ] generate fixed smoke prompts.\n- [ ] disable adapter and recover base behavior.\n\nAcceptance criteria:\n\n- Adapter can be enabled/disabled without rebuilding the full model.\n'''
+          new = '''## P7-007 — Validate adapter load/inference\n\n- [x] Load canonical base.\n- [x] attach Python adapter.\n- [x] generate fixed smoke prompts.\n- [x] disable adapter and recover base behavior.\n\nAcceptance criteria:\n\n- Adapter can be enabled/disabled without rebuilding the full model.\n\nImplementation note: GPU run `33509937071` validated the exact P7-006 Python P0 adapter against the pinned Qwen3.5-4B base. The base loaded once, PEFT preserved the same underlying base object, disabled inference exactly recovered base token IDs/text, re-enabled inference exactly recovered adapted token IDs/text, and all adapter states remained unmerged with zero trainable parameters. PEFT 0.20.0 reactivation is handled fail closed by explicitly restoring inference mode and independently verifying all parameters are frozen.\n'''
+          if text.count(old) != 1:
+              raise SystemExit("P7-007 TODO block did not match exactly")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
+      - name: Remove temporary workflow and commit
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/p7-007-temp-finalize-todo.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/TODO.md
+          git diff --cached --check
+          git commit -m "docs: mark P7-007 complete"
+          git push origin HEAD:ralph/p7-007-adapter-inference-validation
