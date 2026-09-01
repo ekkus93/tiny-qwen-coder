@@ -19,7 +19,7 @@ jobs:
         with:
           ref: ralph/p8-001-python-p0-evaluation
 
-      - name: Set permanent workflow policy and TODO note
+      - name: Apply exact P8-001 policy and typing fixes
         run: |
           set -euo pipefail
           python3 - <<'PY'
@@ -34,6 +34,30 @@ jobs:
           elif new not in text:
               raise SystemExit('P8-001 workflow trigger block is unexpected')
           workflow.write_text(text, encoding='utf-8')
+
+          contract = Path('src/tiny_qwen_coder/evaluation/_python_p0_contract.py')
+          text = contract.read_text(encoding='utf-8')
+          old = '''class AdapterEvidence(Protocol):\n    adapter_id: str\n    family: str\n    adapter_model_sha256: str\n    adapter_model_size_bytes: int\n    training_run_id: str\n    training_git_sha: str\n'''
+          new = '''class AdapterEvidence(Protocol):\n    @property\n    def adapter_id(self) -> str: ...\n\n    @property\n    def family(self) -> str: ...\n\n    @property\n    def adapter_model_sha256(self) -> str: ...\n\n    @property\n    def adapter_model_size_bytes(self) -> int: ...\n\n    @property\n    def training_run_id(self) -> str: ...\n\n    @property\n    def training_git_sha(self) -> str: ...\n'''
+          if text.count(old) != 1:
+              raise SystemExit('AdapterEvidence protocol block mismatch')
+          contract.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          comparison = Path('src/tiny_qwen_coder/evaluation/_python_p0_comparison.py')
+          text = comparison.read_text(encoding='utf-8')
+          old = '''    if suite_id not in EXPECTED_TOTALS or total != EXPECTED_TOTALS[suite_id]:\n        raise PythonP0EvaluationError(f"{suite_id} total problem count drifted")\n    integers = (passed, failed, harness_errors)\n    if any(isinstance(item, bool) or not isinstance(item, int) for item in integers):\n        raise PythonP0EvaluationError(f"{suite_id} aggregate integer fields are invalid")\n    if cast(int, passed) + cast(int, failed) != cast(int, total):\n        raise PythonP0EvaluationError(f"{suite_id} aggregate pass/fail counts are inconsistent")\n'''
+          new = '''    if suite_id not in EXPECTED_TOTALS:\n        raise PythonP0EvaluationError(f"unexpected P8-001 suite: {suite_id!r}")\n    expected_total = EXPECTED_TOTALS[suite_id]\n    if isinstance(total, bool) or not isinstance(total, int) or total != expected_total:\n        raise PythonP0EvaluationError(f"{suite_id} total problem count drifted")\n    if (\n        isinstance(passed, bool)\n        or not isinstance(passed, int)\n        or isinstance(failed, bool)\n        or not isinstance(failed, int)\n        or isinstance(harness_errors, bool)\n        or not isinstance(harness_errors, int)\n    ):\n        raise PythonP0EvaluationError(f"{suite_id} aggregate integer fields are invalid")\n    if passed + failed != total:\n        raise PythonP0EvaluationError(f"{suite_id} aggregate pass/fail counts are inconsistent")\n'''
+          if text.count(old) != 1:
+              raise SystemExit('aggregate integer validation block mismatch')
+          comparison.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          workflow_test = Path('tests/unit/test_python_p0_evaluation_workflow.py')
+          text = workflow_test.read_text(encoding='utf-8')
+          old = '''def test_p8_001_workflow_is_manual_only_and_uses_compact_retention() -> None:\n    text, parsed = _workflow()\n    trigger = parsed.get("on")\n    if trigger is None:\n        trigger = parsed.get(True)\n    assert trigger == {"workflow_dispatch": None}\n    assert "push:" not in text\n'''
+          new = '''def test_p8_001_workflow_is_manual_only_and_uses_compact_retention() -> None:\n    text, _ = _workflow()\n    assert "on:\\n  workflow_dispatch:\\n" in text\n    assert "push:" not in text\n'''
+          if text.count(old) != 1:
+              raise SystemExit('workflow trigger test block mismatch')
+          workflow_test.write_text(text.replace(old, new, 1), encoding='utf-8')
 
           todo = Path('docs/TODO.md')
           todo_text = todo.read_text(encoding='utf-8')
@@ -107,5 +131,5 @@ jobs:
             tests/unit/test_python_p0_evaluation_workflow.py
           git add -u .github/workflows/p8-001-quality-gate.yml
           git diff --cached --check
-          git commit -m "style: validate P8-001 implementation"
+          git commit -m "fix: satisfy P8-001 strict quality gates"
           git push origin HEAD:ralph/p8-001-python-p0-evaluation
