@@ -16,12 +16,12 @@ import torch
 from torch import nn
 
 from tiny_qwen_coder.evaluation._baseline_runner import _preflight_source_tree
-from tiny_qwen_coder.identities import BaseModelIdentity
 from tiny_qwen_coder.reporting import load_base_model_identity
 from tiny_qwen_coder.reproducibility import seed_everything
 from tiny_qwen_coder.runtime.adapter_validation import (
     AdapterInferenceValidationError,
     GenerationObservation,
+    VerifiedAdapterArtifacts,
     _floating_parameter_dtypes,
     _freeze_inference_parameters,
     _generate,
@@ -264,14 +264,14 @@ def _overall_summary(
     }
 
 
-def _adapter_identity(artifacts: object) -> dict[str, object]:
-    manifest = getattr(artifacts, "manifest")
+def _adapter_identity(artifacts: VerifiedAdapterArtifacts) -> dict[str, object]:
+    manifest = artifacts.manifest
     identity = {
         "adapter_id": manifest.adapter_id,
-        "adapter_model_sha256": getattr(artifacts, "adapter_model_sha256"),
-        "adapter_model_size_bytes": getattr(artifacts, "adapter_model_size_bytes"),
-        "training_run_id": getattr(artifacts, "training_run_id"),
-        "training_git_sha": getattr(artifacts, "training_git_sha"),
+        "adapter_model_sha256": artifacts.adapter_model_sha256,
+        "adapter_model_size_bytes": artifacts.adapter_model_size_bytes,
+        "training_run_id": artifacts.training_run_id,
+        "training_git_sha": artifacts.training_git_sha,
     }
     expected = {
         "adapter_id": EXPECTED_ADAPTER_ID,
@@ -281,7 +281,9 @@ def _adapter_identity(artifacts: object) -> dict[str, object]:
         "training_git_sha": EXPECTED_TRAINING_GIT_SHA,
     }
     if identity != expected:
-        raise CrossLanguageSmokeError("P8-003 adapter is not the accepted P7-006 Python P0 artifact")
+        raise CrossLanguageSmokeError(
+            "P8-003 adapter is not the accepted P7-006 Python P0 artifact"
+        )
     return identity
 
 
@@ -497,7 +499,10 @@ def verify_report(path: Path, *, base_config: Path = DEFAULT_BASE_CONFIG) -> dic
         raise CrossLanguageSmokeError("P8-003 report identity drifted")
     if report.get("measurement_complete") is not True:
         raise CrossLanguageSmokeError("P8-003 report is not complete")
-    if report.get("suite_sha256") != EXPECTED_SUITE_SHA256 or suite_sha256() != EXPECTED_SUITE_SHA256:
+    if (
+        report.get("suite_sha256") != EXPECTED_SUITE_SHA256
+        or suite_sha256() != EXPECTED_SUITE_SHA256
+    ):
         raise CrossLanguageSmokeError("P8-003 suite identity drifted")
     if report.get("system_prompt_version") != SYSTEM_PROMPT_VERSION:
         raise CrossLanguageSmokeError("P8-003 system prompt version drifted")
@@ -506,7 +511,11 @@ def verify_report(path: Path, *, base_config: Path = DEFAULT_BASE_CONFIG) -> dic
     if report.get("seed") != DEFAULT_SEED:
         raise CrossLanguageSmokeError("P8-003 seed drifted")
     max_new_tokens = report.get("max_new_tokens")
-    if isinstance(max_new_tokens, bool) or not isinstance(max_new_tokens, int) or max_new_tokens <= 0:
+    if (
+        isinstance(max_new_tokens, bool)
+        or not isinstance(max_new_tokens, int)
+        or max_new_tokens <= 0
+    ):
         raise CrossLanguageSmokeError("P8-003 max_new_tokens is invalid")
 
     base_model = load_base_model_identity(base_config)
@@ -552,7 +561,9 @@ def verify_report(path: Path, *, base_config: Path = DEFAULT_BASE_CONFIG) -> dic
             or isinstance(adapter_tokens, bool)
             or not isinstance(adapter_tokens, int)
         ):
-            raise CrossLanguageSmokeError(f"P8-003 generated token count is invalid: {case.case_id}")
+            raise CrossLanguageSmokeError(
+                f"P8-003 generated token count is invalid: {case.case_id}"
+            )
         base_score = score_text(
             case, base_text, generated_tokens=base_tokens, max_new_tokens=max_new_tokens
         )

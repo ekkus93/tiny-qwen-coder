@@ -17,7 +17,9 @@ from tiny_qwen_coder.evaluation.cross_language_smoke import (
 _WORKFLOW = Path(".github/workflows/python-p0-cross-language-smoke.yml")
 
 
-def _rows(*, ts_base: int, ts_adapter: int, rust_base: int, rust_adapter: int) -> list[dict[str, object]]:
+def _rows(
+    *, ts_base: int, ts_adapter: int, rust_base: int, rust_adapter: int
+) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     for language, base_count, adapter_count in (
         ("typescript", ts_base, ts_adapter),
@@ -126,7 +128,7 @@ def test_p8_003_workflow_is_manual_only_and_pins_exact_p0_adapter() -> None:
 
     assert "workflow_dispatch:" in trigger_block
     assert "\n  push:" not in trigger_block
-    assert "P7_006_RUN_ID: \"33422910444\"" in workflow
+    assert 'P7_006_RUN_ID: "33422910444"' in workflow
     assert EXPECTED_ADAPTER_SHA256 in workflow
     assert "if-no-files-found: error" in workflow
     assert "retention-days: 7" in workflow
