@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   finalize:
-    if: github.event.head_commit.message == 'launch-p8-004-finalizer-v2'
+    if: github.event.head_commit.message == 'launch-p8-004-finalizer-v3'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -46,7 +46,7 @@ jobs:
           Acceptance criteria:
 
           - Report supports a clear promote/reject/iterate decision.
-'''
+          '''
           new = '''## P8-004 — Write P0 experiment report
 
           Include:
@@ -64,7 +64,7 @@ jobs:
           - Report supports a clear promote/reject/iterate decision.
 
           Implementation note: `docs/P8_004_P0_EXPERIMENT_REPORT.md` consolidates the frozen P0 dataset and training identities, measured full-run loss/throughput/VRAM, accepted P6/P8 evidence, quantitative Python regressions, general/tool and cross-language diagnostics, supplemental qualitative examples, and evidence limitations. It recommends rejecting `language/python/p0` as the recommended Python adapter because combined protected Python coding fell from `424/675` (`0.6281481481481481`) to `187/675` (`0.277037037037037`), while preserving the adapter as the Phase 9 negative control. The formal promotion/rejection state change remains P8-005.
-'''
+          '''
           count = text.count(old)
           if count != 1:
               raise SystemExit(f"expected exactly one frozen P8-004 TODO block, found {count}")
