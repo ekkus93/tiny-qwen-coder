@@ -826,13 +826,15 @@ Implementation note: `docs/P8_004_P0_EXPERIMENT_REPORT.md` consolidates the froz
 
 ## P8-005 — Promote or reject P0 adapter
 
-- [ ] Establish quantitative promotion thresholds using actual baseline evidence.
-- [ ] Mark recommended Python adapter ID if accepted.
-- [ ] Preserve rejected experiment metadata.
+- [x] Establish quantitative promotion thresholds using actual baseline evidence.
+- [x] Mark recommended Python adapter ID if accepted.
+- [x] Preserve rejected experiment metadata.
 
 Acceptance criteria:
 
 - "Recommended" has an explicit evidentiary meaning.
+
+Implementation note: `python-promotion-v1` freezes a fail-closed promotion policy against the accepted P6-005 baseline. A candidate must reach at least `438/675` combined Python passes (the smallest discrete score at least two percentage points above the `424/675` base), must not fall below base on HumanEval/MBPP/repository holdout, must preserve the frozen general/tool passes with zero regressions, must avoid catastrophic TypeScript/Rust semantic collapse, must have `clean` contamination evidence, and must pass adapter-load validation. `language/python/p0` fails the combined, all three Python-suite preservation, and contamination-evidence gates, so `docs/evidence/P8_005_P0_PROMOTION_DECISION.json` records `disposition: reject` and `recommended_adapter_id: null`. The exact rejected adapter/evidence remains preserved as the Phase 9 negative control.
 
 ---
 

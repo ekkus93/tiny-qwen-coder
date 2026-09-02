@@ -1,0 +1,124 @@
+{
+  "adapter": {
+    "adapter_id": "language/python/p0",
+    "adapter_model_sha256": "c94606250e112f72362eb883a55f7b2c8af854d445f6bb6194352c2806a8f276",
+    "adapter_model_size_bytes": 65004840,
+    "training_artifact_id": 9789946698,
+    "training_git_sha": "02df92a9c2d347b9fb013dc25714fe066c6bcafe",
+    "training_run_id": "training-python-20260831T180916446466Z-02df92a9-eafc119d",
+    "training_workflow_run_id": 33422910444
+  },
+  "decision": {
+    "adapter_id": "language/python/p0",
+    "checks": [
+      {
+        "check_id": "python_combined_gain",
+        "detail": "187/675; requires >= 438/675",
+        "passed": false
+      },
+      {
+        "check_id": "humaneval_preservation",
+        "detail": "88/164; requires >= 128/164",
+        "passed": false
+      },
+      {
+        "check_id": "mbpp_preservation",
+        "detail": "97/500; requires >= 290/500",
+        "passed": false
+      },
+      {
+        "check_id": "repository_holdout_preservation",
+        "detail": "2/11; requires >= 6/11",
+        "passed": false
+      },
+      {
+        "check_id": "general_tool_preservation",
+        "detail": "2/12, regressions=0; requires >= 2/12, regressions <= 0",
+        "passed": true
+      },
+      {
+        "check_id": "cross_language_preservation",
+        "detail": "conclusion=no_catastrophic_regression, typescript=3/3, rust=3/3",
+        "passed": true
+      },
+      {
+        "check_id": "contamination_evidence",
+        "detail": "status=not_run; requires clean",
+        "passed": false
+      },
+      {
+        "check_id": "adapter_load_validation",
+        "detail": "validated=true; required=true",
+        "passed": true
+      }
+    ],
+    "disposition": "reject",
+    "policy_id": "python-promotion-v1",
+    "recommended_adapter_id": null,
+    "rejection_reasons": [
+      "python_combined_gain",
+      "humaneval_preservation",
+      "mbpp_preservation",
+      "repository_holdout_preservation",
+      "contamination_evidence"
+    ]
+  },
+  "decision_id": "python-p0-promotion-decision-v1",
+  "evidence": {
+    "adapter_id": "language/python/p0",
+    "adapter_load_validated": true,
+    "combined_passed": 187,
+    "combined_total": 675,
+    "contamination_status": "not_run",
+    "cross_language_conclusion": "no_catastrophic_regression",
+    "general_tool_passed": 2,
+    "general_tool_regressions": 0,
+    "general_tool_total": 12,
+    "humaneval_passed": 88,
+    "humaneval_total": 164,
+    "mbpp_passed": 97,
+    "mbpp_total": 500,
+    "repository_holdout_passed": 2,
+    "repository_holdout_total": 11,
+    "rust_semantic_passed": 3,
+    "rust_semantic_total": 3,
+    "typescript_semantic_passed": 3,
+    "typescript_semantic_total": 3
+  },
+  "evidence_sources": {
+    "adapter_load_validation": {
+      "workflow_run_id": 33509937071
+    },
+    "baseline": {
+      "artifact_id": 9729636096,
+      "artifact_set_sha256": "4bf616c3e84bdd74f8cf6467fc2d9d760f04d3b1b44660a81e365ff6f99a72fc",
+      "source_git_sha": "da537443ab80b1380bee0fc3c7d9d01ca0574f35",
+      "workflow_run_id": 33301242379
+    },
+    "cross_language_smoke": {
+      "artifact_id": 9824776245,
+      "workflow_run_id": 33570451764
+    },
+    "experiment_report": "docs/P8_004_P0_EXPERIMENT_REPORT.md",
+    "general_tool_regression": {
+      "artifact_id": 9818707785,
+      "workflow_run_id": 33554096916
+    },
+    "python_evaluation": {
+      "artifact_id": 9814936298,
+      "workflow_run_id": 33538724658
+    }
+  },
+  "policy": {
+    "path": "configs/eval/python/promotion_v1.yaml",
+    "policy_id": "python-promotion-v1",
+    "sha256": "2c884ca66b3b09071971e89777c9877eddd730c9d4cc59e7475b1cbce963b22e"
+  },
+  "preservation": {
+    "delete_adapter": false,
+    "phase9_role": "negative_control",
+    "rewrite_observed_results": false,
+    "status": "rejected_experiment"
+  },
+  "schema_version": 1
+}
