@@ -1,0 +1,87 @@
+name: P8-004 checklist finalizer
+
+on:
+  push:
+    branches:
+      - ralph/p8-004-p0-experiment-report
+    paths:
+      - ".github/workflows/p8-004-finalizer.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.event.head_commit.message == 'ci: launch P8-004 finalizer'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact branch head
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: true
+          clean: true
+
+      - name: Mark P8-004 complete and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("docs/TODO.md")
+          text = path.read_text(encoding="utf-8")
+          old = '''## P8-004 — Write P0 experiment report
+
+          Include:
+
+          - [ ] dataset identity.
+          - [ ] training config.
+          - [ ] VRAM/throughput.
+          - [ ] baseline metrics.
+          - [ ] adapter metrics.
+          - [ ] regressions.
+          - [ ] qualitative examples only as supplemental evidence.
+
+          Acceptance criteria:
+
+          - Report supports a clear promote/reject/iterate decision.
+'''
+          new = '''## P8-004 — Write P0 experiment report
+
+          Include:
+
+          - [x] dataset identity.
+          - [x] training config.
+          - [x] VRAM/throughput.
+          - [x] baseline metrics.
+          - [x] adapter metrics.
+          - [x] regressions.
+          - [x] qualitative examples only as supplemental evidence.
+
+          Acceptance criteria:
+
+          - Report supports a clear promote/reject/iterate decision.
+
+          Implementation note: `docs/P8_004_P0_EXPERIMENT_REPORT.md` consolidates the frozen P0 dataset and training identities, measured full-run loss/throughput/VRAM, accepted P6/P8 evidence, quantitative Python regressions, general/tool and cross-language diagnostics, supplemental qualitative examples, and evidence limitations. It recommends rejecting `language/python/p0` as the recommended Python adapter because combined protected Python coding fell from `424/675` (`0.6281481481481481`) to `187/675` (`0.277037037037037`), while preserving the adapter as the Phase 9 negative control. The formal promotion/rejection state change remains P8-005.
+'''
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f"expected exactly one frozen P8-004 TODO block, found {count}")
+          path.write_text(text.replace(old, new), encoding="utf-8")
+          PY
+
+          expected_sha="5c99ed07ec010aa77205b6bd67e347cc4ad7c7d5"
+          actual_sha="$(git hash-object docs/TODO.md)"
+          if [[ "${actual_sha}" != "${expected_sha}" ]]; then
+            printf 'P8-004 TODO blob mismatch: expected %s, got %s\n' "${expected_sha}" "${actual_sha}" >&2
+            exit 1
+          fi
+
+          git rm .github/workflows/p8-004-finalizer.yml
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/TODO.md
+          git commit -m "docs: close P8-004 checklist"
+          git push origin HEAD:ralph/p8-004-p0-experiment-report
