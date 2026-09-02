@@ -1,0 +1,16 @@
+schema_version: 1
+sweep_id: python-p9-rank-v1
+baseline_rank: 16
+candidates:
+  - rank: 8
+    config: configs/train/python/p9_rank_r8.yaml
+    smoke_config: configs/train/python/p9_rank_r8_smoke.yaml
+  - rank: 16
+    config: configs/train/python/p0.yaml
+    baseline: true
+  - rank: 32
+    config: configs/train/python/p9_rank_r32.yaml
+    smoke_config: configs/train/python/p9_rank_r32_smoke.yaml
+  - rank: 64
+    config: configs/train/python/p9_rank_r64.yaml
+    smoke_config: configs/train/python/p9_rank_r64_smoke.yaml
