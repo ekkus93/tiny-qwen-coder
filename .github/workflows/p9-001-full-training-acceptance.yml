@@ -1,0 +1,237 @@
+name: P9-001 one-shot full rank training acceptance
+
+on:
+  push:
+    branches:
+      - ralph/p9-001-rank-sweep
+    paths:
+      - ".github/workflows/p9-001-full-training-acceptance.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: p9-001-one-shot-full-rank-training
+  cancel-in-progress: false
+
+jobs:
+  train:
+    name: Train rank ${{ matrix.rank }}
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 1440
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        rank: [8, 32, 64]
+
+    env:
+      TOKENIZERS_PARALLELISM: "false"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+
+    steps:
+      - name: Check out exact source
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          clean: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Verify CUDA and frozen environment
+        run: |
+          set -euo pipefail
+          nvidia-smi
+          uv sync --frozen --extra qlora
+          uv run --frozen python - <<'PY'
+          import torch
+          if not torch.cuda.is_available():
+              raise SystemExit("PyTorch cannot access CUDA")
+          if not torch.cuda.is_bf16_supported():
+              raise SystemExit("CUDA device 0 does not support BF16")
+          properties = torch.cuda.get_device_properties(0)
+          print(f"torch={torch.__version__}")
+          print(f"gpu={properties.name}")
+          print(f"total_memory_bytes={properties.total_memory}")
+          PY
+
+      - name: Validate frozen rank-only protocol
+        run: |
+          set -euo pipefail
+          uv run --frozen python -m tiny_qwen_coder.training.rank_sweep \
+            --repo-root . \
+            > "${RUNNER_TEMP}/rank-sweep-validation.json"
+          cat "${RUNNER_TEMP}/rank-sweep-validation.json"
+
+      - name: Select exact rank config
+        env:
+          RANK: ${{ matrix.rank }}
+        run: |
+          set -euo pipefail
+          case "${RANK}" in
+            8|32|64) ;;
+            *) echo "unsupported rank ${RANK}" >&2; exit 2 ;;
+          esac
+          echo "TRAIN_CONFIG=configs/train/python/p9_rank_r${RANK}.yaml" >> "${GITHUB_ENV}"
+          echo "OUTPUT_DIR=artifacts/train/python/p9-rank-r${RANK}" >> "${GITHUB_ENV}"
+          echo "EXPECTED_ADAPTER_ID=language/python/p9-rank-r${RANK}" >> "${GITHUB_ENV}"
+
+      - name: Confirm clean source tree
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain)"
+          git rev-parse HEAD
+
+      - name: Materialize frozen Python P0 corpus
+        run: |
+          set -euo pipefail
+          uv run --frozen python scripts/freeze_python_p0.py
+          test -f data/python/p0/dataset-manifest.json
+          test -f data/python/p0/dataset-manifest.sha256
+          test -f data/python/p0/train.jsonl
+          test -f data/python/p0/validation.jsonl
+
+      - name: Run mandatory training preflight
+        run: |
+          set -euo pipefail
+          uv run --frozen tiny-qwen-coder-train-preflight \
+            --config "${TRAIN_CONFIG}" \
+            --repo-root . \
+            --output "${RUNNER_TEMP}/rank-${{ matrix.rank }}-training-preflight.json"
+          cat "${RUNNER_TEMP}/rank-${{ matrix.rank }}-training-preflight.json"
+
+      - name: Run full rank training
+        run: |
+          set -euo pipefail
+          uv run --frozen python -m tiny_qwen_coder.training.full_training \
+            --config "${TRAIN_CONFIG}" \
+            --repo-root . \
+            | tee "${RUNNER_TEMP}/rank-${{ matrix.rank }}-training-report.json"
+
+      - name: Verify full rank evidence fail closed
+        env:
+          RANK: ${{ matrix.rank }}
+          EXPECTED_GIT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          uv run --frozen python - <<'PY'
+          import hashlib
+          import json
+          import math
+          import os
+          from pathlib import Path
+
+          rank = int(os.environ["RANK"])
+          root = Path(os.environ["OUTPUT_DIR"])
+          report = json.loads((root / "training-report.json").read_text(encoding="utf-8"))
+          run_manifest = json.loads((root / "run-manifest.json").read_text(encoding="utf-8"))
+          adapter_manifest = json.loads((root / "adapter-manifest.json").read_text(encoding="utf-8"))
+          resolved_config = json.loads((root / "training-config.json").read_text(encoding="utf-8"))
+
+          if report.get("source_training_config") != os.environ["TRAIN_CONFIG"]:
+              raise SystemExit("training report source config mismatch")
+          if report.get("adapter_id") != os.environ["EXPECTED_ADAPTER_ID"]:
+              raise SystemExit("training report adapter identity mismatch")
+          if run_manifest.get("git", {}).get("sha") != os.environ["EXPECTED_GIT_SHA"]:
+              raise SystemExit("run manifest Git SHA does not match workflow source")
+          if resolved_config.get("config_sha256") != report.get("source_training_config_sha256"):
+              raise SystemExit("resolved training config SHA mismatch")
+          if report.get("train_records") != 38000 or report.get("validation_records") != 2000:
+              raise SystemExit("rank run did not use frozen 38,000/2,000 split")
+          if report.get("global_steps") != 4750:
+              raise SystemExit("rank run did not complete exactly 4,750 optimizer steps")
+
+          lora = adapter_manifest.get("lora", {})
+          if lora.get("rank") != rank or lora.get("alpha") != 32:
+              raise SystemExit("adapter manifest rank/alpha mismatch")
+          expected_trainable = 32_464_896 * rank // 16
+          if lora.get("trainable_parameters") != expected_trainable:
+              raise SystemExit("measured trainable parameters do not scale from frozen r=16 profile")
+
+          for key in (
+              "training_loss",
+              "validation_loss",
+              "train_runtime_seconds",
+              "total_runtime_seconds",
+              "train_samples_per_second",
+              "train_steps_per_second",
+          ):
+              value = report.get(key)
+              if isinstance(value, bool) or not isinstance(value, (int, float)):
+                  raise SystemExit(f"{key} is not numeric")
+              if not math.isfinite(float(value)) or float(value) <= 0:
+                  raise SystemExit(f"{key} is not finite and positive")
+
+          peak_allocated = report.get("peak_allocated_vram_bytes")
+          peak_reserved = report.get("peak_reserved_vram_bytes")
+          if isinstance(peak_allocated, bool) or not isinstance(peak_allocated, int) or peak_allocated <= 0:
+              raise SystemExit("peak allocated VRAM is invalid")
+          if isinstance(peak_reserved, bool) or not isinstance(peak_reserved, int) or peak_reserved <= 0:
+              raise SystemExit("peak reserved VRAM is invalid")
+          if peak_allocated > peak_reserved:
+              raise SystemExit("peak allocated VRAM exceeds peak reserved VRAM")
+
+          persisted = report.get("persisted_artifacts")
+          if not isinstance(persisted, list) or not persisted:
+              raise SystemExit("training report has no persisted artifact inventory")
+          resolved_root = root.resolve()
+          for item in persisted:
+              if not isinstance(item, dict):
+                  raise SystemExit("persisted artifact entry is not an object")
+              relative = item.get("path")
+              if not isinstance(relative, str) or not relative:
+                  raise SystemExit("persisted artifact path is invalid")
+              path = (root / relative).resolve()
+              if not path.is_relative_to(resolved_root) or not path.is_file():
+                  raise SystemExit(f"missing or escaping persisted artifact: {relative}")
+              if path.stat().st_size != item.get("size_bytes"):
+                  raise SystemExit(f"persisted artifact size mismatch: {relative}")
+              if hashlib.sha256(path.read_bytes()).hexdigest() != item.get("sha256"):
+                  raise SystemExit(f"persisted artifact SHA mismatch: {relative}")
+
+          print(json.dumps({"rank": rank, "expected_trainable": expected_trainable, **report}, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload compact full-training evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: p9-001-rank-r${{ matrix.rank }}-full-training-${{ github.sha }}
+          path: |
+            ${{ env.OUTPUT_DIR }}/adapter/
+            ${{ env.OUTPUT_DIR }}/adapter-manifest.json
+            ${{ env.OUTPUT_DIR }}/run-manifest.json
+            ${{ env.OUTPUT_DIR }}/training-config.json
+            ${{ env.OUTPUT_DIR }}/training-metrics.jsonl
+            ${{ env.OUTPUT_DIR }}/training-report.json
+            ${{ env.OUTPUT_DIR }}/dataset-manifest.json
+            ${{ env.OUTPUT_DIR }}/dataset-manifest.sha256
+            ${{ runner.temp }}/rank-sweep-validation.json
+            ${{ runner.temp }}/rank-${{ matrix.rank }}-training-preflight.json
+            ${{ runner.temp }}/rank-${{ matrix.rank }}-training-report.json
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 30
+
+      - name: Upload partial evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p9-001-rank-r${{ matrix.rank }}-full-training-partial-${{ github.sha }}
+          path: |
+            ${{ env.OUTPUT_DIR }}/*.json
+            ${{ env.OUTPUT_DIR }}/*.jsonl
+            ${{ env.OUTPUT_DIR }}/*.sha256
+            ${{ runner.temp }}/rank-sweep-validation.json
+            ${{ runner.temp }}/rank-${{ matrix.rank }}-training-preflight.json
+            ${{ runner.temp }}/rank-${{ matrix.rank }}-training-report.json
+          if-no-files-found: ignore
+          include-hidden-files: true
+          retention-days: 7
