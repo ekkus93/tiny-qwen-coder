@@ -1,0 +1,35 @@
+schema_version: 1
+policy_id: python-promotion-v1
+language: python
+baseline:
+  source_git_sha: da537443ab80b1380bee0fc3c7d9d01ca0574f35
+  artifact_set_sha256: 4bf616c3e84bdd74f8cf6467fc2d9d760f04d3b1b44660a81e365ff6f99a72fc
+  suites:
+    humaneval:
+      passed: 128
+      total: 164
+    mbpp:
+      passed: 290
+      total: 500
+    repository_holdout:
+      passed: 6
+      total: 11
+    combined:
+      passed: 424
+      total: 675
+target_language:
+  minimum_combined_absolute_gain: 0.02
+  minimum_combined_passed: 438
+  require_no_suite_below_baseline: true
+general_tool:
+  minimum_passed: 2
+  total: 12
+  maximum_regressions: 0
+cross_language:
+  required_conclusion: no_catastrophic_regression
+  minimum_typescript_semantic_passed: 2
+  minimum_rust_semantic_passed: 2
+  cases_per_language: 3
+eligibility:
+  required_contamination_status: clean
+  require_adapter_load_validation: true
