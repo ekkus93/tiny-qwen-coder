@@ -148,8 +148,8 @@ def test_rank_sweep_workflows_are_manual_and_do_not_retrain_rank_16() -> None:
 def test_full_training_workflow_verifies_rank_only_evidence() -> None:
     text = Path(".github/workflows/python-p9-rank-sweep-training.yml").read_text(encoding="utf-8")
 
-    assert "report.get(\"global_steps\") != 4750" in text
-    assert "lora.get(\"rank\") != rank" in text
-    assert "lora.get(\"alpha\") != 32" in text
+    assert 'report.get("global_steps") != 4750' in text
+    assert 'lora.get("rank") != rank' in text
+    assert 'lora.get("alpha") != 32' in text
     assert "32_464_896 * rank // 16" in text
     assert "persisted artifact SHA mismatch" in text
