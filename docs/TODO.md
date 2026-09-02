@@ -810,17 +810,19 @@ Implementation note: v1 run `33557769986` was correctly preserved as `inconclusi
 
 Include:
 
-- [ ] dataset identity.
-- [ ] training config.
-- [ ] VRAM/throughput.
-- [ ] baseline metrics.
-- [ ] adapter metrics.
-- [ ] regressions.
-- [ ] qualitative examples only as supplemental evidence.
+- [x] dataset identity.
+- [x] training config.
+- [x] VRAM/throughput.
+- [x] baseline metrics.
+- [x] adapter metrics.
+- [x] regressions.
+- [x] qualitative examples only as supplemental evidence.
 
 Acceptance criteria:
 
 - Report supports a clear promote/reject/iterate decision.
+
+Implementation note: `docs/P8_004_P0_EXPERIMENT_REPORT.md` consolidates the frozen P0 dataset and training identities, measured full-run loss/throughput/VRAM, accepted P6/P8 evidence, quantitative Python regressions, general/tool and cross-language diagnostics, supplemental qualitative examples, and evidence limitations. It recommends rejecting `language/python/p0` as the recommended Python adapter because combined protected Python coding fell from `424/675` (`0.6281481481481481`) to `187/675` (`0.277037037037037`), while preserving the adapter as the Phase 9 negative control. The formal promotion/rejection state change remains P8-005.
 
 ## P8-005 — Promote or reject P0 adapter
 
