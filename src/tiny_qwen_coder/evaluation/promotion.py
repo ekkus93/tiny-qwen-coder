@@ -35,9 +35,7 @@ def _strict_mapping(value: object, *, context: str) -> dict[str, object]:
     return result
 
 
-def _require_keys(
-    mapping: Mapping[str, object], *, required: frozenset[str], context: str
-) -> None:
+def _require_keys(mapping: Mapping[str, object], *, required: frozenset[str], context: str) -> None:
     unknown = sorted(set(mapping) - required)
     missing = sorted(required - set(mapping))
     if unknown:
@@ -294,9 +292,7 @@ def parse_python_promotion_policy(value: object) -> PythonPromotionPolicy:
     eligibility = _strict_mapping(root["eligibility"], context="eligibility")
     _require_keys(
         eligibility,
-        required=frozenset(
-            {"required_contamination_status", "require_adapter_load_validation"}
-        ),
+        required=frozenset({"required_contamination_status", "require_adapter_load_validation"}),
         context="eligibility",
     )
     return PythonPromotionPolicy(
@@ -322,9 +318,7 @@ def parse_python_promotion_policy(value: object) -> PythonPromotionPolicy:
         require_no_suite_below_baseline=_expect_bool(
             target, "require_no_suite_below_baseline", context="target_language"
         ),
-        general_tool_minimum_passed=_expect_int(
-            general, "minimum_passed", context="general_tool"
-        ),
+        general_tool_minimum_passed=_expect_int(general, "minimum_passed", context="general_tool"),
         general_tool_total=_expect_int(general, "total", context="general_tool"),
         general_tool_maximum_regressions=_expect_int(
             general, "maximum_regressions", context="general_tool"
@@ -414,9 +408,7 @@ def evaluate_python_adapter_promotion(
             PromotionCheck(
                 check_id=check_id,
                 passed=passed_gate,
-                detail=(
-                    f"{passed}/{total}; requires >= {required_passed}/{baseline.total}"
-                ),
+                detail=(f"{passed}/{total}; requires >= {required_passed}/{baseline.total}"),
             )
         )
 
@@ -442,8 +434,7 @@ def evaluate_python_adapter_promotion(
         evidence.cross_language_conclusion == policy.cross_language_required_conclusion
         and evidence.typescript_semantic_total == policy.cross_language_cases_per_language
         and evidence.rust_semantic_total == policy.cross_language_cases_per_language
-        and evidence.typescript_semantic_passed
-        >= policy.minimum_typescript_semantic_passed
+        and evidence.typescript_semantic_passed >= policy.minimum_typescript_semantic_passed
         and evidence.rust_semantic_passed >= policy.minimum_rust_semantic_passed
     )
     checks.append(
