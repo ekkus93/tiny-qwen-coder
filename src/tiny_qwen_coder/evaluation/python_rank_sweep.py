@@ -15,6 +15,7 @@ import torch
 import yaml
 from torch import nn
 
+from tiny_qwen_coder.adapters import load_adapter_manifest
 from tiny_qwen_coder.config import EvaluationConfig, load_evaluation_config
 from tiny_qwen_coder.evaluation._baseline_artifacts import (
     evaluation_config_sha256,
@@ -75,16 +76,17 @@ from tiny_qwen_coder.evaluation.settings import (
 from tiny_qwen_coder.identities import AdapterIdentity, BaseModelIdentity
 from tiny_qwen_coder.languages.python import load_python_plugin
 from tiny_qwen_coder.reproducibility import seed_everything
-from tiny_qwen_coder.adapters import load_adapter_manifest
 from tiny_qwen_coder.runtime.adapter_validation import (
-    VerifiedAdapterArtifacts,
     _FORBIDDEN_MODEL_PATTERNS,
     _REQUIRED_OUTPUT_FILES,
+    VerifiedAdapterArtifacts,
     _load_json_object,
     _persisted_artifact,
     _relative_leaves,
     _require_mapping,
     _require_str,
+)
+from tiny_qwen_coder.runtime.adapter_validation import (
     _sha256 as _file_sha256,
 )
 
