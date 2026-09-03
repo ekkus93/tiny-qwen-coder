@@ -1,0 +1,68 @@
+schema_version: 1
+sweep_id: python-p9-rank-v1
+training_workflow_run_id: 33587975474
+training_source_git_sha: 1aca2f2a778ade4cc300d66353a26206900fc84b
+
+dataset:
+  manifest_id: dataset/python/p0
+  config_sha256: 4f9663e72b22d81ce8975e6f6ed87ee7457d3bef0a08fe211e700dd5ea12fbff
+  split_membership_sha256: 78559765eac305528e5ba96ae3dae04feffda39fc4727d450d602f6e68697428
+  contamination_status: not_run
+
+candidates:
+  - rank: 8
+    adapter_id: language/python/p9-rank-r8
+    training_config: configs/train/python/p9_rank_r8.yaml
+    training_config_sha256: ecf7b70e1ebc4bb791037281dfca8c45bd80ee34b034486826b85a8d4b9de2d5
+    training_run_id: training-python-20260902T034503645777Z-1aca2f2a-fe4836fc
+    training_git_sha: 1aca2f2a778ade4cc300d66353a26206900fc84b
+    training_artifact_id: 9857352234
+    training_artifact_name: p9-001-rank-r8-full-training-1aca2f2a778ade4cc300d66353a26206900fc84b
+    training_artifact_digest: sha256:a569cb1768a7390bcaa71dab5270f0f95a5407fe626b47170fccf09e8b44e1c0
+    adapter_model_sha256: 31774b09bfdf638c5d6af23388dcb2426c7647684643dd3200f68f2d964fd808
+    adapter_model_size_bytes: 32539280
+    artifact_set_sha256: 954d958589db0ac9ee4985cbd34ebfe31efc149b4ea757539e37fc76b91ff6d1
+    evaluation_config: configs/eval/python/p9_rank_r8_v1.yaml
+
+  - rank: 16
+    adapter_id: language/python/p0
+    baseline_control: true
+    training_config: configs/train/python/p0.yaml
+    training_config_sha256: 4b0c742ad3a55f4eaffd4f2283be7291d6434eb89b07c13dc90c2166238a5f46
+    training_run_id: training-python-20260831T180916446466Z-02df92a9-eafc119d
+    training_git_sha: 02df92a9c2d347b9fb013dc25714fe066c6bcafe
+    training_artifact_id: 9789946698
+    training_artifact_name: python-p0-full-training-02df92a9c2d347b9fb013dc25714fe066c6bcafe
+    training_artifact_digest: sha256:1aba44c566699dc69ee20e7b03481680629dbfa8b94aaab65450b56174dc55f3
+    adapter_model_sha256: c94606250e112f72362eb883a55f7b2c8af854d445f6bb6194352c2806a8f276
+    adapter_model_size_bytes: 65004840
+    artifact_set_sha256: null
+    canonical_evaluation_run_id: 33538724658
+
+  - rank: 32
+    adapter_id: language/python/p9-rank-r32
+    training_config: configs/train/python/p9_rank_r32.yaml
+    training_config_sha256: 4eb9a720a44f620a47a19ec47b0f48e20d641a9b1c195e8d466997d082d21e20
+    training_run_id: training-python-20260902T170046105754Z-1aca2f2a-edee9822
+    training_git_sha: 1aca2f2a778ade4cc300d66353a26206900fc84b
+    training_artifact_id: 9880833842
+    training_artifact_name: p9-001-rank-r32-full-training-1aca2f2a778ade4cc300d66353a26206900fc84b
+    training_artifact_digest: sha256:c0022b88659dc1c1b3e023b6e647ebe1c3c9038804355b5da4d27d2995c610bf
+    adapter_model_sha256: 332886a5e3d02dc2c1a0c7c3d8f2d2765fb5327663f7a146b5d73c7c07937753
+    adapter_model_size_bytes: 129934944
+    artifact_set_sha256: 3ea2f81b5e79bb09b817d3e2c6448fb6b53c84a16cc711b40fc6baa4eee09cb1
+    evaluation_config: configs/eval/python/p9_rank_r32_v1.yaml
+
+  - rank: 64
+    adapter_id: language/python/p9-rank-r64
+    training_config: configs/train/python/p9_rank_r64.yaml
+    training_config_sha256: 2d1d0690fc9a3a054bc7bce186fa6f215c902fe1da1730d6f04eea9822d95893
+    training_run_id: training-python-20260903T062954386868Z-1aca2f2a-16f6b78f
+    training_git_sha: 1aca2f2a778ade4cc300d66353a26206900fc84b
+    training_artifact_id: 9910556769
+    training_artifact_name: p9-001-rank-r64-full-training-1aca2f2a778ade4cc300d66353a26206900fc84b
+    training_artifact_digest: sha256:9655e6bc01caa9fc377a5cd4e990f79520e84758802fba07de34abb484ee2039
+    adapter_model_sha256: 603a0ac7c00ceb8d428d0254330a9ec329eb598ef332be48d16a071d43e69918
+    adapter_model_size_bytes: 259794944
+    artifact_set_sha256: 3c96ee6f82270e942710fb5717d4f655f2b91c39b25c85278cbd0080a19bab80
+    evaluation_config: configs/eval/python/p9_rank_r64_v1.yaml
