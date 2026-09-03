@@ -2,11 +2,6 @@ name: Python P9 Rank Sweep Evaluation
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - ralph/p9-001-rank-sweep
-    paths:
-      - ".github/workflows/python-p9-rank-sweep-evaluation.yml"
 
 permissions:
   actions: read
