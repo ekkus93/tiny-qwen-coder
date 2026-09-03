@@ -1,0 +1,55 @@
+name: P9-001 sort evaluator imports
+
+on:
+  push:
+    branches:
+      - ralph/p9-001-rank-sweep
+    paths:
+      - ".github/workflows/p9-001-sort-evaluator-imports.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  sort:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact branch
+        uses: actions/checkout@v5
+        with:
+          ref: ralph/p9-001-rank-sweep
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Sync frozen environment
+        run: uv sync --frozen
+
+      - name: Apply safe import sorting only
+        run: |
+          set -euo pipefail
+          uv run --frozen ruff check --select I --fix src/tiny_qwen_coder/evaluation/python_rank_sweep.py
+          uv run --frozen ruff format src/tiny_qwen_coder/evaluation/python_rank_sweep.py
+          uv run --frozen ruff check --select I src/tiny_qwen_coder/evaluation/python_rank_sweep.py
+          uv run --frozen ruff format --check src/tiny_qwen_coder/evaluation/python_rank_sweep.py
+          git diff --check
+          git diff -- src/tiny_qwen_coder/evaluation/python_rank_sweep.py
+
+      - name: Commit exact safe fix
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/tiny_qwen_coder/evaluation/python_rank_sweep.py
+          git diff --cached --check
+          git commit -m "style: sort P9-001 evaluator imports"
+          git push origin HEAD:ralph/p9-001-rank-sweep
