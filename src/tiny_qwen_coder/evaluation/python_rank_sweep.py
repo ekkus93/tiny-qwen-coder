@@ -186,6 +186,12 @@ def _sha256(value: str, *, context: str) -> str:
     return value
 
 
+def _git_sha(value: str, *, context: str) -> str:
+    if len(value) != 40 or any(char not in "0123456789abcdef" for char in value):
+        raise PythonRankSweepEvaluationError(f"{context} must be a lowercase 40-character Git SHA")
+    return value
+
+
 def _artifact_digest(value: str, *, context: str) -> str:
     prefix = "sha256:"
     if not value.startswith(prefix):
@@ -237,7 +243,7 @@ def load_rank_candidate_registry(path: Path = REGISTRY_PATH) -> RankCandidateReg
     if root.get("schema_version") != 1 or root.get("sweep_id") != SWEEP_ID:
         raise PythonRankSweepEvaluationError("rank candidate registry identity drifted")
     training_run = _integer(root, "training_workflow_run_id", context="rank candidate registry")
-    training_sha = _sha256(
+    training_sha = _git_sha(
         _string(root, "training_source_git_sha", context="rank candidate registry"),
         context="rank candidate registry.training_source_git_sha",
     )
@@ -321,7 +327,7 @@ def load_rank_candidate_registry(path: Path = REGISTRY_PATH) -> RankCandidateReg
                     context=f"{context}.training_config_sha256",
                 ),
                 training_run_id=_string(candidate, "training_run_id", context=context),
-                training_git_sha=_sha256(
+                training_git_sha=_git_sha(
                     _string(candidate, "training_git_sha", context=context),
                     context=f"{context}.training_git_sha",
                 ),

@@ -113,7 +113,7 @@ def test_rank_registry_rejects_training_sha_drift(tmp_path: Path) -> None:
     assert isinstance(candidates, list)
     rank32 = candidates[2]
     assert isinstance(rank32, dict)
-    rank32["training_git_sha"] = "0" * 64
+    rank32["training_git_sha"] = "0" * 40
     path = tmp_path / "registry.yaml"
     path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
