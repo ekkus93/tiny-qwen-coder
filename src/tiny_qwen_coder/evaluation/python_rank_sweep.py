@@ -216,7 +216,9 @@ def load_rank_candidate_registry(path: Path = REGISTRY_PATH) -> RankCandidateReg
     try:
         raw: object = yaml.safe_load(path.read_text(encoding="utf-8"))
     except (OSError, yaml.YAMLError) as exc:
-        raise PythonRankSweepEvaluationError(f"could not load rank candidate registry: {path}") from exc
+        raise PythonRankSweepEvaluationError(
+            f"could not load rank candidate registry: {path}"
+        ) from exc
     root = _mapping(raw, context="rank candidate registry")
     _require_keys(
         root,
@@ -282,11 +284,19 @@ def load_rank_candidate_registry(path: Path = REGISTRY_PATH) -> RankCandidateReg
         }
         unknown = set(candidate) - allowed
         if unknown:
-            raise PythonRankSweepEvaluationError(f"{context} has unknown fields: {sorted(unknown)!r}")
-        required = allowed - {"baseline_control", "evaluation_config", "canonical_evaluation_run_id"}
+            raise PythonRankSweepEvaluationError(
+                f"{context} has unknown fields: {sorted(unknown)!r}"
+            )
+        required = allowed - {
+            "baseline_control",
+            "evaluation_config",
+            "canonical_evaluation_run_id",
+        }
         missing = required - set(candidate)
         if missing:
-            raise PythonRankSweepEvaluationError(f"{context} is missing fields: {sorted(missing)!r}")
+            raise PythonRankSweepEvaluationError(
+                f"{context} is missing fields: {sorted(missing)!r}"
+            )
         rank = _integer(candidate, "rank", context=context)
         baseline_control = candidate.get("baseline_control", False)
         if not isinstance(baseline_control, bool):
@@ -314,7 +324,9 @@ def load_rank_candidate_registry(path: Path = REGISTRY_PATH) -> RankCandidateReg
                     context=f"{context}.training_git_sha",
                 ),
                 training_artifact_id=_integer(candidate, "training_artifact_id", context=context),
-                training_artifact_name=_string(candidate, "training_artifact_name", context=context),
+                training_artifact_name=_string(
+                    candidate, "training_artifact_name", context=context
+                ),
                 training_artifact_digest=_artifact_digest(
                     _string(candidate, "training_artifact_digest", context=context),
                     context=f"{context}.training_artifact_digest",
@@ -341,12 +353,18 @@ def load_rank_candidate_registry(path: Path = REGISTRY_PATH) -> RankCandidateReg
     for item in candidates:
         if item.rank == 16:
             if not item.baseline_control or item.canonical_evaluation_run_id is None:
-                raise PythonRankSweepEvaluationError("rank 16 must be the canonical evaluated P0 control")
+                raise PythonRankSweepEvaluationError(
+                    "rank 16 must be the canonical evaluated P0 control"
+                )
             if item.evaluation_config is not None:
-                raise PythonRankSweepEvaluationError("rank 16 must reuse its canonical P8 evaluation")
+                raise PythonRankSweepEvaluationError(
+                    "rank 16 must reuse its canonical P8 evaluation"
+                )
         else:
             if item.baseline_control or item.evaluation_config is None:
-                raise PythonRankSweepEvaluationError(f"rank {item.rank} evaluation identity is incomplete")
+                raise PythonRankSweepEvaluationError(
+                    f"rank {item.rank} evaluation identity is incomplete"
+                )
             if item.training_git_sha != training_sha:
                 raise PythonRankSweepEvaluationError(f"rank {item.rank} training SHA drifted")
     return RankCandidateRegistry(
@@ -380,7 +398,9 @@ def _validated_candidate_bundle(
     for relative in _REQUIRED_OUTPUT_FILES:
         path = root / relative
         if not path.is_file():
-            raise PythonRankSweepEvaluationError(f"required training artifact is missing: {relative}")
+            raise PythonRankSweepEvaluationError(
+                f"required training artifact is missing: {relative}"
+            )
     for pattern in _FORBIDDEN_MODEL_PATTERNS:
         matches = tuple((root / "adapter").glob(pattern))
         if matches:
@@ -390,7 +410,9 @@ def _validated_candidate_bundle(
             )
 
     manifest = load_adapter_manifest(root / "adapter-manifest.json")
-    _require_equal_local(manifest.adapter_id, candidate.adapter_id, field="adapter_manifest.adapter_id")
+    _require_equal_local(
+        manifest.adapter_id, candidate.adapter_id, field="adapter_manifest.adapter_id"
+    )
     _require_equal_local(manifest.family, _EXPECTED_FAMILY, field="adapter_manifest.family")
     _require_equal_local(manifest.language, _EXPECTED_LANGUAGE, field="adapter_manifest.language")
     _require_equal_local(
@@ -432,7 +454,9 @@ def _validated_candidate_bundle(
     _require_equal_local(
         training_report.get("language"), manifest.language, field="training_report.language"
     )
-    _require_equal_local(training_report.get("global_steps"), 4750, field="training_report.global_steps")
+    _require_equal_local(
+        training_report.get("global_steps"), 4750, field="training_report.global_steps"
+    )
     _require_equal_local(
         training_report.get("source_training_config"),
         candidate.training_config,
@@ -485,33 +509,53 @@ def _validated_candidate_bundle(
     _require_equal_local(
         run_adapter.get("adapter_id"), manifest.adapter_id, field="run_manifest.adapter.adapter_id"
     )
-    _require_equal_local(run_adapter.get("family"), manifest.family, field="run_manifest.adapter.family")
-    _require_equal_local(run_manifest.get("language"), manifest.language, field="run_manifest.language")
+    _require_equal_local(
+        run_adapter.get("family"), manifest.family, field="run_manifest.adapter.family"
+    )
+    _require_equal_local(
+        run_manifest.get("language"), manifest.language, field="run_manifest.language"
+    )
     run_git = _require_mapping(run_manifest.get("git"), field="run_manifest.git")
     training_git_sha = _require_str(run_git, "sha", field="run_manifest.git")
     training_run_id = _require_str(run_manifest, "run_id", field="run_manifest")
     _require_equal_local(training_git_sha, candidate.training_git_sha, field="run_manifest.git.sha")
     _require_equal_local(training_run_id, candidate.training_run_id, field="run_manifest.run_id")
 
-    _require_equal_local(str(adapter_config.get("peft_type", "")).upper(), "LORA", field="adapter_config.peft_type")
-    _require_equal_local(adapter_config.get("task_type"), "CAUSAL_LM", field="adapter_config.task_type")
-    _require_equal_local(adapter_config.get("inference_mode"), True, field="adapter_config.inference_mode")
+    _require_equal_local(
+        str(adapter_config.get("peft_type", "")).upper(), "LORA", field="adapter_config.peft_type"
+    )
+    _require_equal_local(
+        adapter_config.get("task_type"), "CAUSAL_LM", field="adapter_config.task_type"
+    )
+    _require_equal_local(
+        adapter_config.get("inference_mode"), True, field="adapter_config.inference_mode"
+    )
     _require_equal_local(
         adapter_config.get("base_model_name_or_path"),
         base_model.repository,
         field="adapter_config.base_model_name_or_path",
     )
     _require_equal_local(adapter_config.get("r"), candidate.rank, field="adapter_config.r")
-    _require_equal_local(adapter_config.get("lora_alpha"), _EXPECTED_ALPHA, field="adapter_config.lora_alpha")
     _require_equal_local(
-        adapter_config.get("lora_dropout"), manifest.lora.dropout, field="adapter_config.lora_dropout"
+        adapter_config.get("lora_alpha"), _EXPECTED_ALPHA, field="adapter_config.lora_alpha"
     )
-    _require_equal_local(adapter_config.get("bias"), manifest.lora.bias, field="adapter_config.bias")
     _require_equal_local(
-        adapter_config.get("peft_version"), manifest.training.peft_version, field="adapter_config.peft_version"
+        adapter_config.get("lora_dropout"),
+        manifest.lora.dropout,
+        field="adapter_config.lora_dropout",
+    )
+    _require_equal_local(
+        adapter_config.get("bias"), manifest.lora.bias, field="adapter_config.bias"
+    )
+    _require_equal_local(
+        adapter_config.get("peft_version"),
+        manifest.training.peft_version,
+        field="adapter_config.peft_version",
     )
     config_targets = adapter_config.get("target_modules")
-    if not isinstance(config_targets, list) or any(not isinstance(item, str) for item in config_targets):
+    if not isinstance(config_targets, list) or any(
+        not isinstance(item, str) for item in config_targets
+    ):
         raise PythonRankSweepEvaluationError("adapter_config.target_modules must be a string list")
     _require_equal_local(
         tuple(sorted(cast(list[str], config_targets))),
@@ -524,8 +568,12 @@ def _validated_candidate_bundle(
     if adapter_size <= 0:
         raise PythonRankSweepEvaluationError("adapter_model.safetensors is empty")
     adapter_sha = _file_sha256(adapter_model)
-    _require_equal_local(adapter_size, candidate.adapter_model_size_bytes, field="adapter weights size")
-    _require_equal_local(adapter_sha, candidate.adapter_model_sha256, field="adapter weights sha256")
+    _require_equal_local(
+        adapter_size, candidate.adapter_model_size_bytes, field="adapter weights size"
+    )
+    _require_equal_local(
+        adapter_sha, candidate.adapter_model_sha256, field="adapter weights sha256"
+    )
     persisted_weights = _persisted_artifact(training_report, "adapter/adapter_model.safetensors")
     _require_equal_local(
         persisted_weights.get("size_bytes"), adapter_size, field="persisted adapter weight size"
@@ -536,10 +584,14 @@ def _validated_candidate_bundle(
     persisted_config = _persisted_artifact(training_report, "adapter/adapter_config.json")
     config_path = root / "adapter" / "adapter_config.json"
     _require_equal_local(
-        persisted_config.get("size_bytes"), config_path.stat().st_size, field="persisted adapter config size"
+        persisted_config.get("size_bytes"),
+        config_path.stat().st_size,
+        field="persisted adapter config size",
     )
     _require_equal_local(
-        persisted_config.get("sha256"), _file_sha256(config_path), field="persisted adapter config sha256"
+        persisted_config.get("sha256"),
+        _file_sha256(config_path),
+        field="persisted adapter config sha256",
     )
     if candidate.artifact_set_sha256 is not None:
         _require_equal_local(
@@ -617,10 +669,14 @@ class RankCandidateGenerator(HuggingFacePythonP0Generator):
             revision=base_model.tokenizer_revision,
         )
         if not isinstance(tokenizer_obj, PreTrainedTokenizerBase):
-            raise PythonRankSweepEvaluationError("Transformers returned unexpected tokenizer object")
+            raise PythonRankSweepEvaluationError(
+                "Transformers returned unexpected tokenizer object"
+            )
         tokenizer = cast(_Tokenizer, tokenizer_obj)
         if not isinstance(tokenizer.chat_template, str) or not tokenizer.chat_template:
-            raise PythonRankSweepEvaluationError("canonical tokenizer does not expose chat template")
+            raise PythonRankSweepEvaluationError(
+                "canonical tokenizer does not expose chat template"
+            )
         template_sha = hashlib.sha256(tokenizer.chat_template.encode("utf-8")).hexdigest()
         if template_sha != self.adapter.inference_chat_template_sha256:
             raise PythonRankSweepEvaluationError("inference chat template differs from training")
@@ -790,7 +846,9 @@ def _stage_payload(
     }
 
 
-def _adapter_from_stage(stage: Mapping[str, object], candidate: RankCandidate) -> VerifiedPythonP0Adapter:
+def _adapter_from_stage(
+    stage: Mapping[str, object], candidate: RankCandidate
+) -> VerifiedPythonP0Adapter:
     raw = _mapping(stage.get("adapter"), context="rank generation stage.adapter")
     expected = _expected_candidate_payload(candidate)
     if raw != expected:
@@ -1041,7 +1099,9 @@ def generate_rank_stage(
     )
     output_dir = Path(evaluation.output_dir)
     if (output_dir / EVALUATION_MANIFEST).exists() or (output_dir / COMPARISON).exists():
-        raise PythonRankSweepEvaluationError("generation refuses an already-scored output directory")
+        raise PythonRankSweepEvaluationError(
+            "generation refuses an already-scored output directory"
+        )
     generator = RankCandidateGenerator(
         training_output=training_output,
         base_model=base_model,
@@ -1127,7 +1187,11 @@ def score_rank_stage(
     )
     _preflight_execution_images(
         runtime,
-        (humaneval.runner.execution_image, mbpp.runner.execution_image, holdout.suite.execution_image),
+        (
+            humaneval.runner.execution_image,
+            mbpp.runner.execution_image,
+            holdout.suite.execution_image,
+        ),
     )
     resolved_he, he, resolved_mbpp, mb, resolved_holdout, rh = _generate_suites(
         evaluation=evaluation,
@@ -1140,7 +1204,11 @@ def score_rank_stage(
         output_dir=output_dir,
         harness=harness,
     )
-    if resolved_he != he_problems or resolved_mbpp != mbpp_problems or resolved_holdout.suite != holdout.suite:
+    if (
+        resolved_he != he_problems
+        or resolved_mbpp != mbpp_problems
+        or resolved_holdout.suite != holdout.suite
+    ):
         raise PythonRankSweepEvaluationError("protected benchmark inputs changed during scoring")
 
     he_result = humaneval.evaluate_suite(
@@ -1274,7 +1342,9 @@ def verify_rank_evaluation(
     )
     actual_comparison = read_json(output_dir / COMPARISON, context="P9-001 comparison")
     if actual_comparison != expected_comparison:
-        raise PythonRankSweepEvaluationError("persisted comparison does not match recomputed metrics")
+        raise PythonRankSweepEvaluationError(
+            "persisted comparison does not match recomputed metrics"
+        )
     manifest = read_json(output_dir / EVALUATION_MANIFEST, context="P9-001 evaluation manifest")
     expected_manifest = _evaluation_manifest_payload(output_dir, source_git_sha, rank)
     if manifest != expected_manifest:
