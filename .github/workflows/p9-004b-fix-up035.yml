@@ -31,8 +31,8 @@ jobs:
 
           path = Path("src/tiny_qwen_coder/training/minimum_intervention_training.py")
           text = path.read_text(encoding="utf-8")
-          old = "from pathlib import Path\nfrom typing import Any, NoReturn, Sequence\n"
-          new = "from collections.abc import Sequence\nfrom pathlib import Path\nfrom typing import Any, NoReturn\n"
+          old = "from dataclasses import asdict, dataclass\nfrom pathlib import Path\nfrom typing import Any, NoReturn, Sequence\n"
+          new = "from collections.abc import Sequence\nfrom dataclasses import asdict, dataclass\nfrom pathlib import Path\nfrom typing import Any, NoReturn\n"
           if text.count(old) != 1:
               raise SystemExit(f"expected exactly one UP035 import anchor, found {text.count(old)}")
           path.write_text(text.replace(old, new, 1), encoding="utf-8")
