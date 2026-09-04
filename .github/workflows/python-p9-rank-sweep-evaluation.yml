@@ -1,0 +1,286 @@
+name: Python P9 Rank Sweep Evaluation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: python-p9-rank-sweep-evaluation-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    name: Generate protected Python responses for rank ${{ matrix.rank }}
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        rank: [8, 32, 64]
+
+    env:
+      TOKENIZERS_PARALLELISM: "false"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      P9_001_TRAINING_RUN_ID: "33587975474"
+      P9_001_TRAINING_SHA: "1aca2f2a778ade4cc300d66353a26206900fc84b"
+
+    steps:
+      - name: Check out exact evaluation source
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          clean: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Sync frozen environment
+        run: uv sync --frozen
+
+      - name: Verify CUDA runtime
+        run: |
+          set -euo pipefail
+          nvidia-smi
+          uv run --frozen python - <<'PY'
+          import torch
+          if not torch.cuda.is_available():
+              raise SystemExit("PyTorch cannot access CUDA")
+          if not torch.cuda.is_bf16_supported():
+              raise SystemExit("CUDA device 0 does not support BF16")
+          props = torch.cuda.get_device_properties(0)
+          print(f"torch={torch.__version__}")
+          print(f"cuda_runtime={torch.version.cuda}")
+          print(f"gpu={props.name}")
+          print(f"total_memory_bytes={props.total_memory}")
+          PY
+
+      - name: Select frozen rank identity
+        env:
+          RANK: ${{ matrix.rank }}
+        run: |
+          set -euo pipefail
+          case "${RANK}" in
+            8|32|64) ;;
+            *) echo "unsupported rank ${RANK}" >&2; exit 2 ;;
+          esac
+          echo "TRAINING_ARTIFACT=p9-001-rank-r${RANK}-full-training-${P9_001_TRAINING_SHA}" >> "${GITHUB_ENV}"
+          echo "EVAL_OUTPUT=artifacts/eval/python/p9-rank-r${RANK}-v1" >> "${GITHUB_ENV}"
+
+      - name: Confirm clean evaluation source
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain)"
+          git rev-parse HEAD
+
+      - name: Validate frozen evaluation candidate registry
+        run: |
+          set -euo pipefail
+          uv run --frozen python - <<'PY'
+          from tiny_qwen_coder.evaluation.python_rank_sweep import load_rank_candidate_registry
+          registry = load_rank_candidate_registry()
+          print(registry)
+          PY
+
+      - name: Download exact completed rank training artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ env.TRAINING_ARTIFACT }}
+          path: ${{ runner.temp }}/rank-training
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ env.P9_001_TRAINING_RUN_ID }}
+
+      - name: Locate exact rank training output fail closed
+        env:
+          RANK: ${{ matrix.rank }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t manifests < <(
+            find "${RUNNER_TEMP}/rank-training" \
+              -type f \
+              -path "*/artifacts/train/python/p9-rank-r${RANK}/adapter-manifest.json" \
+              -print | sort
+          )
+          if [[ "${#manifests[@]}" -ne 1 ]]; then
+            printf 'Expected exactly one rank-%s adapter manifest; found %s\n' "${RANK}" "${#manifests[@]}" >&2
+            printf '%s\n' "${manifests[@]}" >&2
+            exit 1
+          fi
+          training_output="$(dirname "${manifests[0]}")"
+          test -f "${training_output}/adapter/adapter_model.safetensors"
+          echo "TRAINING_OUTPUT=${training_output}" >> "${GITHUB_ENV}"
+
+      - name: Generate exactly 675 protected responses
+        env:
+          RANK: ${{ matrix.rank }}
+        run: |
+          set -euo pipefail
+          uv run --frozen python -m tiny_qwen_coder.evaluation.python_rank_sweep generate \
+            --rank "${RANK}" \
+            --training-output "${TRAINING_OUTPUT}"
+          test -f "${EVAL_OUTPUT}/generation-stage.json"
+          find "${EVAL_OUTPUT}" -type f -print | sort
+
+      - name: Upload transported GPU generation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: p9-001-rank-r${{ matrix.rank }}-generation-${{ github.sha }}
+          path: ${{ env.EVAL_OUTPUT }}/
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 7
+
+      - name: Upload partial GPU evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p9-001-rank-r${{ matrix.rank }}-generation-partial-${{ github.sha }}
+          path: ${{ env.EVAL_OUTPUT }}/
+          if-no-files-found: ignore
+          include-hidden-files: true
+          retention-days: 3
+
+  score:
+    name: Score protected Python responses for rank ${{ matrix.rank }}
+    needs: generate
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        rank: [8, 32, 64]
+
+    env:
+      TOKENIZERS_PARALLELISM: "false"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      P6_005_RUN_ID: "33301242379"
+      P6_005_ARTIFACT_NAME: "python-base-baseline-da537443ab80b1380bee0fc3c7d9d01ca0574f35"
+
+    steps:
+      - name: Check out exact evaluation source
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          clean: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Sync frozen environment
+        run: uv sync --frozen
+
+      - name: Select frozen rank output
+        env:
+          RANK: ${{ matrix.rank }}
+        run: |
+          set -euo pipefail
+          echo "EVAL_OUTPUT=artifacts/eval/python/p9-rank-r${RANK}-v1" >> "${GITHUB_ENV}"
+
+      - name: Download transported GPU generation evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: p9-001-rank-r${{ matrix.rank }}-generation-${{ github.sha }}
+          path: ${{ env.EVAL_OUTPUT }}
+
+      - name: Download accepted P6-005 baseline artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ env.P6_005_ARTIFACT_NAME }}
+          path: ${{ runner.temp }}/p6-005-baseline
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ env.P6_005_RUN_ID }}
+
+      - name: Locate accepted P6-005 baseline fail closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t manifests < <(
+            find "${RUNNER_TEMP}/p6-005-baseline" \
+              -type f \
+              -path '*/artifacts/eval/python/base-baseline-v1/baseline-manifest.json' \
+              -print | sort
+          )
+          if [[ "${#manifests[@]}" -ne 1 ]]; then
+            printf 'Expected exactly one P6-005 baseline manifest; found %s\n' "${#manifests[@]}" >&2
+            exit 1
+          fi
+          echo "P6_005_BASELINE_DIR=$(dirname "${manifests[0]}")" >> "${GITHUB_ENV}"
+
+      - name: Confirm clean evaluation source
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain)"
+          git rev-parse HEAD
+
+      - name: Score transported responses inside the runner container
+        env:
+          RANK: ${{ matrix.rank }}
+        run: |
+          set -euo pipefail
+          uv run --frozen python -m tiny_qwen_coder.evaluation.python_rank_sweep score \
+            --rank "${RANK}" \
+            --baseline-dir "${P6_005_BASELINE_DIR}"
+
+      - name: Independently verify persisted rank evidence
+        env:
+          RANK: ${{ matrix.rank }}
+        run: |
+          set -euo pipefail
+          uv run --frozen python -m tiny_qwen_coder.evaluation.python_rank_sweep verify \
+            --rank "${RANK}" \
+            --baseline-dir "${P6_005_BASELINE_DIR}" \
+            | tee "${RUNNER_TEMP}/rank-${RANK}-verified-comparison.json"
+
+      - name: Verify comparison baseline and cardinality fail closed
+        env:
+          RANK: ${{ matrix.rank }}
+        run: |
+          set -euo pipefail
+          uv run --frozen python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          rank = int(os.environ["RANK"])
+          root = Path(os.environ["EVAL_OUTPUT"])
+          comparison = json.loads((root / "comparison.json").read_text(encoding="utf-8"))
+          if comparison.get("task_id") != "P9-001" or comparison.get("rank") != rank:
+              raise SystemExit("P9-001 comparison identity mismatch")
+          overall = comparison.get("overall", {})
+          if overall.get("total_problems") != 675 or overall.get("base_passed") != 424:
+              raise SystemExit("accepted unchanged-base score/cardinality drifted")
+          adapter_passed = overall.get("adapter_passed")
+          if isinstance(adapter_passed, bool) or not isinstance(adapter_passed, int):
+              raise SystemExit("adapter passed count is not an integer")
+          if not 0 <= adapter_passed <= 675:
+              raise SystemExit("adapter passed count is outside valid range")
+          print(json.dumps(comparison, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload final protected evaluation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: p9-001-rank-r${{ matrix.rank }}-evaluation-${{ github.sha }}
+          path: ${{ env.EVAL_OUTPUT }}/
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 30

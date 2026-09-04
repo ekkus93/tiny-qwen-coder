@@ -1,0 +1,6 @@
+schema_version: 1
+training_config: configs/train/python/p9_rank_r8.yaml
+output_dir: artifacts/train/python/p9-rank-r8-smoke
+max_steps: 1
+train_samples: 8
+validation_samples: 4

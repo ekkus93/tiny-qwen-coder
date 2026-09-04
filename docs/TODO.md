@@ -844,15 +844,17 @@ Goal: improve the Python adapter through controlled experiments.
 
 ## P9-001 — Rank sweep
 
-- [ ] r=8.
-- [ ] r=16 baseline.
-- [ ] r=32.
-- [ ] r=64.
+- [x] r=8.
+- [x] r=16 baseline.
+- [x] r=32.
+- [x] r=64.
 
 Acceptance criteria:
 
 - All other major variables held fixed.
 - Comparative report produced.
+
+Implementation note: P9-001 is complete. Full training run `33587975474` froze r8/r32/r64 against the reused canonical r16/P0 control. Protected generation run `33809220955` produced exactly 675 responses for each new rank, and direct scoring run `33842212951` executed those sealed responses inside the already-containerized self-hosted runner with explicit reduced-isolation controls and independent evidence verification. The unchanged base remains best at `424/675` (`62.81%`). Fine-tuned results were r8 `231/675` (`34.22%`), r16/P0 `187/675` (`27.70%`), r32 `129/675` (`19.11%`), and r64 `127/675` (`18.81%`). No fine-tuned rank improved over base; r8 is only the best observed fine-tuned rank, not a promotion candidate. The reused corpus contamination state remains `not_run`. Full interpretation and provenance are frozen in `docs/P9_001_RANK_SWEEP.md` and `docs/evidence/P9_001_RANK_SWEEP_COMPARISON.json`.
 
 ## P9-002 — Target-module sweep
 

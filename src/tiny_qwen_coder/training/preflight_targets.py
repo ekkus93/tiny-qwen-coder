@@ -23,7 +23,13 @@ class TargetPreflightEvidence:
 
 
 def verify_frozen_lora_targets(plan: AdapterTrainingPlan) -> TargetPreflightEvidence:
-    """Require the exact P7-001 target profile for the immutable canonical base."""
+    """Require the exact P7-001 target profile for the immutable canonical base.
+
+    The profile's measured rank/trainable-parameter count are frozen evidence
+    from P2-008/P7-001, not a restriction that every later experiment must use
+    rank 16. The training config owns the candidate rank; the preflight keeps
+    the base identity, strategy, and target-module set fixed.
+    """
 
     profile = load_frozen_selective_lora_target_profile()
     if plan.target.model_repository != profile.base_repository:
@@ -34,11 +40,6 @@ def verify_frozen_lora_targets(plan: AdapterTrainingPlan) -> TargetPreflightEvid
         raise AdapterTrainingError("canonical training preflight requires selective LoRA targeting")
     if plan.config.lora.target_modules != profile.target_modules:
         raise AdapterTrainingError("configured LoRA targets do not match frozen P7-001 profile")
-    if plan.config.lora.rank != profile.measurement_rank:
-        raise AdapterTrainingError(
-            f"configured LoRA rank {plan.config.lora.rank} does not match measured "
-            f"P2-008/P7-001 rank {profile.measurement_rank}"
-        )
     return TargetPreflightEvidence(
         base_repository=profile.base_repository,
         base_revision=profile.base_revision,
