@@ -1,0 +1,243 @@
+name: Python P9 Minimum Intervention Training
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: python-p9-minimum-intervention-training-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  train:
+    name: Train ${{ matrix.candidate }}
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 720
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        candidate:
+          - lr-1e-5
+          - lr-2e-5
+          - lr-5e-5
+          - lr-1e-4
+          - lr-2e-4
+
+    env:
+      TOKENIZERS_PARALLELISM: "false"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      CANDIDATE: ${{ matrix.candidate }}
+
+    steps:
+      - name: Check out exact source
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          clean: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Inspect NVIDIA GPU
+        run: nvidia-smi
+
+      - name: Sync frozen QLoRA environment
+        run: uv sync --frozen --extra qlora
+
+      - name: Verify CUDA runtime
+        run: |
+          set -euo pipefail
+          uv run --frozen python - <<'PY'
+          import bitsandbytes
+          import torch
+
+          if not torch.cuda.is_available():
+              raise SystemExit("PyTorch cannot access CUDA")
+          if not torch.cuda.is_bf16_supported():
+              raise SystemExit("CUDA device 0 does not support BF16")
+          properties = torch.cuda.get_device_properties(0)
+          print(f"torch={torch.__version__}")
+          print(f"bitsandbytes={bitsandbytes.__version__}")
+          print(f"cuda_runtime={torch.version.cuda}")
+          print(f"gpu={properties.name}")
+          print(f"total_memory_bytes={properties.total_memory}")
+          PY
+
+      - name: Validate frozen P9-004 protocol
+        run: |
+          set -euo pipefail
+          uv run --frozen python -m tiny_qwen_coder.training.minimum_intervention \
+            --repo-root . \
+            > "${RUNNER_TEMP}/p9-004-protocol-validation.json"
+          cat "${RUNNER_TEMP}/p9-004-protocol-validation.json"
+
+      - name: Select exact candidate paths
+        run: |
+          set -euo pipefail
+          case "${CANDIDATE}" in
+            lr-1e-5) suffix="1e5" ;;
+            lr-2e-5) suffix="2e5" ;;
+            lr-5e-5) suffix="5e5" ;;
+            lr-1e-4) suffix="1e4" ;;
+            lr-2e-4) suffix="2e4" ;;
+            *) echo "unsupported candidate ${CANDIDATE}" >&2; exit 2 ;;
+          esac
+          echo "TRAIN_CONFIG=configs/train/python/p9_min_lr_${suffix}.yaml" >> "${GITHUB_ENV}"
+          echo "OUTPUT_DIR=artifacts/train/python/p9-min-lr-${suffix}" >> "${GITHUB_ENV}"
+          echo "EXPECTED_ADAPTER_ID=language/python/p9-min-lr-${suffix}" >> "${GITHUB_ENV}"
+
+      - name: Confirm clean source tree
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain)"
+          git rev-parse HEAD
+
+      - name: Materialize frozen Python P0 corpus
+        run: |
+          set -euo pipefail
+          uv run --frozen python scripts/freeze_python_p0.py
+          test -f data/python/p0/dataset-manifest.json
+          test -f data/python/p0/dataset-manifest.sha256
+          test -f data/python/p0/train.jsonl
+          test -f data/python/p0/validation.jsonl
+
+      - name: Run mandatory training preflight
+        run: |
+          set -euo pipefail
+          uv run --frozen tiny-qwen-coder-train-preflight \
+            --config "${TRAIN_CONFIG}" \
+            --repo-root . \
+            --output "${RUNNER_TEMP}/p9-004-${CANDIDATE}-preflight.json"
+          cat "${RUNNER_TEMP}/p9-004-${CANDIDATE}-preflight.json"
+
+      - name: Run 1,000-step trajectory with frozen snapshots
+        run: |
+          set -euo pipefail
+          uv run --frozen python -m tiny_qwen_coder.training.minimum_intervention_training \
+            --candidate "${CANDIDATE}" \
+            --repo-root . \
+            | tee "${RUNNER_TEMP}/p9-004-${CANDIDATE}-training-report.json"
+
+      - name: Verify trajectory evidence
+        env:
+          EXPECTED_GIT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          uv run --frozen python - <<'PY'
+          import hashlib
+          import json
+          import math
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["OUTPUT_DIR"])
+          report = json.loads((root / "training-report.json").read_text(encoding="utf-8"))
+          run_manifest = json.loads((root / "run-manifest.json").read_text(encoding="utf-8"))
+          candidate = json.loads((root / "candidate.json").read_text(encoding="utf-8"))
+
+          if report.get("task_id") != "P9-004":
+              raise SystemExit("P9-004B report task identity mismatch")
+          if report.get("candidate_label") != os.environ["CANDIDATE"]:
+              raise SystemExit("P9-004B report candidate mismatch")
+          if report.get("source_training_config") != os.environ["TRAIN_CONFIG"]:
+              raise SystemExit("P9-004B source training config mismatch")
+          if report.get("adapter_id") != os.environ["EXPECTED_ADAPTER_ID"]:
+              raise SystemExit("P9-004B adapter identity mismatch")
+          if candidate.get("adapter_id") != os.environ["EXPECTED_ADAPTER_ID"]:
+              raise SystemExit("P9-004B frozen candidate identity mismatch")
+          if run_manifest.get("git", {}).get("sha") != os.environ["EXPECTED_GIT_SHA"]:
+              raise SystemExit("P9-004B run manifest Git SHA mismatch")
+          if report.get("trajectory_max_steps") != 1000 or report.get("global_steps") != 1000:
+              raise SystemExit("P9-004B did not complete exactly 1,000 optimizer steps")
+          if report.get("checkpoint_steps") != [50, 100, 250, 500, 1000]:
+              raise SystemExit("P9-004B checkpoint grid drifted")
+          if report.get("snapshot_count") != 5:
+              raise SystemExit("P9-004B did not persist exactly five snapshots")
+
+          for key in ("training_loss", "validation_loss", "total_runtime_seconds"):
+              value = report.get(key)
+              if isinstance(value, bool) or not isinstance(value, (int, float)):
+                  raise SystemExit(f"P9-004B {key} is not numeric")
+              if not math.isfinite(float(value)):
+                  raise SystemExit(f"P9-004B {key} is not finite")
+          for key in ("peak_allocated_vram_bytes", "peak_reserved_vram_bytes"):
+              value = report.get(key)
+              if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+                  raise SystemExit(f"P9-004B {key} is invalid")
+          if report["peak_allocated_vram_bytes"] > report["peak_reserved_vram_bytes"]:
+              raise SystemExit("P9-004B peak allocated VRAM exceeds reserved VRAM")
+
+          expected_steps = [50, 100, 250, 500, 1000]
+          snapshots = report.get("snapshots")
+          if not isinstance(snapshots, list) or [item.get("step") for item in snapshots] != expected_steps:
+              raise SystemExit("P9-004B snapshot evidence ordering mismatch")
+          resolved_root = root.resolve()
+          for snapshot in snapshots:
+              files = snapshot.get("files")
+              if not isinstance(files, list) or not files:
+                  raise SystemExit("P9-004B snapshot has no file inventory")
+              snapshot_dir = (root / snapshot["directory"]).resolve()
+              if not snapshot_dir.is_relative_to(resolved_root) or not snapshot_dir.is_dir():
+                  raise SystemExit("P9-004B snapshot directory escapes output root")
+              canonical = []
+              for item in files:
+                  path = (snapshot_dir / item["path"]).resolve()
+                  if not path.is_relative_to(snapshot_dir) or not path.is_file():
+                      raise SystemExit(f"missing or escaping P9-004B snapshot file: {item['path']}")
+                  if path.stat().st_size != item.get("size_bytes"):
+                      raise SystemExit(f"P9-004B snapshot size mismatch: {item['path']}")
+                  digest = hashlib.sha256(path.read_bytes()).hexdigest()
+                  if digest != item.get("sha256"):
+                      raise SystemExit(f"P9-004B snapshot SHA mismatch: {item['path']}")
+                  canonical.append(item)
+              payload = json.dumps(canonical, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+              if hashlib.sha256(payload.encode()).hexdigest() != snapshot.get("artifact_set_sha256"):
+                  raise SystemExit("P9-004B snapshot artifact-set SHA mismatch")
+
+          print(json.dumps(report, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload P9-004B trajectory evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-p9-minimum-${{ matrix.candidate }}-${{ github.sha }}
+          path: |
+            ${{ env.OUTPUT_DIR }}/snapshots/
+            ${{ env.OUTPUT_DIR }}/candidate.json
+            ${{ env.OUTPUT_DIR }}/protocol-validation.json
+            ${{ env.OUTPUT_DIR }}/training-preflight.json
+            ${{ env.OUTPUT_DIR }}/training-metrics.jsonl
+            ${{ env.OUTPUT_DIR }}/training-report.json
+            ${{ env.OUTPUT_DIR }}/run-manifest.json
+            ${{ env.OUTPUT_DIR }}/dataset-manifest.json
+            ${{ runner.temp }}/p9-004-protocol-validation.json
+            ${{ runner.temp }}/p9-004-${{ matrix.candidate }}-preflight.json
+            ${{ runner.temp }}/p9-004-${{ matrix.candidate }}-training-report.json
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 30
+
+      - name: Upload compact partial evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-p9-minimum-${{ matrix.candidate }}-partial-${{ github.sha }}
+          path: |
+            ${{ env.OUTPUT_DIR }}/*.json
+            ${{ env.OUTPUT_DIR }}/*.jsonl
+            ${{ runner.temp }}/p9-004-protocol-validation.json
+            ${{ runner.temp }}/p9-004-${{ matrix.candidate }}-preflight.json
+            ${{ runner.temp }}/p9-004-${{ matrix.candidate }}-training-report.json
+          if-no-files-found: ignore
+          include-hidden-files: true
+          retention-days: 7
