@@ -58,7 +58,10 @@ class _FakeAdapterModel:
 def test_snapshot_callback_saves_only_precommitted_steps(tmp_path: Path) -> None:
     root = tmp_path / "snapshots"
     root.mkdir()
-    callback = _AdapterSnapshotCallback(root, (50, 100, 250, 500, 1000))
+    callback = _AdapterSnapshotCallback(
+        snapshot_root=root,
+        steps=(50, 100, 250, 500, 1000),
+    )
     model = _FakeAdapterModel()
     control = object()
 
