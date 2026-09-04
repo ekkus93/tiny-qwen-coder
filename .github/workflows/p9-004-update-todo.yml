@@ -1,0 +1,71 @@
+name: P9-004 update TODO
+
+on:
+  push:
+    branches:
+      - ralph/p9-004-minimum-intervention
+    paths:
+      - ".github/workflows/p9-004-update-todo.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ralph/p9-004-minimum-intervention
+          fetch-depth: 0
+      - name: Redesign P9-004 TODO block
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("docs/TODO.md")
+          text = path.read_text(encoding="utf-8")
+          old = """## P9-004 — Training-length/learning-rate study
+
+- [ ] additional epoch/step options.
+- [ ] lower/higher LR candidates.
+
+Acceptance criteria:
+
+- Overfitting/general regression explicitly measured.
+"""
+          new = """## P9-004 — Checkpointed low-LR minimum-intervention study
+
+- [x] Freeze five r8 learning-rate trajectories: `1e-5`, `2e-5`, `5e-5`, `1e-4`, `2e-4`.
+- [x] Freeze a common 1,000-step scheduler horizon and snapshots at steps 50/100/250/500/1000.
+- [x] Freeze a deterministic development/qualification split before checkpoint scoring.
+- [x] Keep the repository holdout qualification-only.
+- [x] Freeze benchmark-driven checkpoint selection; validation loss cannot select the winner.
+- [ ] Implement adapter-only trajectory snapshot training on the self-hosted GPU runner.
+- [ ] Materialize and freeze exact development/qualification task membership.
+- [ ] Score all 25 snapshots on development and mechanically preselect at most one candidate.
+- [ ] Run one-shot qualification only for the selected checkpoint.
+
+Acceptance criteria:
+
+- Every trajectory differs from completed r8 only in learning rate, adapter ID, and output path.
+- All checkpoints share the same 1,000-step scheduler horizon; step is not confounded with a different cosine horizon.
+- Repeated tuning consumes only the frozen development slice, never the qualification-only repository holdout.
+- A candidate reaches qualification only if development combined passes strictly beat base with no HumanEval/MBPP development regression.
+- Qualification is winner-only and one-shot; failure does not authorize trying a runner-up after observing results.
+- Training/validation loss, VRAM, and throughput are descriptive and cannot override executable benchmark results.
+
+Implementation note: the redesigned protocol is frozen in `configs/train/python/p9_minimum_intervention_v1.yaml` and documented in `docs/P9_004_MINIMUM_INTERVENTION.md`. If all 25 development checkpoints remain below base, the next priority is dataset/objective quality rather than additional rank/LR/epoch search.
+"""
+          if text.count(old) != 1:
+              raise SystemExit(f"expected exactly one original P9-004 block, found {text.count(old)}")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
+          git diff --check
+      - name: Commit TODO redesign
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/TODO.md
+          git commit -m "docs: redesign P9-004 minimum intervention study"
+          git push origin HEAD:ralph/p9-004-minimum-intervention
