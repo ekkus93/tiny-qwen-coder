@@ -11,8 +11,78 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  prepare-corpus:
+    name: Prepare frozen Python P0 corpus
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      TOKENIZERS_PARALLELISM: "false"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+
+    steps:
+      - name: Check out exact source
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          clean: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Sync frozen environment
+        run: uv sync --frozen
+
+      - name: Validate frozen P9-004 protocol
+        run: |
+          set -euo pipefail
+          uv run --frozen python -m tiny_qwen_coder.training.minimum_intervention \
+            --repo-root . \
+            > "${RUNNER_TEMP}/p9-004-protocol-validation.json"
+
+      - name: Materialize frozen Python P0 corpus once
+        run: |
+          set -euo pipefail
+          log="${RUNNER_TEMP}/freeze-python-p0.log"
+          for attempt in 1 2 3 4 5; do
+            rm -rf data/python/p0
+            if uv run --frozen python scripts/freeze_python_p0.py >"${log}" 2>&1; then
+              cat "${log}"
+              break
+            fi
+            cat "${log}" >&2
+            if ! grep -Eq '429 Too Many Requests|maximum queue size reached' "${log}"; then
+              exit 1
+            fi
+            if [ "${attempt}" -eq 5 ]; then
+              echo "Hugging Face remained rate-limited after transient-only retries" >&2
+              exit 1
+            fi
+            sleep "$((attempt * 30))"
+          done
+          test -f data/python/p0/dataset-manifest.json
+          test -f data/python/p0/dataset-manifest.sha256
+          test -f data/python/p0/train.jsonl
+          test -f data/python/p0/validation.jsonl
+
+      - name: Upload frozen P0 corpus
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-p9-p0-corpus-${{ github.sha }}
+          path: data/python/p0/
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 7
+
   train:
     name: Train ${{ matrix.candidate }}
+    needs: prepare-corpus
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 720
     strategy:
@@ -102,10 +172,15 @@ jobs:
           test -z "$(git status --porcelain)"
           git rev-parse HEAD
 
-      - name: Materialize frozen Python P0 corpus
+      - name: Download frozen P0 corpus
+        uses: actions/download-artifact@v5
+        with:
+          name: python-p9-p0-corpus-${{ github.sha }}
+          path: data/python/p0
+
+      - name: Verify frozen P0 corpus files
         run: |
           set -euo pipefail
-          uv run --frozen python scripts/freeze_python_p0.py
           test -f data/python/p0/dataset-manifest.json
           test -f data/python/p0/dataset-manifest.sha256
           test -f data/python/p0/train.jsonl
