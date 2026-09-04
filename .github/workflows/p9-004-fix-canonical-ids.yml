@@ -57,15 +57,8 @@ jobs:
 
           test = Path("tests/unit/test_minimum_intervention.py")
           test_text = test.read_text(encoding="utf-8")
-          anchor = '''    assert tuple(item.learning_rate for item in report.candidates) == (
-              0.00001,
-              0.00002,
-              0.00005,
-              0.0001,
-              0.0002,
-          )
-          '''
-          additions = anchor + '''    assert tuple(item.adapter_id for item in report.candidates) == (
+          anchor = '    assert report.snapshot_count == 25\n'
+          additions = '''    assert tuple(item.adapter_id for item in report.candidates) == (
               "language/python/p9-min-lr-1e5",
               "language/python/p9-min-lr-2e5",
               "language/python/p9-min-lr-5e5",
@@ -79,9 +72,9 @@ jobs:
               "artifacts/train/python/p9-min-lr-1e4",
               "artifacts/train/python/p9-min-lr-2e4",
           )
-          '''
+          ''' + anchor
           if test_text.count(anchor) != 1:
-              raise SystemExit(f"expected one test anchor, found {test_text.count(anchor)}")
+              raise SystemExit(f"expected one snapshot anchor, found {test_text.count(anchor)}")
           test.write_text(test_text.replace(anchor, additions, 1), encoding="utf-8")
           PY
           uv run --frozen ruff format src/tiny_qwen_coder/training/minimum_intervention.py tests/unit/test_minimum_intervention.py
