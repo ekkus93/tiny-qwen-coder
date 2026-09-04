@@ -1,0 +1,234 @@
+name: P9-004B Recover Missing Trajectories
+
+on:
+  push:
+    branches:
+      - ralph/p9-004-minimum-intervention
+    paths:
+      - ".github/workflows/p9-004b-recover-missing.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: p9-004b-recover-missing-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare-corpus:
+    name: Prepare shared frozen Python P0 corpus
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      TOKENIZERS_PARALLELISM: "false"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          clean: true
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - name: Sync frozen environment
+        run: uv sync --frozen
+      - name: Validate frozen P9-004 protocol
+        run: |
+          set -euo pipefail
+          uv run --frozen python -m tiny_qwen_coder.training.minimum_intervention --repo-root . \
+            > "${RUNNER_TEMP}/p9-004-protocol-validation.json"
+      - name: Materialize frozen Python P0 corpus once
+        run: |
+          set -euo pipefail
+          log="${RUNNER_TEMP}/freeze-python-p0.log"
+          for attempt in 1 2 3 4 5; do
+            rm -rf data/python/p0
+            if uv run --frozen python scripts/freeze_python_p0.py >"${log}" 2>&1; then
+              cat "${log}"
+              break
+            fi
+            cat "${log}" >&2
+            if ! grep -Eq '429 Too Many Requests|maximum queue size reached' "${log}"; then
+              exit 1
+            fi
+            if [ "${attempt}" -eq 5 ]; then
+              echo "Hugging Face remained rate-limited after transient-only retries" >&2
+              exit 1
+            fi
+            sleep "$((attempt * 30))"
+          done
+          test -f data/python/p0/dataset-manifest.json
+          test -f data/python/p0/dataset-manifest.sha256
+          test -f data/python/p0/train.jsonl
+          test -f data/python/p0/validation.jsonl
+      - name: Upload shared frozen P0 corpus
+        uses: actions/upload-artifact@v4
+        with:
+          name: p9-004b-recovery-p0-${{ github.sha }}
+          path: data/python/p0/
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 7
+
+  train:
+    name: Recover ${{ matrix.candidate }}
+    needs: prepare-corpus
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 720
+    strategy:
+      fail-fast: true
+      max-parallel: 1
+      matrix:
+        candidate:
+          - lr-5e-5
+          - lr-1e-4
+          - lr-2e-4
+    env:
+      TOKENIZERS_PARALLELISM: "false"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      CANDIDATE: ${{ matrix.candidate }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          clean: true
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - name: Inspect NVIDIA GPU
+        run: nvidia-smi
+      - name: Sync frozen QLoRA environment
+        run: uv sync --frozen --extra qlora
+      - name: Verify CUDA runtime
+        run: |
+          set -euo pipefail
+          uv run --frozen python - <<'PY'
+          import bitsandbytes
+          import torch
+          if not torch.cuda.is_available():
+              raise SystemExit("PyTorch cannot access CUDA")
+          if not torch.cuda.is_bf16_supported():
+              raise SystemExit("CUDA device 0 does not support BF16")
+          print(f"torch={torch.__version__}")
+          print(f"bitsandbytes={bitsandbytes.__version__}")
+          print(f"gpu={torch.cuda.get_device_properties(0).name}")
+          PY
+      - name: Validate frozen P9-004 protocol
+        run: |
+          set -euo pipefail
+          uv run --frozen python -m tiny_qwen_coder.training.minimum_intervention --repo-root . \
+            > "${RUNNER_TEMP}/p9-004-protocol-validation.json"
+      - name: Select exact candidate paths
+        run: |
+          set -euo pipefail
+          case "${CANDIDATE}" in
+            lr-5e-5) suffix="5e5" ;;
+            lr-1e-4) suffix="1e4" ;;
+            lr-2e-4) suffix="2e4" ;;
+            *) echo "unsupported recovery candidate ${CANDIDATE}" >&2; exit 2 ;;
+          esac
+          echo "TRAIN_CONFIG=configs/train/python/p9_min_lr_${suffix}.yaml" >> "${GITHUB_ENV}"
+          echo "OUTPUT_DIR=artifacts/train/python/p9-min-lr-${suffix}" >> "${GITHUB_ENV}"
+          echo "EXPECTED_ADAPTER_ID=language/python/p9-min-lr-${suffix}" >> "${GITHUB_ENV}"
+      - name: Confirm clean source tree
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain)"
+          git rev-parse HEAD
+      - name: Download shared frozen P0 corpus
+        uses: actions/download-artifact@v5
+        with:
+          name: p9-004b-recovery-p0-${{ github.sha }}
+          path: data/python/p0
+      - name: Verify shared frozen P0 corpus files
+        run: |
+          set -euo pipefail
+          test -f data/python/p0/dataset-manifest.json
+          test -f data/python/p0/dataset-manifest.sha256
+          test -f data/python/p0/train.jsonl
+          test -f data/python/p0/validation.jsonl
+      - name: Run mandatory training preflight
+        run: |
+          set -euo pipefail
+          uv run --frozen tiny-qwen-coder-train-preflight \
+            --config "${TRAIN_CONFIG}" \
+            --repo-root . \
+            --output "${RUNNER_TEMP}/p9-004-${CANDIDATE}-preflight.json"
+      - name: Run 1,000-step trajectory with frozen snapshots
+        run: |
+          set -euo pipefail
+          uv run --frozen python -m tiny_qwen_coder.training.minimum_intervention_training \
+            --candidate "${CANDIDATE}" \
+            --repo-root . \
+            | tee "${RUNNER_TEMP}/p9-004-${CANDIDATE}-training-report.json"
+      - name: Verify trajectory evidence
+        env:
+          EXPECTED_GIT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          uv run --frozen python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          root = Path(os.environ["OUTPUT_DIR"])
+          report = json.loads((root / "training-report.json").read_text(encoding="utf-8"))
+          run_manifest = json.loads((root / "run-manifest.json").read_text(encoding="utf-8"))
+          if report.get("task_id") != "P9-004":
+              raise SystemExit("P9-004B task identity mismatch")
+          if report.get("candidate_label") != os.environ["CANDIDATE"]:
+              raise SystemExit("P9-004B candidate mismatch")
+          if report.get("adapter_id") != os.environ["EXPECTED_ADAPTER_ID"]:
+              raise SystemExit("P9-004B adapter identity mismatch")
+          if report.get("global_steps") != 1000:
+              raise SystemExit("P9-004B did not complete 1,000 optimizer steps")
+          if report.get("checkpoint_steps") != [50, 100, 250, 500, 1000] or report.get("snapshot_count") != 5:
+              raise SystemExit("P9-004B snapshot contract mismatch")
+          if run_manifest.get("git", {}).get("sha") != os.environ["EXPECTED_GIT_SHA"]:
+              raise SystemExit("P9-004B run manifest Git SHA mismatch")
+          for step in (50, 100, 250, 500, 1000):
+              directory = root / "snapshots" / f"step-{step:04d}"
+              if not (directory / "adapter_config.json").is_file():
+                  raise SystemExit(f"missing adapter config at step {step}")
+              if not (directory / "adapter_model.safetensors").is_file():
+                  raise SystemExit(f"missing adapter weights at step {step}")
+          print(json.dumps(report, indent=2, sort_keys=True))
+          PY
+      - name: Upload recovered trajectory evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-p9-minimum-${{ matrix.candidate }}-${{ github.sha }}
+          path: |
+            ${{ env.OUTPUT_DIR }}/snapshots/
+            ${{ env.OUTPUT_DIR }}/candidate.json
+            ${{ env.OUTPUT_DIR }}/protocol-validation.json
+            ${{ env.OUTPUT_DIR }}/training-preflight.json
+            ${{ env.OUTPUT_DIR }}/training-metrics.jsonl
+            ${{ env.OUTPUT_DIR }}/training-report.json
+            ${{ env.OUTPUT_DIR }}/run-manifest.json
+            ${{ env.OUTPUT_DIR }}/dataset-manifest.json
+            ${{ runner.temp }}/p9-004-protocol-validation.json
+            ${{ runner.temp }}/p9-004-${{ matrix.candidate }}-preflight.json
+            ${{ runner.temp }}/p9-004-${{ matrix.candidate }}-training-report.json
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 30
+      - name: Upload compact partial evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-p9-minimum-${{ matrix.candidate }}-partial-${{ github.sha }}
+          path: |
+            ${{ env.OUTPUT_DIR }}/*.json
+            ${{ env.OUTPUT_DIR }}/*.jsonl
+            ${{ runner.temp }}/p9-004-protocol-validation.json
+            ${{ runner.temp }}/p9-004-${{ matrix.candidate }}-preflight.json
+            ${{ runner.temp }}/p9-004-${{ matrix.candidate }}-training-report.json
+          if-no-files-found: ignore
+          include-hidden-files: true
+          retention-days: 7
