@@ -50,3 +50,5 @@ jobs:
           git add src/tiny_qwen_coder/training/minimum_intervention_training.py
           git commit -m "fix: satisfy Ruff UP035 in P9-004B"
           git push origin HEAD:ralph/p9-004-minimum-intervention
+
+# Rerun after isolating the unit test from generated P0 corpus state.
