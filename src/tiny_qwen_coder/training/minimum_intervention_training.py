@@ -8,9 +8,10 @@ import json
 import math
 import shutil
 import time
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, NoReturn, Sequence
+from typing import Any, NoReturn
 
 import torch
 
