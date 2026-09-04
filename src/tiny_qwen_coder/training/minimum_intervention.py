@@ -324,7 +324,9 @@ def load_minimum_intervention_protocol(path: Path = _PROTOCOL_PATH) -> MinimumIn
         require_no_suite_regression=_boolean(
             selection_row, "require_no_suite_regression", context="selection"
         ),
-        tie_breakers=_string_sequence(selection_row["tie_breakers"], context="selection.tie_breakers"),
+        tie_breakers=_string_sequence(
+            selection_row["tie_breakers"], context="selection.tie_breakers"
+        ),
     )
 
     qualification_row = _mapping(root["qualification"], context="qualification")
@@ -354,7 +356,9 @@ def load_minimum_intervention_protocol(path: Path = _PROTOCOL_PATH) -> MinimumIn
     )
 
     return MinimumInterventionProtocol(
-        schema_version=_positive_int(root, "schema_version", context="minimum intervention protocol"),
+        schema_version=_positive_int(
+            root, "schema_version", context="minimum intervention protocol"
+        ),
         task_id=_string(root, "task_id", context="minimum intervention protocol"),
         study_id=_string(root, "study_id", context="minimum intervention protocol"),
         control_training_config=_string(
@@ -462,9 +466,7 @@ def validate_minimum_intervention(
     control_path = repo_root / _CONTROL_CONFIG
     control = _load_yaml(control_path, context="P9-004 r8 control config")
     _validate_rank8_shape(control, context="P9-004 r8 control config")
-    control_fixed = _normalized_fixed_training_payload(
-        control, context="P9-004 r8 control config"
-    )
+    control_fixed = _normalized_fixed_training_payload(control, context="P9-004 r8 control config")
     fixed_sha = hashlib.sha256(_canonical_json(control_fixed).encode("utf-8")).hexdigest()
     if fixed_sha != _EXPECTED_FIXED_PAYLOAD_SHA256:
         raise MinimumInterventionError("P9-004 fixed payload drifted from completed r8 control")
@@ -498,7 +500,9 @@ def validate_minimum_intervention(
         if output_dir != f"artifacts/train/python/{expected_suffix}":
             raise MinimumInterventionError(f"P9-004 {candidate.label} output_dir is not canonical")
         if adapter_id in seen_adapters or output_dir in seen_outputs:
-            raise MinimumInterventionError("P9-004 candidate identities/output paths must be unique")
+            raise MinimumInterventionError(
+                "P9-004 candidate identities/output paths must be unique"
+            )
         seen_adapters.add(adapter_id)
         seen_outputs.add(output_dir)
         candidates.append(

@@ -66,7 +66,9 @@ def test_partition_rejects_unknown_suite_and_empty_task_id() -> None:
 def test_protocol_sha_fails_closed_on_post_hoc_change(tmp_path: Path) -> None:
     text = _PROTOCOL.read_text(encoding="utf-8")
     mutated = tmp_path / "protocol.yaml"
-    mutated.write_text(text.replace("trajectory_max_steps: 1000", "trajectory_max_steps: 999"), encoding="utf-8")
+    mutated.write_text(
+        text.replace("trajectory_max_steps: 1000", "trajectory_max_steps: 999"), encoding="utf-8"
+    )
 
     with pytest.raises(MinimumInterventionError, match="protocol SHA-256"):
         validate_minimum_intervention(mutated)
