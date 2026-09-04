@@ -10,15 +10,18 @@ access unless evaluation configuration explicitly enables it.
 
 from __future__ import annotations
 
+import math
 import os
+import resource
 import shutil
 import signal
 import subprocess
+import sys
 import tempfile
 import threading
 import time
 import uuid
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path, PurePosixPath
@@ -56,10 +59,11 @@ class ExecutionRequestError(ValueError):
 
 
 class OciRuntime(StrEnum):
-    """Supported OCI-compatible command-line runtimes."""
+    """Execution-runtime identifiers persisted in evaluation evidence."""
 
     PODMAN = "podman"
     DOCKER = "docker"
+    DIRECT = "direct"
 
 
 class ExecutionStatus(StrEnum):
@@ -543,6 +547,182 @@ class ConstrainedExecutionHarness:
             return ExecutionResult(
                 status=status,
                 runtime=runtime.kind,
+                exit_code=exit_code,
+                duration_seconds=duration,
+                stdout=stdout_capture.text(),
+                stderr=stderr_capture.text(),
+                stdout_truncated=stdout_capture.truncated,
+                stderr_truncated=stderr_capture.truncated,
+            )
+
+
+def _write_direct_files(
+    root: Path,
+    files: tuple[ExecutionFile, ...],
+    *,
+    max_input_bytes: int,
+) -> None:
+    total_bytes = sum(len(item.content) for item in files)
+    if total_bytes > max_input_bytes:
+        raise ExecutionRequestError(
+            f"execution input contains {total_bytes} bytes; limit is {max_input_bytes}"
+        )
+    root.mkdir(mode=0o700)
+    for item in files:
+        relative = PurePosixPath(item.path)
+        destination = root.joinpath(*relative.parts)
+        destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        destination.write_bytes(item.content)
+        destination.chmod(0o700 if item.executable else 0o600)
+
+
+def _direct_environment(root: Path) -> dict[str, str]:
+    home = root / "home"
+    temporary = root / "tmp"
+    home.mkdir(mode=0o700)
+    temporary.mkdir(mode=0o700)
+    python_bin = str(Path(sys.executable).resolve().parent)
+    return {
+        "HOME": str(home),
+        "TMPDIR": str(temporary),
+        "PATH": python_bin + os.pathsep + os.defpath,
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "PYTHONNOUSERSITE": "1",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONHASHSEED": "0",
+    }
+
+
+def _direct_limit_setup(
+    limits: ExecutionLimits,
+    timeout_seconds: float,
+) -> Callable[[], None]:
+    memory_bytes = limits.memory_mebibytes * 1024 * 1024
+    file_bytes = limits.workspace_mebibytes * 1024 * 1024
+    cpu_seconds = max(1, math.ceil(timeout_seconds * limits.cpus))
+
+    def apply_limits() -> None:
+        os.umask(0o077)
+        resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+        resource.setrlimit(resource.RLIMIT_AS, (memory_bytes, memory_bytes))
+        resource.setrlimit(resource.RLIMIT_FSIZE, (file_bytes, file_bytes))
+        resource.setrlimit(resource.RLIMIT_NOFILE, (limits.open_files, limits.open_files))
+        resource.setrlimit(resource.RLIMIT_NPROC, (limits.pids, limits.pids))
+        resource.setrlimit(resource.RLIMIT_CPU, (cpu_seconds, cpu_seconds))
+
+    return apply_limits
+
+
+class DirectExecutionHarness(ConstrainedExecutionHarness):
+    """Run generated code directly inside an explicitly accepted outer container boundary.
+
+    This backend intentionally does not claim OCI-equivalent filesystem or network isolation.
+    It is never selected implicitly. Callers must opt in with ``allow_reduced_isolation=True``.
+    The child still receives a fresh working directory, a credential-free environment, bounded
+    input/output, Linux resource limits, a wall-clock timeout, and process-group cleanup.
+    """
+
+    def __init__(
+        self,
+        *,
+        temp_root: Path | None = None,
+        allow_reduced_isolation: bool = False,
+    ) -> None:
+        super().__init__(temp_root=temp_root)
+        self._allow_reduced_isolation = allow_reduced_isolation
+
+    def run(
+        self,
+        request: ExecutionRequest,
+        execution: ExecutionConfig,
+        *,
+        limits: ExecutionLimits | None = None,
+    ) -> ExecutionResult:
+        """Execute one request as a bounded subprocess in the current runner container."""
+
+        if not self._allow_reduced_isolation:
+            raise ExecutionHarnessUnavailableError(
+                "direct execution requires explicit allow_reduced_isolation=True; "
+                "it does not provide OCI-equivalent filesystem or network isolation"
+            )
+        resolved_limits = limits if limits is not None else ExecutionLimits()
+
+        with tempfile.TemporaryDirectory(
+            prefix="tiny-qwen-coder-direct-exec-",
+            dir=self._temp_root,
+        ) as temporary_root_text:
+            temporary_root = Path(temporary_root_text)
+            workspace = temporary_root / "workspace"
+            _write_direct_files(
+                workspace,
+                request.files,
+                max_input_bytes=resolved_limits.max_input_bytes,
+            )
+            environment = _direct_environment(temporary_root)
+
+            process: subprocess.Popen[bytes]
+            try:
+                process = subprocess.Popen(
+                    request.command,
+                    cwd=workspace,
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    env=environment,
+                    start_new_session=True,
+                    preexec_fn=_direct_limit_setup(
+                        resolved_limits,
+                        execution.timeout_seconds,
+                    ),
+                )
+            except (OSError, subprocess.SubprocessError) as exc:
+                raise ExecutionHarnessUnavailableError(
+                    f"could not launch direct execution command {request.command[0]!r}"
+                ) from exc
+
+            if process.stdout is None or process.stderr is None:  # pragma: no cover
+                _kill_process_group(process)
+                raise ExecutionHarnessError("direct execution did not provide output pipes")
+
+            stdout_stream = cast(BinaryIO, process.stdout)
+            stderr_stream = cast(BinaryIO, process.stderr)
+            stdout_capture = _BoundedCapture.create(resolved_limits.max_output_bytes)
+            stderr_capture = _BoundedCapture.create(resolved_limits.max_output_bytes)
+            stdout_thread = _start_capture_thread(stdout_stream, stdout_capture)
+            stderr_thread = _start_capture_thread(stderr_stream, stderr_capture)
+            started = time.monotonic()
+            timed_out = False
+            try:
+                process.wait(timeout=execution.timeout_seconds)
+            except subprocess.TimeoutExpired:
+                timed_out = True
+                _kill_process_group(process)
+            finally:
+                process.stdout.close()
+                process.stderr.close()
+                stdout_thread.join(timeout=resolved_limits.cleanup_timeout_seconds)
+                stderr_thread.join(timeout=resolved_limits.cleanup_timeout_seconds)
+
+            duration = time.monotonic() - started
+            if stdout_thread.is_alive() or stderr_thread.is_alive():
+                raise ExecutionHarnessError(
+                    "direct output capture threads did not terminate cleanly"
+                )
+
+            if timed_out:
+                status = ExecutionStatus.TIMED_OUT
+                exit_code: int | None = None
+            else:
+                return_code = process.returncode
+                if return_code is None:  # pragma: no cover
+                    raise ExecutionHarnessError("direct process returned without an exit code")
+                exit_code = return_code
+                status = ExecutionStatus.SUCCEEDED if exit_code == 0 else ExecutionStatus.FAILED
+
+            return ExecutionResult(
+                status=status,
+                runtime=OciRuntime.DIRECT,
                 exit_code=exit_code,
                 duration_seconds=duration,
                 stdout=stdout_capture.text(),

@@ -27,7 +27,6 @@ from tiny_qwen_coder.evaluation._baseline_generation import BaselineGenerator
 from tiny_qwen_coder.evaluation._baseline_provenance import load_baseline_base_model_identity
 from tiny_qwen_coder.evaluation._baseline_runner import (
     _generate_items,
-    _preflight_execution_images,
     _preflight_source_tree,
     _suite_performance,
 )
@@ -56,7 +55,10 @@ from tiny_qwen_coder.evaluation._python_p0_generation import (
     _Tokenizer,
     _validate_peft_status,
 )
-from tiny_qwen_coder.evaluation.execution import ConstrainedExecutionHarness, discover_oci_runtime
+from tiny_qwen_coder.evaluation.execution import (
+    ConstrainedExecutionHarness,
+    DirectExecutionHarness,
+)
 from tiny_qwen_coder.evaluation.humaneval import (
     HumanEvalCompletion,
     HumanEvalEvaluator,
@@ -997,6 +999,7 @@ def _comparison(
     adapter: VerifiedPythonP0Adapter,
     settings: FrozenEvaluationSettings,
     generation_contract: str,
+    generation_source_git_sha: str,
     baseline_manifest: object,
     baseline: Mapping[str, Mapping[str, object]],
     adapted: Mapping[str, Mapping[str, object]],
@@ -1036,6 +1039,7 @@ def _comparison(
         "rank": candidate.rank,
         "evaluation_complete": True,
         "source_git_sha": source_git_sha,
+        "generation_source_git_sha": generation_source_git_sha,
         "base_model": asdict(base_model),
         "adapter": _adapter_payload(adapter),
         "baseline": {
@@ -1157,11 +1161,17 @@ def score_rank_stage(
     rank: int,
     baseline_dir: Path,
     repo_root: Path = Path("."),
+    generation_source_git_sha: str | None = None,
 ) -> Path:
     registry = load_rank_candidate_registry()
     candidate = registry.candidate(rank)
     evaluation, settings, base_model, system_version, system_prompt = _evaluation_context(candidate)
-    source_git_sha, _ = _preflight_source_tree(repo_root)
+    scoring_source_git_sha, _ = _preflight_source_tree(repo_root)
+    stage_source_git_sha = (
+        scoring_source_git_sha
+        if generation_source_git_sha is None
+        else _git_sha(generation_source_git_sha, context="generation_source_git_sha")
+    )
     output_dir = Path(evaluation.output_dir)
     stage = read_json(output_dir / STAGE_MANIFEST, context="P9-001 generation stage")
     adapter = _adapter_from_stage(stage, candidate)
@@ -1174,7 +1184,7 @@ def score_rank_stage(
     )
     _validate_stage(
         output_dir=output_dir,
-        source_git_sha=source_git_sha,
+        source_git_sha=stage_source_git_sha,
         candidate=candidate,
         evaluation=evaluation,
         settings=settings,
@@ -1184,22 +1194,13 @@ def score_rank_stage(
     )
     baseline_manifest, baseline = load_baseline(baseline_dir, base_model)
 
-    runtime = discover_oci_runtime()
-    harness = ConstrainedExecutionHarness(runtime=runtime)
+    harness = DirectExecutionHarness(allow_reduced_isolation=True)
     humaneval, he_problems, mbpp, mbpp_problems, holdout = _load_inputs(
         evaluation=evaluation,
         settings=settings,
         base_model=base_model,
         candidate=candidate,
         harness=harness,
-    )
-    _preflight_execution_images(
-        runtime,
-        (
-            humaneval.runner.execution_image,
-            mbpp.runner.execution_image,
-            holdout.suite.execution_image,
-        ),
     )
     resolved_he, he, resolved_mbpp, mb, resolved_holdout, rh = _generate_suites(
         evaluation=evaluation,
@@ -1278,18 +1279,19 @@ def score_rank_stage(
     write_json(
         output_dir / COMPARISON,
         _comparison(
-            source_git_sha=source_git_sha,
+            source_git_sha=scoring_source_git_sha,
             candidate=candidate,
             base_model=base_model,
             adapter=adapter,
             settings=settings,
             generation_contract=generation_contract,
+            generation_source_git_sha=stage_source_git_sha,
             baseline_manifest=baseline_manifest,
             baseline=baseline,
             adapted=adapted,
         ),
     )
-    return _write_evaluation_manifest(output_dir, source_git_sha, rank)
+    return _write_evaluation_manifest(output_dir, scoring_source_git_sha, rank)
 
 
 def verify_rank_evaluation(
@@ -1297,11 +1299,17 @@ def verify_rank_evaluation(
     rank: int,
     baseline_dir: Path,
     repo_root: Path = Path("."),
+    generation_source_git_sha: str | None = None,
 ) -> dict[str, object]:
     registry = load_rank_candidate_registry()
     candidate = registry.candidate(rank)
     evaluation, settings, base_model, system_version, system_prompt = _evaluation_context(candidate)
-    source_git_sha, _ = _preflight_source_tree(repo_root)
+    scoring_source_git_sha, _ = _preflight_source_tree(repo_root)
+    stage_source_git_sha = (
+        scoring_source_git_sha
+        if generation_source_git_sha is None
+        else _git_sha(generation_source_git_sha, context="generation_source_git_sha")
+    )
     output_dir = Path(evaluation.output_dir)
     stage = read_json(output_dir / STAGE_MANIFEST, context="P9-001 generation stage")
     adapter = _adapter_from_stage(stage, candidate)
@@ -1314,7 +1322,7 @@ def verify_rank_evaluation(
     )
     _validate_stage(
         output_dir=output_dir,
-        source_git_sha=source_git_sha,
+        source_git_sha=stage_source_git_sha,
         candidate=candidate,
         evaluation=evaluation,
         settings=settings,
@@ -1338,12 +1346,13 @@ def verify_rank_evaluation(
         for suite in EXPECTED_SUITES
     }
     expected_comparison = _comparison(
-        source_git_sha=source_git_sha,
+        source_git_sha=scoring_source_git_sha,
         candidate=candidate,
         base_model=base_model,
         adapter=adapter,
         settings=settings,
         generation_contract=generation_contract,
+        generation_source_git_sha=stage_source_git_sha,
         baseline_manifest=baseline_manifest,
         baseline=baseline,
         adapted=adapted,
@@ -1354,7 +1363,7 @@ def verify_rank_evaluation(
             "persisted comparison does not match recomputed metrics"
         )
     manifest = read_json(output_dir / EVALUATION_MANIFEST, context="P9-001 evaluation manifest")
-    expected_manifest = _evaluation_manifest_payload(output_dir, source_git_sha, rank)
+    expected_manifest = _evaluation_manifest_payload(output_dir, scoring_source_git_sha, rank)
     if manifest != expected_manifest:
         raise PythonRankSweepEvaluationError("final P9-001 artifact-set manifest drifted")
     return actual_comparison
@@ -1372,6 +1381,7 @@ def _parser() -> argparse.ArgumentParser:
             item.add_argument("--device-index", type=int, default=0)
         else:
             item.add_argument("--baseline-dir", type=Path, required=True)
+            item.add_argument("--generation-source-git-sha")
     return parser
 
 
@@ -1395,6 +1405,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                 rank=rank,
                 baseline_dir=cast(Path, args.baseline_dir),
                 repo_root=repo_root,
+                generation_source_git_sha=cast(str | None, args.generation_source_git_sha),
             )
         )
     else:
@@ -1404,6 +1415,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                     rank=rank,
                     baseline_dir=cast(Path, args.baseline_dir),
                     repo_root=repo_root,
+                    generation_source_git_sha=cast(str | None, args.generation_source_git_sha),
                 ),
                 indent=2,
                 sort_keys=True,

@@ -12,6 +12,7 @@ import pytest
 from tiny_qwen_coder.config import ExecutionConfig
 from tiny_qwen_coder.evaluation.execution import (
     ConstrainedExecutionHarness,
+    DirectExecutionHarness,
     ExecutionCleanupError,
     ExecutionFile,
     ExecutionHarnessUnavailableError,
@@ -312,3 +313,82 @@ def test_podman_disables_implicit_writable_tmpfs_mounts(tmp_path: Path) -> None:
 def test_runtime_discovery_fails_closed_without_supported_oci_runtime(tmp_path: Path) -> None:
     with pytest.raises(ExecutionHarnessUnavailableError, match="refusing untrusted execution"):
         discover_oci_runtime(search_path=str(tmp_path))
+
+
+def test_direct_execution_requires_explicit_reduced_isolation_opt_in(tmp_path: Path) -> None:
+    request = ExecutionRequest(
+        image="fixtures/direct:unused",
+        command=("python", "-I", "-B", "runner.py"),
+        files=(ExecutionFile.from_text("runner.py", "print('ok')\n"),),
+    )
+
+    with pytest.raises(ExecutionHarnessUnavailableError, match="allow_reduced_isolation=True"):
+        DirectExecutionHarness(temp_root=tmp_path).run(request, _execution())
+
+
+def test_direct_execution_scrubs_environment_and_applies_resource_limits(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "must-not-cross-direct-boundary")
+    request = ExecutionRequest(
+        image="fixtures/direct:unused",
+        command=("python", "-I", "-B", "runner.py"),
+        files=(
+            ExecutionFile.from_text(
+                "runner.py",
+                "import json, os, resource\n"
+                "print(json.dumps({\n"
+                "  'secret': os.environ.get('AWS_SECRET_ACCESS_KEY'),\n"
+                "  'cwd': os.getcwd(),\n"
+                "  'nofile': resource.getrlimit(resource.RLIMIT_NOFILE),\n"
+                "  'core': resource.getrlimit(resource.RLIMIT_CORE),\n"
+                "  'as': resource.getrlimit(resource.RLIMIT_AS),\n"
+                "  'fsize': resource.getrlimit(resource.RLIMIT_FSIZE),\n"
+                "}, sort_keys=True))\n",
+            ),
+        ),
+    )
+    limits = ExecutionLimits(
+        memory_mebibytes=192,
+        pids=23,
+        workspace_mebibytes=17,
+        open_files=77,
+    )
+
+    result = DirectExecutionHarness(
+        temp_root=tmp_path,
+        allow_reduced_isolation=True,
+    ).run(request, _execution(), limits=limits)
+    metadata = json.loads(result.stdout)
+
+    assert result.status is ExecutionStatus.SUCCEEDED
+    assert result.runtime is OciRuntime.DIRECT
+    assert result.exit_code == 0
+    assert metadata["secret"] is None
+    assert metadata["nofile"] == [77, 77]
+    assert metadata["core"] == [0, 0]
+    assert metadata["as"] == [192 * 1024 * 1024, 192 * 1024 * 1024]
+    assert metadata["fsize"] == [17 * 1024 * 1024, 17 * 1024 * 1024]
+    assert not Path(metadata["cwd"]).exists()
+
+
+def test_direct_execution_timeout_kills_process_group(tmp_path: Path) -> None:
+    request = ExecutionRequest(
+        image="fixtures/direct:unused",
+        command=("python", "-I", "-B", "runner.py"),
+        files=(ExecutionFile.from_text("runner.py", "import time\ntime.sleep(60)\n"),),
+    )
+
+    result = DirectExecutionHarness(
+        temp_root=tmp_path,
+        allow_reduced_isolation=True,
+    ).run(
+        request,
+        _execution(timeout_seconds=0.1),
+        limits=ExecutionLimits(cleanup_timeout_seconds=1.0),
+    )
+
+    assert result.status is ExecutionStatus.TIMED_OUT
+    assert result.runtime is OciRuntime.DIRECT
+    assert result.exit_code is None
