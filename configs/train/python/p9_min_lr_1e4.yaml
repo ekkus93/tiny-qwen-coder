@@ -1,0 +1,49 @@
+schema_version: 1
+base_config: configs/base/qwen35-4b.yaml
+language: python
+adapter_family: language
+adapter_id: language/python/p9-min-lr-1e4
+
+dataset_manifest: data/python/p0/dataset-manifest.json
+train_records: data/python/p0/train.jsonl
+validation_records: data/python/p0/validation.jsonl
+output_dir: artifacts/train/python/p9-min-lr-1e4
+seed: 1729
+
+training_mode: qlora_4bit
+compute_dtype: bfloat16
+sequence_length: 2048
+micro_batch_size: 1
+gradient_accumulation_steps: 8
+epochs: 1.0
+learning_rate: 0.0001
+scheduler: cosine
+warmup_ratio: 0.03
+gradient_checkpointing: true
+loss_mode: assistant_only
+
+lora:
+  rank: 8
+  alpha: 32
+  dropout: 0.05
+  bias: none
+  target_strategy: selective
+  target_modules:
+    - down_proj
+    - gate_proj
+    - in_proj_a
+    - in_proj_b
+    - in_proj_qkv
+    - in_proj_z
+    - k_proj
+    - o_proj
+    - out_proj
+    - q_proj
+    - up_proj
+    - v_proj
+
+quantization:
+  bits: 4
+  quant_type: nf4
+  double_quant: true
+  compute_dtype: bfloat16
