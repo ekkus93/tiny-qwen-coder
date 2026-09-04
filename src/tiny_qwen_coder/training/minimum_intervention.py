@@ -548,7 +548,7 @@ def partition_task(
         return "qualification"
     if suite not in partition.source_suites:
         raise MinimumInterventionError(f"suite {suite!r} is not part of the P9-004 partition")
-    payload = f"{partition.salt}\0{suite}\0{task_id}".encode("utf-8")
+    payload = f"{partition.salt}\0{suite}\0{task_id}".encode()
     digest = hashlib.sha256(payload).digest()
     remainder = int.from_bytes(digest[:8], "big") % partition.modulus
     if remainder in partition.development_remainders:
