@@ -1,0 +1,173 @@
+name: P9-001 protected scoring retry
+
+on:
+  push:
+    branches:
+      - ralph/p9-001-rank-sweep
+    paths:
+      - ".github/workflows/p9-001-score-retry.yml"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  score:
+    name: Score protected Python responses for rank ${{ matrix.rank }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        rank: [8, 32, 64]
+
+    env:
+      TOKENIZERS_PARALLELISM: "false"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      GENERATION_RUN_ID: "33809220955"
+      GENERATION_SHA: "0d764300ebb76dbd1273f6f9f831ac9b57c59d0c"
+      P6_005_RUN_ID: "33301242379"
+      P6_005_ARTIFACT_NAME: "python-base-baseline-da537443ab80b1380bee0fc3c7d9d01ca0574f35"
+      EXECUTION_IMAGE: python:3.11.14-slim@sha256:c8271b1f627d0068857dce5b53e14a9558603b527e46f1f901722f935b786a39
+
+    steps:
+      - name: Check out exact evaluation source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.GENERATION_SHA }}
+          persist-credentials: false
+          clean: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Sync frozen environment
+        run: uv sync --frozen
+
+      - name: Select frozen rank output
+        env:
+          RANK: ${{ matrix.rank }}
+        run: |
+          set -euo pipefail
+          case "${RANK}" in
+            8|32|64) ;;
+            *) echo "unsupported rank ${RANK}" >&2; exit 2 ;;
+          esac
+          echo "EVAL_OUTPUT=artifacts/eval/python/p9-rank-r${RANK}-v1" >> "${GITHUB_ENV}"
+          echo "GENERATION_ARTIFACT=p9-001-rank-r${RANK}-generation-${GENERATION_SHA}" >> "${GITHUB_ENV}"
+
+      - name: Download exact transported GPU generation evidence
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ env.GENERATION_ARTIFACT }}
+          path: ${{ env.EVAL_OUTPUT }}
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ env.GENERATION_RUN_ID }}
+
+      - name: Download accepted P6-005 baseline artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ env.P6_005_ARTIFACT_NAME }}
+          path: ${{ runner.temp }}/p6-005-baseline
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ env.P6_005_RUN_ID }}
+
+      - name: Locate accepted P6-005 baseline fail closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t manifests < <(
+            find "${RUNNER_TEMP}/p6-005-baseline" \
+              -type f \
+              -path '*/artifacts/eval/python/base-baseline-v1/baseline-manifest.json' \
+              -print | sort
+          )
+          if [[ "${#manifests[@]}" -ne 1 ]]; then
+            printf 'Expected exactly one P6-005 baseline manifest; found %s\n' "${#manifests[@]}" >&2
+            exit 1
+          fi
+          echo "P6_005_BASELINE_DIR=$(dirname "${manifests[0]}")" >> "${GITHUB_ENV}"
+
+      - name: Prepare pinned image in evaluator-selected OCI runtime
+        run: |
+          set -euo pipefail
+          uv run --frozen python - <<'PY'
+          import os
+          import subprocess
+          from tiny_qwen_coder.evaluation.execution import discover_oci_runtime
+
+          runtime = discover_oci_runtime()
+          image = os.environ["EXECUTION_IMAGE"]
+          print(f"selected_runtime={runtime.kind}")
+          print(f"selected_executable={runtime.executable}")
+          subprocess.run([str(runtime.executable), "pull", image], check=True)
+          subprocess.run([str(runtime.executable), "image", "inspect", image], check=True)
+          PY
+
+      - name: Confirm exact clean evaluation source
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain)"
+          [[ "$(git rev-parse HEAD)" == "${GENERATION_SHA}" ]]
+
+      - name: Score transported responses under constrained execution
+        env:
+          RANK: ${{ matrix.rank }}
+        run: |
+          set -euo pipefail
+          uv run --frozen python -m tiny_qwen_coder.evaluation.python_rank_sweep score \
+            --rank "${RANK}" \
+            --baseline-dir "${P6_005_BASELINE_DIR}"
+
+      - name: Independently verify persisted rank evidence
+        env:
+          RANK: ${{ matrix.rank }}
+        run: |
+          set -euo pipefail
+          uv run --frozen python -m tiny_qwen_coder.evaluation.python_rank_sweep verify \
+            --rank "${RANK}" \
+            --baseline-dir "${P6_005_BASELINE_DIR}" \
+            | tee "${RUNNER_TEMP}/rank-${RANK}-verified-comparison.json"
+
+      - name: Verify comparison baseline and cardinality fail closed
+        env:
+          RANK: ${{ matrix.rank }}
+        run: |
+          set -euo pipefail
+          uv run --frozen python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          rank = int(os.environ["RANK"])
+          root = Path(os.environ["EVAL_OUTPUT"])
+          comparison = json.loads((root / "comparison.json").read_text(encoding="utf-8"))
+          if comparison.get("task_id") != "P9-001" or comparison.get("rank") != rank:
+              raise SystemExit("P9-001 comparison identity mismatch")
+          overall = comparison.get("overall", {})
+          if overall.get("total_problems") != 675 or overall.get("base_passed") != 424:
+              raise SystemExit("accepted unchanged-base score/cardinality drifted")
+          adapter_passed = overall.get("adapter_passed")
+          if isinstance(adapter_passed, bool) or not isinstance(adapter_passed, int):
+              raise SystemExit("adapter passed count is not an integer")
+          if not 0 <= adapter_passed <= 675:
+              raise SystemExit("adapter passed count is outside valid range")
+          print(json.dumps(comparison, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload final protected evaluation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: p9-001-rank-r${{ matrix.rank }}-evaluation-rescore-${{ github.sha }}
+          path: ${{ env.EVAL_OUTPUT }}/
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 30
