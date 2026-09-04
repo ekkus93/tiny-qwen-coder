@@ -24,6 +24,13 @@ _EXPECTED_CANDIDATES = (
     ("lr-1e-4", 0.0001, "configs/train/python/p9_min_lr_1e4.yaml"),
     ("lr-2e-4", 0.0002, "configs/train/python/p9_min_lr_2e4.yaml"),
 )
+_EXPECTED_CANDIDATE_SUFFIXES = {
+    "lr-1e-5": "p9-min-lr-1e5",
+    "lr-2e-5": "p9-min-lr-2e5",
+    "lr-5e-5": "p9-min-lr-5e5",
+    "lr-1e-4": "p9-min-lr-1e4",
+    "lr-2e-4": "p9-min-lr-2e4",
+}
 _ALLOWED_TRAINING_DIFFERENCES = frozenset({"adapter_id", "output_dir", "learning_rate"})
 PartitionAssignment: TypeAlias = Literal["development", "qualification"]
 
@@ -492,7 +499,7 @@ def validate_minimum_intervention(
             raise MinimumInterventionError(
                 f"P9-004 {candidate.label} config learning rate does not match protocol"
             )
-        expected_suffix = f"p9-min-{candidate.label}"
+        expected_suffix = _EXPECTED_CANDIDATE_SUFFIXES[candidate.label]
         adapter_id = _string(mapping, "adapter_id", context=f"P9-004 {candidate.label} config")
         output_dir = _string(mapping, "output_dir", context=f"P9-004 {candidate.label} config")
         if adapter_id != f"language/python/{expected_suffix}":
