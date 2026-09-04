@@ -6,6 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from transformers import TrainerCallback
 
 import tiny_qwen_coder.training.minimum_intervention_training as minimum_intervention_training
 from tiny_qwen_coder.training.minimum_intervention import MinimumInterventionError
@@ -72,6 +73,26 @@ class _FakeAdapterModel:
         (destination / "adapter_config.json").write_text('{"peft_type":"LORA"}\n', encoding="utf-8")
         (destination / "adapter_model.safetensors").write_bytes(b"adapter")
         self.saved.append(destination)
+
+
+def test_snapshot_callback_implements_transformers_callback_contract(tmp_path: Path) -> None:
+    root = tmp_path / "snapshots"
+    root.mkdir()
+    callback = _AdapterSnapshotCallback(
+        snapshot_root=root,
+        steps=(50, 100, 250, 500, 1000),
+    )
+
+    assert isinstance(callback, TrainerCallback)
+    for event_name in (
+        "on_train_begin",
+        "on_epoch_begin",
+        "on_step_begin",
+        "on_step_end",
+        "on_epoch_end",
+        "on_train_end",
+    ):
+        assert callable(getattr(callback, event_name))
 
 
 def test_snapshot_callback_saves_only_precommitted_steps(tmp_path: Path) -> None:

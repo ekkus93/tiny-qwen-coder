@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, NoReturn
 
 import torch
+from transformers import TrainerCallback
 
 from tiny_qwen_coder.identities import AdapterIdentity, BaseModelIdentity
 from tiny_qwen_coder.reporting import create_run_manifest, write_run_manifest
@@ -159,7 +160,7 @@ def _snapshot_directory_name(step: int) -> str:
     return f"step-{step:04d}"
 
 
-class _AdapterSnapshotCallback:
+class _AdapterSnapshotCallback(TrainerCallback):
     """Save PEFT adapter-only snapshots at exactly the frozen optimizer steps."""
 
     def __init__(self, *, snapshot_root: Path, steps: tuple[int, ...]) -> None:
