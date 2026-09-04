@@ -2,6 +2,11 @@ name: Python P9 Minimum Intervention Training
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - ralph/p9-004-minimum-intervention
+    paths:
+      - ".github/workflows/python-p9-minimum-intervention-training.yml"
 
 permissions:
   contents: read
