@@ -1,4 +1,4 @@
-name: P9-001 protected scoring retry
+name: P9-001 protected direct scoring retry
 
 on:
   push:
@@ -14,10 +14,11 @@ permissions:
 jobs:
   score:
     name: Score protected Python responses for rank ${{ matrix.rank }}
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux, x64]
     timeout-minutes: 180
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         rank: [8, 32, 64]
 
@@ -28,13 +29,11 @@ jobs:
       GENERATION_SHA: "0d764300ebb76dbd1273f6f9f831ac9b57c59d0c"
       P6_005_RUN_ID: "33301242379"
       P6_005_ARTIFACT_NAME: "python-base-baseline-da537443ab80b1380bee0fc3c7d9d01ca0574f35"
-      EXECUTION_IMAGE: python:3.11.14-slim@sha256:c8271b1f627d0068857dce5b53e14a9558603b527e46f1f901722f935b786a39
 
     steps:
-      - name: Check out exact evaluation source
+      - name: Check out exact scoring source
         uses: actions/checkout@v5
         with:
-          ref: ${{ env.GENERATION_SHA }}
           persist-credentials: false
           clean: true
 
@@ -97,36 +96,21 @@ jobs:
           fi
           echo "P6_005_BASELINE_DIR=$(dirname "${manifests[0]}")" >> "${GITHUB_ENV}"
 
-      - name: Prepare pinned image in evaluator-selected OCI runtime
-        run: |
-          set -euo pipefail
-          uv run --frozen python - <<'PY'
-          import os
-          import subprocess
-          from tiny_qwen_coder.evaluation.execution import discover_oci_runtime
-
-          runtime = discover_oci_runtime()
-          image = os.environ["EXECUTION_IMAGE"]
-          print(f"selected_runtime={runtime.kind}")
-          print(f"selected_executable={runtime.executable}")
-          subprocess.run([str(runtime.executable), "pull", image], check=True)
-          subprocess.run([str(runtime.executable), "image", "inspect", image], check=True)
-          PY
-
-      - name: Confirm exact clean evaluation source
+      - name: Confirm exact clean scoring source
         run: |
           set -euo pipefail
           test -z "$(git status --porcelain)"
-          [[ "$(git rev-parse HEAD)" == "${GENERATION_SHA}" ]]
+          [[ "$(git rev-parse HEAD)" == "${GITHUB_SHA}" ]]
 
-      - name: Score transported responses under constrained execution
+      - name: Score transported responses directly inside runner container
         env:
           RANK: ${{ matrix.rank }}
         run: |
           set -euo pipefail
           uv run --frozen python -m tiny_qwen_coder.evaluation.python_rank_sweep score \
             --rank "${RANK}" \
-            --baseline-dir "${P6_005_BASELINE_DIR}"
+            --baseline-dir "${P6_005_BASELINE_DIR}" \
+            --generation-source-git-sha "${GENERATION_SHA}"
 
       - name: Independently verify persisted rank evidence
         env:
@@ -136,9 +120,10 @@ jobs:
           uv run --frozen python -m tiny_qwen_coder.evaluation.python_rank_sweep verify \
             --rank "${RANK}" \
             --baseline-dir "${P6_005_BASELINE_DIR}" \
+            --generation-source-git-sha "${GENERATION_SHA}" \
             | tee "${RUNNER_TEMP}/rank-${RANK}-verified-comparison.json"
 
-      - name: Verify comparison baseline and cardinality fail closed
+      - name: Verify comparison provenance and cardinality fail closed
         env:
           RANK: ${{ matrix.rank }}
         run: |
@@ -152,6 +137,10 @@ jobs:
           comparison = json.loads((root / "comparison.json").read_text(encoding="utf-8"))
           if comparison.get("task_id") != "P9-001" or comparison.get("rank") != rank:
               raise SystemExit("P9-001 comparison identity mismatch")
+          if comparison.get("source_git_sha") != os.environ["GITHUB_SHA"]:
+              raise SystemExit("P9-001 scoring source provenance mismatch")
+          if comparison.get("generation_source_git_sha") != os.environ["GENERATION_SHA"]:
+              raise SystemExit("P9-001 generation source provenance mismatch")
           overall = comparison.get("overall", {})
           if overall.get("total_problems") != 675 or overall.get("base_passed") != 424:
               raise SystemExit("accepted unchanged-base score/cardinality drifted")
@@ -163,10 +152,10 @@ jobs:
           print(json.dumps(comparison, indent=2, sort_keys=True))
           PY
 
-      - name: Upload final protected evaluation evidence
+      - name: Upload final protected direct evaluation evidence
         uses: actions/upload-artifact@v4
         with:
-          name: p9-001-rank-r${{ matrix.rank }}-evaluation-rescore-${{ github.sha }}
+          name: p9-001-rank-r${{ matrix.rank }}-evaluation-direct-${{ github.sha }}
           path: ${{ env.EVAL_OUTPUT }}/
           if-no-files-found: error
           include-hidden-files: true
