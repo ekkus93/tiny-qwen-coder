@@ -1,0 +1,192 @@
+{
+  "schema_version": 1,
+  "task_id": "P9-001",
+  "sweep_id": "python-p9-rank-v1",
+  "conclusion": {
+    "any_finetuned_rank_improved_over_base": false,
+    "best_finetuned_rank": 8,
+    "best_finetuned_adapter_id": "language/python/p9-rank-r8",
+    "best_finetuned_combined_passed": 231,
+    "base_combined_passed": 424,
+    "best_finetuned_delta_passed_vs_base": -193,
+    "best_finetuned_delta_micro_pass_rate_vs_base": -0.2859259259259259,
+    "summary": "No LoRA rank improved over the unchanged Qwen3.5-4B base. Rank 8 was the best fine-tuned candidate but remained materially below base on HumanEval, MBPP, repository holdout, and the 675-problem combined score. Increasing rank beyond 8 did not recover quality in this frozen recipe.",
+    "promotion_decision": "not_performed",
+    "promotion_note": "P9-001 is an experiment rather than a promotion decision. The reused dataset contamination status remains not_run, so no candidate is promotion-eligible from this evidence alone."
+  },
+  "base_model": {
+    "repository": "Qwen/Qwen3.5-4B",
+    "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+    "tokenizer_repository": "Qwen/Qwen3.5-4B",
+    "tokenizer_revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
+  },
+  "base_reference": {
+    "workflow_run_id": 33301242379,
+    "source_git_sha": "da537443ab80b1380bee0fc3c7d9d01ca0574f35",
+    "artifact_id": 9729636096,
+    "artifact_name": "python-base-baseline-da537443ab80b1380bee0fc3c7d9d01ca0574f35",
+    "artifact_zip_sha256": "bcc08b94e0204e19d38fe28d0771a597687cbe44ad08af4759233a3c824e2e21",
+    "artifact_set_sha256": "4bf616c3e84bdd74f8cf6467fc2d9d760f04d3b1b44660a81e365ff6f99a72fc",
+    "scores": {
+      "humaneval": {"passed": 128, "total": 164, "pass_at_1": 0.7804878048780488},
+      "mbpp": {"passed": 290, "total": 500, "pass_at_1": 0.58},
+      "repository_holdout": {"passed": 6, "total": 11, "pass_at_1": 0.5454545454545454},
+      "combined": {"passed": 424, "total": 675, "micro_pass_rate": 0.6281481481481481}
+    }
+  },
+  "training_control": {
+    "training_workflow_run_id": 33587975474,
+    "new_rank_training_source_git_sha": "1aca2f2a778ade4cc300d66353a26206900fc84b",
+    "rank_16_control_training_source_git_sha": "02df92a9c2d347b9fb013dc25714fe066c6bcafe",
+    "dataset_config_sha256": "4f9663e72b22d81ce8975e6f6ed87ee7457d3bef0a08fe211e700dd5ea12fbff",
+    "dataset_split_membership_sha256": "78559765eac305528e5ba96ae3dae04feffda39fc4727d450d602f6e68697428",
+    "contamination_status": "not_run",
+    "seed": 1729,
+    "sequence_length": 2048,
+    "epochs": 1,
+    "expected_optimizer_steps": 4750,
+    "learning_rate": 0.0002,
+    "lora_alpha": 32,
+    "lora_dropout": 0.05,
+    "note": "LoRA alpha remained fixed at 32, so alpha/r varies with rank. The observed quality trend must not be interpreted as a pure model-capacity effect."
+  },
+  "evaluation_execution": {
+    "generation_workflow_run_id": 33809220955,
+    "generation_source_git_sha": "0d764300ebb76dbd1273f6f9f831ac9b57c59d0c",
+    "direct_scoring_workflow_run_id": 33842212951,
+    "direct_scoring_source_git_sha": "7bff3afa49c37be9f235db1ed64c87d679d1c378",
+    "new_rank_execution_backend": "direct",
+    "reduced_isolation": true,
+    "oci_isolation_enforced": false,
+    "network_isolation_enforced_by_harness": false,
+    "controls": [
+      "fresh temporary working directory per execution",
+      "credential-free minimal child environment",
+      "bounded evaluator-provided input",
+      "bounded stdout and stderr",
+      "wall-clock timeout",
+      "process-group termination on timeout",
+      "CPU, address-space, file-size, open-file, and process-count resource limits where enforced by the Linux runtime"
+    ],
+    "comparability_note": "Ranks 8, 32, and 64 were scored directly inside the existing self-hosted runner container after the user explicitly accepted that isolation boundary. The unchanged-base and rank-16 reference scores are the previously accepted canonical OCI-scored evidence. Direct execution is recorded explicitly and is not represented as OCI-equivalent isolation."
+  },
+  "candidates": [
+    {
+      "rank": 8,
+      "adapter_id": "language/python/p9-rank-r8",
+      "trainable_parameters": 16232448,
+      "training_loss": 0.6962825055122376,
+      "validation_loss": 0.772124171257019,
+      "trainer_runtime_seconds": 46202.2761,
+      "samples_per_second": 0.822,
+      "steps_per_second": 0.103,
+      "peak_allocated_vram_bytes": 9022427136,
+      "peak_reserved_vram_bytes": 13270777856,
+      "training_run_id": "training-python-20260902T034503645777Z-1aca2f2a-fe4836fc",
+      "adapter_model_sha256": "31774b09bfdf638c5d6af23388dcb2426c7647684643dd3200f68f2d964fd808",
+      "generation_artifact": {
+        "artifact_id": 9916571998,
+        "sha256": "fa37a9fa940d54a69af2e1a82fc0184c298bda484e1396af057cb053cae4adff"
+      },
+      "evaluation_artifact": {
+        "artifact_id": 9925301664,
+        "name": "p9-001-rank-r8-evaluation-direct-7bff3afa49c37be9f235db1ed64c87d679d1c378",
+        "sha256": "bbe8e8c7bea92610c91870398e2eda7fe12f8b638f6aff4275f1833bc49f24fb"
+      },
+      "scores": {
+        "humaneval": {"passed": 91, "total": 164, "pass_at_1": 0.5548780487804879, "delta_passed_vs_base": -37},
+        "mbpp": {"passed": 139, "total": 500, "pass_at_1": 0.278, "delta_passed_vs_base": -151},
+        "repository_holdout": {"passed": 1, "total": 11, "pass_at_1": 0.09090909090909091, "delta_passed_vs_base": -5},
+        "combined": {"passed": 231, "total": 675, "micro_pass_rate": 0.3422222222222222, "delta_passed_vs_base": -193, "delta_micro_pass_rate_vs_base": -0.2859259259259259}
+      }
+    },
+    {
+      "rank": 16,
+      "adapter_id": "language/python/p0",
+      "trainable_parameters": 32464896,
+      "training_loss": 0.6934559548340345,
+      "validation_loss": 0.7679226398468018,
+      "trainer_runtime_seconds": 45979.9559,
+      "samples_per_second": 0.826,
+      "steps_per_second": 0.103,
+      "peak_allocated_vram_bytes": 9119821824,
+      "peak_reserved_vram_bytes": 13413384192,
+      "training_workflow_run_id": 33422910444,
+      "training_run_id": "training-python-20260831T180916446466Z-02df92a9-eafc119d",
+      "adapter_model_sha256": "c94606250e112f72362eb883a55f7b2c8af854d445f6bb6194352c2806a8f276",
+      "evaluation_workflow_run_id": 33538724658,
+      "evaluation_artifact_id": 9814936298,
+      "scores": {
+        "humaneval": {"passed": 88, "total": 164, "pass_at_1": 0.5365853658536586, "delta_passed_vs_base": -40},
+        "mbpp": {"passed": 97, "total": 500, "pass_at_1": 0.194, "delta_passed_vs_base": -193},
+        "repository_holdout": {"passed": 2, "total": 11, "pass_at_1": 0.18181818181818182, "delta_passed_vs_base": -4},
+        "combined": {"passed": 187, "total": 675, "micro_pass_rate": 0.277037037037037, "delta_passed_vs_base": -237, "delta_micro_pass_rate_vs_base": -0.3511111111111111}
+      }
+    },
+    {
+      "rank": 32,
+      "adapter_id": "language/python/p9-rank-r32",
+      "trainable_parameters": 64929792,
+      "training_loss": 0.6916291663803552,
+      "validation_loss": 0.7658730745315552,
+      "trainer_runtime_seconds": 46955.3457,
+      "samples_per_second": 0.809,
+      "steps_per_second": 0.101,
+      "peak_allocated_vram_bytes": 9314611200,
+      "peak_reserved_vram_bytes": 13675528192,
+      "training_run_id": "training-python-20260902T170046105754Z-1aca2f2a-edee9822",
+      "adapter_model_sha256": "332886a5e3d02dc2c1a0c7c3d8f2d2765fb5327663f7a146b5d73c7c07937753",
+      "generation_artifact": {
+        "artifact_id": 9920088992,
+        "sha256": "9c703fc07211826bc63cb0f720b610e78beddf22c1b0654270e9ff041b3d110f"
+      },
+      "evaluation_artifact": {
+        "artifact_id": 9925326988,
+        "name": "p9-001-rank-r32-evaluation-direct-7bff3afa49c37be9f235db1ed64c87d679d1c378",
+        "sha256": "3a748b78b2292c1ddfd6a9782b771bb1f2de8b13e845462f1570910249093d58"
+      },
+      "scores": {
+        "humaneval": {"passed": 94, "total": 164, "pass_at_1": 0.573170731707317, "delta_passed_vs_base": -34},
+        "mbpp": {"passed": 34, "total": 500, "pass_at_1": 0.068, "delta_passed_vs_base": -256},
+        "repository_holdout": {"passed": 1, "total": 11, "pass_at_1": 0.09090909090909091, "delta_passed_vs_base": -5},
+        "combined": {"passed": 129, "total": 675, "micro_pass_rate": 0.19111111111111112, "delta_passed_vs_base": -295, "delta_micro_pass_rate_vs_base": -0.43703703703703706}
+      }
+    },
+    {
+      "rank": 64,
+      "adapter_id": "language/python/p9-rank-r64",
+      "trainable_parameters": 129859584,
+      "training_loss": 0.6906089604214618,
+      "validation_loss": 0.7644960880279541,
+      "trainer_runtime_seconds": 47539.25,
+      "samples_per_second": 0.799,
+      "steps_per_second": 0.1,
+      "peak_allocated_vram_bytes": 9713620992,
+      "peak_reserved_vram_bytes": 11198791680,
+      "training_run_id": "training-python-20260903T062954386868Z-1aca2f2a-16f6b78f",
+      "adapter_model_sha256": "603a0ac7c00ceb8d428d0254330a9ec329eb598ef332be48d16a071d43e69918",
+      "generation_artifact": {
+        "artifact_id": 9923065975,
+        "sha256": "f3b1b419eb3455d43f42c3cc359267f926373e14066bd3eb2fcb15e96b8995f1"
+      },
+      "evaluation_artifact": {
+        "artifact_id": 9925348320,
+        "name": "p9-001-rank-r64-evaluation-direct-7bff3afa49c37be9f235db1ed64c87d679d1c378",
+        "sha256": "26d2f956420d8fde0dff877124c0d33558272c810f97b783a9c79fe18047900d"
+      },
+      "scores": {
+        "humaneval": {"passed": 88, "total": 164, "pass_at_1": 0.5365853658536586, "delta_passed_vs_base": -40},
+        "mbpp": {"passed": 36, "total": 500, "pass_at_1": 0.072, "delta_passed_vs_base": -254},
+        "repository_holdout": {"passed": 3, "total": 11, "pass_at_1": 0.2727272727272727, "delta_passed_vs_base": -3},
+        "combined": {"passed": 127, "total": 675, "micro_pass_rate": 0.18814814814814815, "delta_passed_vs_base": -297, "delta_micro_pass_rate_vs_base": -0.44}
+      }
+    }
+  ],
+  "ranking_by_combined_passes": [
+    {"model": "unchanged_base", "rank": null, "passed": 424, "total": 675},
+    {"model": "language/python/p9-rank-r8", "rank": 8, "passed": 231, "total": 675},
+    {"model": "language/python/p0", "rank": 16, "passed": 187, "total": 675},
+    {"model": "language/python/p9-rank-r32", "rank": 32, "passed": 129, "total": 675},
+    {"model": "language/python/p9-rank-r64", "rank": 64, "passed": 127, "total": 675}
+  ]
+}
