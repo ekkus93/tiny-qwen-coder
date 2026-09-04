@@ -228,7 +228,9 @@ def _snapshot_file_inventory(snapshot_dir: Path) -> tuple[SnapshotFileDigest, ..
         snapshot_dir / "adapter_model.bin",
     )
     if not any(path.is_file() and path.stat().st_size > 0 for path in weights):
-        raise AdapterTrainingError(f"P9-004B snapshot lacks non-empty adapter weights: {snapshot_dir}")
+        raise AdapterTrainingError(
+            f"P9-004B snapshot lacks non-empty adapter weights: {snapshot_dir}"
+        )
 
     forbidden = [
         snapshot_dir / "model.safetensors",
@@ -239,7 +241,9 @@ def _snapshot_file_inventory(snapshot_dir: Path) -> tuple[SnapshotFileDigest, ..
     forbidden.extend(snapshot_dir.glob("model-*.safetensors"))
     forbidden.extend(snapshot_dir.glob("pytorch_model-*.bin"))
     if any(path.is_file() for path in forbidden):
-        raise AdapterTrainingError(f"P9-004B snapshot contains merged/full-model weights: {snapshot_dir}")
+        raise AdapterTrainingError(
+            f"P9-004B snapshot contains merged/full-model weights: {snapshot_dir}"
+        )
 
     files = sorted(
         (path for path in snapshot_dir.rglob("*") if path.is_file()),
