@@ -7,6 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
+import tiny_qwen_coder.training.minimum_intervention_training as minimum_intervention_training
 from tiny_qwen_coder.training.minimum_intervention import MinimumInterventionError
 from tiny_qwen_coder.training.minimum_intervention_training import (
     _AdapterSnapshotCallback,
@@ -16,16 +17,36 @@ from tiny_qwen_coder.training.minimum_intervention_training import (
 from tiny_qwen_coder.training.plan import AdapterTrainingError
 
 
-def test_resolves_each_frozen_low_lr_candidate() -> None:
+def test_resolves_each_frozen_low_lr_candidate(monkeypatch: pytest.MonkeyPatch) -> None:
     expected = {
-        "lr-1e-5": (0.00001, "language/python/p9-min-lr-1e5"),
-        "lr-2e-5": (0.00002, "language/python/p9-min-lr-2e5"),
-        "lr-5e-5": (0.00005, "language/python/p9-min-lr-5e5"),
-        "lr-1e-4": (0.0001, "language/python/p9-min-lr-1e4"),
-        "lr-2e-4": (0.0002, "language/python/p9-min-lr-2e4"),
+        "lr-1e-5": (0.00001, "language/python/p9-min-lr-1e5", "p9_min_lr_1e5.yaml"),
+        "lr-2e-5": (0.00002, "language/python/p9-min-lr-2e5", "p9_min_lr_2e5.yaml"),
+        "lr-5e-5": (0.00005, "language/python/p9-min-lr-5e5", "p9_min_lr_5e5.yaml"),
+        "lr-1e-4": (0.0001, "language/python/p9-min-lr-1e4", "p9_min_lr_1e4.yaml"),
+        "lr-2e-4": (0.0002, "language/python/p9-min-lr-2e4", "p9_min_lr_2e4.yaml"),
+    }
+    plans_by_filename = {
+        filename: SimpleNamespace(
+            config=SimpleNamespace(
+                adapter_id=adapter_id,
+                output_dir=f"artifacts/train/python/{adapter_id.rsplit('/', 1)[1]}",
+                learning_rate=learning_rate,
+                lora=SimpleNamespace(rank=8),
+            )
+        )
+        for learning_rate, adapter_id, filename in expected.values()
     }
 
-    for label, (learning_rate, adapter_id) in expected.items():
+    def fake_resolve_adapter_training_plan(config_path: Path) -> SimpleNamespace:
+        return plans_by_filename[config_path.name]
+
+    monkeypatch.setattr(
+        minimum_intervention_training,
+        "resolve_adapter_training_plan",
+        fake_resolve_adapter_training_plan,
+    )
+
+    for label, (learning_rate, adapter_id, _) in expected.items():
         validation, candidate, plan = resolve_minimum_intervention_training_candidate(label)
         assert validation.trajectory_max_steps == 1000
         assert validation.checkpoint_steps == (50, 100, 250, 500, 1000)
