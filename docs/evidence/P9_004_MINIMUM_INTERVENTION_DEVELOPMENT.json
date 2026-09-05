@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "task_id": "P9-004",
+  "study_id": "python-p9-minimum-intervention-v1",
+  "stage": "development-selection",
+  "source_git_sha": "e524f6b3a8e60440b8869d3800de4e01188e7240",
+  "workflow_run_id": 33950802529,
+  "selection_job_id": 101292881996,
+  "development_manifest_sha256": "260682d773640b28673357c7a441474656bbaffc67f0b5fcbe45eca3a07283de",
+  "membership_sha256": "c8765b7a3a69f134be4066e274a64640a15f2d05858374035432207b3521498b",
+  "checkpoint_registry_sha256": "31362b22f3f84fe05a6c499accf63a23b65295b337c3c9d614568732c0643196",
+  "selection_sha256": "cc4bd3d89f8b9e9e1ebf481509c6b97ec50de7263e954247b68c30899941bc6c",
+  "selection_artifact": {
+    "artifact_id": 9967947428,
+    "name": "p9-004c-development-selection-e524f6b3a8e60440b8869d3800de4e01188e7240",
+    "archive_sha256": "94975fe9211ef63f807f8f5980f08280246fe070b14a33ed1bd89363c2dc0080",
+    "size_bytes": 2792
+  },
+  "base": {
+    "humaneval_passed": 33,
+    "humaneval_total": 45,
+    "mbpp_passed": 70,
+    "mbpp_total": 130,
+    "combined_passed": 103,
+    "combined_total": 175
+  },
+  "selection_policy": {
+    "minimum_combined_passes": 104,
+    "minimum_humaneval_passes": 33,
+    "minimum_mbpp_passes": 70,
+    "tie_breakers": [
+      "fewer_steps",
+      "lower_learning_rate"
+    ]
+  },
+  "scores": [
+    {"label":"lr-1e-5","learning_rate":0.00001,"step":50,"humaneval_passed":33,"humaneval_total":45,"mbpp_passed":67,"mbpp_total":130,"combined_passed":100,"combined_total":175,"eligible":false},
+    {"label":"lr-1e-5","learning_rate":0.00001,"step":100,"humaneval_passed":32,"humaneval_total":45,"mbpp_passed":63,"mbpp_total":130,"combined_passed":95,"combined_total":175,"eligible":false},
+    {"label":"lr-1e-5","learning_rate":0.00001,"step":250,"humaneval_passed":34,"humaneval_total":45,"mbpp_passed":60,"mbpp_total":130,"combined_passed":94,"combined_total":175,"eligible":false},
+    {"label":"lr-1e-5","learning_rate":0.00001,"step":500,"humaneval_passed":32,"humaneval_total":45,"mbpp_passed":56,"mbpp_total":130,"combined_passed":88,"combined_total":175,"eligible":false},
+    {"label":"lr-1e-5","learning_rate":0.00001,"step":1000,"humaneval_passed":33,"humaneval_total":45,"mbpp_passed":56,"mbpp_total":130,"combined_passed":89,"combined_total":175,"eligible":false},
+    {"label":"lr-2e-5","learning_rate":0.00002,"step":50,"humaneval_passed":31,"humaneval_total":45,"mbpp_passed":60,"mbpp_total":130,"combined_passed":91,"combined_total":175,"eligible":false},
+    {"label":"lr-2e-5","learning_rate":0.00002,"step":100,"humaneval_passed":32,"humaneval_total":45,"mbpp_passed":56,"mbpp_total":130,"combined_passed":88,"combined_total":175,"eligible":false},
+    {"label":"lr-2e-5","learning_rate":0.00002,"step":250,"humaneval_passed":29,"humaneval_total":45,"mbpp_passed":50,"mbpp_total":130,"combined_passed":79,"combined_total":175,"eligible":false},
+    {"label":"lr-2e-5","learning_rate":0.00002,"step":500,"humaneval_passed":27,"humaneval_total":45,"mbpp_passed":52,"mbpp_total":130,"combined_passed":79,"combined_total":175,"eligible":false},
+    {"label":"lr-2e-5","learning_rate":0.00002,"step":1000,"humaneval_passed":29,"humaneval_total":45,"mbpp_passed":55,"mbpp_total":130,"combined_passed":84,"combined_total":175,"eligible":false},
+    {"label":"lr-5e-5","learning_rate":0.00005,"step":50,"humaneval_passed":31,"humaneval_total":45,"mbpp_passed":57,"mbpp_total":130,"combined_passed":88,"combined_total":175,"eligible":false},
+    {"label":"lr-5e-5","learning_rate":0.00005,"step":100,"humaneval_passed":30,"humaneval_total":45,"mbpp_passed":53,"mbpp_total":130,"combined_passed":83,"combined_total":175,"eligible":false},
+    {"label":"lr-5e-5","learning_rate":0.00005,"step":250,"humaneval_passed":29,"humaneval_total":45,"mbpp_passed":51,"mbpp_total":130,"combined_passed":80,"combined_total":175,"eligible":false},
+    {"label":"lr-5e-5","learning_rate":0.00005,"step":500,"humaneval_passed":27,"humaneval_total":45,"mbpp_passed":49,"mbpp_total":130,"combined_passed":76,"combined_total":175,"eligible":false},
+    {"label":"lr-5e-5","learning_rate":0.00005,"step":1000,"humaneval_passed":27,"humaneval_total":45,"mbpp_passed":53,"mbpp_total":130,"combined_passed":80,"combined_total":175,"eligible":false},
+    {"label":"lr-1e-4","learning_rate":0.0001,"step":50,"humaneval_passed":28,"humaneval_total":45,"mbpp_passed":54,"mbpp_total":130,"combined_passed":82,"combined_total":175,"eligible":false},
+    {"label":"lr-1e-4","learning_rate":0.0001,"step":100,"humaneval_passed":30,"humaneval_total":45,"mbpp_passed":50,"mbpp_total":130,"combined_passed":80,"combined_total":175,"eligible":false},
+    {"label":"lr-1e-4","learning_rate":0.0001,"step":250,"humaneval_passed":29,"humaneval_total":45,"mbpp_passed":49,"mbpp_total":130,"combined_passed":78,"combined_total":175,"eligible":false},
+    {"label":"lr-1e-4","learning_rate":0.0001,"step":500,"humaneval_passed":26,"humaneval_total":45,"mbpp_passed":52,"mbpp_total":130,"combined_passed":78,"combined_total":175,"eligible":false},
+    {"label":"lr-1e-4","learning_rate":0.0001,"step":1000,"humaneval_passed":26,"humaneval_total":45,"mbpp_passed":51,"mbpp_total":130,"combined_passed":77,"combined_total":175,"eligible":false},
+    {"label":"lr-2e-4","learning_rate":0.0002,"step":50,"humaneval_passed":27,"humaneval_total":45,"mbpp_passed":51,"mbpp_total":130,"combined_passed":78,"combined_total":175,"eligible":false},
+    {"label":"lr-2e-4","learning_rate":0.0002,"step":100,"humaneval_passed":26,"humaneval_total":45,"mbpp_passed":53,"mbpp_total":130,"combined_passed":79,"combined_total":175,"eligible":false},
+    {"label":"lr-2e-4","learning_rate":0.0002,"step":250,"humaneval_passed":28,"humaneval_total":45,"mbpp_passed":44,"mbpp_total":130,"combined_passed":72,"combined_total":175,"eligible":false},
+    {"label":"lr-2e-4","learning_rate":0.0002,"step":500,"humaneval_passed":29,"humaneval_total":45,"mbpp_passed":49,"mbpp_total":130,"combined_passed":78,"combined_total":175,"eligible":false},
+    {"label":"lr-2e-4","learning_rate":0.0002,"step":1000,"humaneval_passed":28,"humaneval_total":45,"mbpp_passed":43,"mbpp_total":130,"combined_passed":71,"combined_total":175,"eligible":false}
+  ],
+  "best_observed_checkpoint": {
+    "label": "lr-1e-5",
+    "learning_rate": 0.00001,
+    "step": 50,
+    "humaneval_passed": 33,
+    "mbpp_passed": 67,
+    "combined_passed": 100,
+    "delta_vs_base": {
+      "humaneval_passed": 0,
+      "mbpp_passed": -3,
+      "combined_passed": -3
+    },
+    "eligible": false
+  },
+  "selected": null,
+  "qualification_authorized": false,
+  "repository_holdout_evaluated": false,
+  "disposition": "negative_experiment_stop_p0_lr_rank_epoch_search",
+  "next_priority": "dataset_and_objective_redesign"
+}

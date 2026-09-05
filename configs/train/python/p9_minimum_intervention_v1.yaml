@@ -1,0 +1,50 @@
+schema_version: 1
+task_id: P9-004
+study_id: python-p9-minimum-intervention-v1
+control_training_config: configs/train/python/p9_rank_r8.yaml
+trajectory_max_steps: 1000
+checkpoint_steps:
+  - 50
+  - 100
+  - 250
+  - 500
+  - 1000
+learning_rate_candidates:
+  - label: lr-1e-5
+    learning_rate: 0.00001
+    config: configs/train/python/p9_min_lr_1e5.yaml
+  - label: lr-2e-5
+    learning_rate: 0.00002
+    config: configs/train/python/p9_min_lr_2e5.yaml
+  - label: lr-5e-5
+    learning_rate: 0.00005
+    config: configs/train/python/p9_min_lr_5e5.yaml
+  - label: lr-1e-4
+    learning_rate: 0.0001
+    config: configs/train/python/p9_min_lr_1e4.yaml
+  - label: lr-2e-4
+    learning_rate: 0.0002
+    config: configs/train/python/p9_min_lr_2e4.yaml
+development_partition:
+  source_suites:
+    - humaneval
+    - mbpp
+  qualification_only_suites:
+    - repository_holdout
+  hash_algorithm: sha256
+  salt: python-p9-004-development-v1
+  modulus: 4
+  development_remainders:
+    - 0
+selection:
+  primary_metric: combined_passed
+  require_combined_improvement_over_base: true
+  require_no_suite_regression: true
+  tie_breakers:
+    - fewer_steps
+    - lower_learning_rate
+qualification:
+  one_shot: true
+  evaluate_only_selected_checkpoint: true
+  require_combined_improvement_over_base: true
+  require_no_suite_regression: true

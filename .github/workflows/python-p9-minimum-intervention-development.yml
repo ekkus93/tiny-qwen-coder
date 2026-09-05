@@ -1,0 +1,405 @@
+name: Python P9 Minimum Intervention Development Evaluation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - ralph/p9-004-minimum-intervention
+    paths:
+      - ".github/workflows/python-p9-minimum-intervention-development.yml"
+      - "src/tiny_qwen_coder/evaluation/python_minimum_intervention.py"
+      - "configs/eval/python/p9_minimum_intervention_development_v1.json"
+      - "configs/eval/python/p9_minimum_intervention_checkpoints_v1.json"
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: python-p9-minimum-intervention-development-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  evaluate-trajectory:
+    name: Evaluate development checkpoints for ${{ matrix.label }}
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - label: lr-1e-5
+            suffix: "1e5"
+            training_run_id: 33860511337
+            artifact_id: 9937463933
+            artifact_name: "python-p9-minimum-lr-1e-5-db2d208ffe4e74619fef5ebcf4b2b0c88f609499"
+            artifact_digest: "sha256:ed1134f16bb63182dca21b5de10d43f536f8e4a036a52b0bdadd7bd136624b69"
+          - label: lr-2e-5
+            suffix: "2e5"
+            training_run_id: 33860511337
+            artifact_id: 9944334810
+            artifact_name: "python-p9-minimum-lr-2e-5-db2d208ffe4e74619fef5ebcf4b2b0c88f609499"
+            artifact_digest: "sha256:71dfb43560fed3b92d40f00ac739ecb807f0e5ca4aac8bae34eeddbe103e0310"
+          - label: lr-5e-5
+            suffix: "5e5"
+            training_run_id: 33916526717
+            artifact_id: 9958167106
+            artifact_name: "python-p9-minimum-lr-5e-5-a1b4c0ed670eb877448ac6b1a1a161dfe62146e4"
+            artifact_digest: "sha256:6369ead872ee95d861f0acdfcd4cae55c0542801fb1f7bca46f463cd1447967b"
+          - label: lr-1e-4
+            suffix: "1e4"
+            training_run_id: 33916526717
+            artifact_id: 9961232719
+            artifact_name: "python-p9-minimum-lr-1e-4-a1b4c0ed670eb877448ac6b1a1a161dfe62146e4"
+            artifact_digest: "sha256:774e57736f6add41ae42465b916cee20d71a3a2700c182a6491460b00df72689"
+          - label: lr-2e-4
+            suffix: "2e4"
+            training_run_id: 33916526717
+            artifact_id: 9963712937
+            artifact_name: "python-p9-minimum-lr-2e-4-a1b4c0ed670eb877448ac6b1a1a161dfe62146e4"
+            artifact_digest: "sha256:f3c7caeea442f4016358a24f8eafc4f32f43609d21b4d20b423ee8482dcf1f61"
+
+    env:
+      TOKENIZERS_PARALLELISM: "false"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      CANDIDATE: ${{ matrix.label }}
+      SUFFIX: ${{ matrix.suffix }}
+      TRAINING_RUN_ID: ${{ matrix.training_run_id }}
+      TRAINING_ARTIFACT_ID: ${{ matrix.artifact_id }}
+      TRAINING_ARTIFACT_NAME: ${{ matrix.artifact_name }}
+      TRAINING_ARTIFACT_DIGEST: ${{ matrix.artifact_digest }}
+      EVAL_OUTPUT: artifacts/eval/python/p9-minimum-intervention-development-v1/${{ matrix.label }}
+
+    steps:
+      - name: Check out exact evaluation source
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          clean: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Sync frozen environment
+        run: uv sync --frozen
+
+      - name: Verify CUDA runtime
+        run: |
+          set -euo pipefail
+          nvidia-smi
+          uv run --frozen python - <<'PY'
+          import torch
+          if not torch.cuda.is_available():
+              raise SystemExit("PyTorch cannot access CUDA")
+          if not torch.cuda.is_bf16_supported():
+              raise SystemExit("CUDA device 0 does not support BF16")
+          props = torch.cuda.get_device_properties(0)
+          print(f"torch={torch.__version__}")
+          print(f"cuda_runtime={torch.version.cuda}")
+          print(f"gpu={props.name}")
+          print(f"total_memory_bytes={props.total_memory}")
+          PY
+
+      - name: Validate frozen P9-004C registries
+        run: |
+          set -euo pipefail
+          uv run --frozen python -m tiny_qwen_coder.evaluation.python_minimum_intervention validate --repo-root .
+
+      - name: Verify matrix and GitHub artifact provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          uv run --frozen python - <<'PY'
+          import json
+          import os
+          import urllib.request
+          from pathlib import Path
+
+          registry = json.loads(Path("configs/eval/python/p9_minimum_intervention_checkpoints_v1.json").read_text(encoding="utf-8"))
+          rows = [row for row in registry["trajectories"] if row["label"] == os.environ["CANDIDATE"]]
+          if len(rows) != 1:
+              raise SystemExit("trajectory is not unique in frozen registry")
+          row = rows[0]
+          expected = {
+              "training_workflow_run_id": int(os.environ["TRAINING_RUN_ID"]),
+              "training_artifact_id": int(os.environ["TRAINING_ARTIFACT_ID"]),
+              "training_artifact_name": os.environ["TRAINING_ARTIFACT_NAME"],
+              "training_artifact_digest": os.environ["TRAINING_ARTIFACT_DIGEST"],
+          }
+          for key, value in expected.items():
+              if row.get(key) != value:
+                  raise SystemExit(f"matrix {key} does not match frozen registry")
+          if [item["step"] for item in row["snapshots"]] != [50, 100, 250, 500, 1000]:
+              raise SystemExit("checkpoint grid drifted")
+
+          artifact_id = expected["training_artifact_id"]
+          request = urllib.request.Request(
+              f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/actions/artifacts/{artifact_id}",
+              headers={
+                  "Accept": "application/vnd.github+json",
+                  "Authorization": f"Bearer {os.environ['GH_TOKEN']}",
+                  "X-GitHub-Api-Version": "2022-11-28",
+              },
+          )
+          with urllib.request.urlopen(request, timeout=30) as response:
+              artifact = json.load(response)
+          checks = {
+              "id": artifact_id,
+              "name": expected["training_artifact_name"],
+              "digest": expected["training_artifact_digest"],
+          }
+          for key, value in checks.items():
+              if artifact.get(key) != value:
+                  raise SystemExit(f"GitHub artifact {key} mismatch")
+          if (artifact.get("workflow_run") or {}).get("id") != expected["training_workflow_run_id"]:
+              raise SystemExit("GitHub artifact workflow run ID mismatch")
+          if artifact.get("expired") is not False:
+              raise SystemExit("frozen training artifact is expired")
+          print(json.dumps(checks, indent=2, sort_keys=True))
+          PY
+
+      - name: Download exact completed trajectory artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ runner.temp }}/p9-004-training-${{ matrix.label }}
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ matrix.training_run_id }}
+
+      - name: Locate exact trajectory output fail closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t reports < <(
+            find "${RUNNER_TEMP}/p9-004-training-${CANDIDATE}" \
+              -type f \
+              -path "*/artifacts/train/python/p9-min-lr-${SUFFIX}/training-report.json" \
+              -print | sort
+          )
+          if [[ "${#reports[@]}" -ne 1 ]]; then
+            printf 'Expected exactly one %s training report; found %s\n' "${CANDIDATE}" "${#reports[@]}" >&2
+            exit 1
+          fi
+          training_output="$(dirname "${reports[0]}")"
+          test -f "${training_output}/run-manifest.json"
+          for step in 0050 0100 0250 0500 1000; do
+            test -f "${training_output}/snapshots/step-${step}/adapter_config.json"
+            test -f "${training_output}/snapshots/step-${step}/adapter_model.safetensors"
+          done
+          echo "TRAINING_OUTPUT=${training_output}" >> "${GITHUB_ENV}"
+
+      - name: Confirm clean evaluation source
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain)"
+          git rev-parse HEAD
+
+      - name: Generate all five development checkpoints
+        run: |
+          set -euo pipefail
+          uv run --frozen python -m tiny_qwen_coder.evaluation.python_minimum_intervention \
+            generate-trajectory \
+            --label "${CANDIDATE}" \
+            --training-output "${TRAINING_OUTPUT}" \
+            --repo-root . \
+            --device-index 0
+
+      - name: Score all five transported checkpoints directly
+        run: |
+          set -euo pipefail
+          for step in 50 100 250 500 1000; do
+            uv run --frozen python -m tiny_qwen_coder.evaluation.python_minimum_intervention \
+              score --label "${CANDIDATE}" --step "${step}" --repo-root .
+          done
+
+      - name: Verify complete trajectory evidence
+        run: |
+          set -euo pipefail
+          uv run --frozen python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["EVAL_OUTPUT"])
+          expected_steps = [50, 100, 250, 500, 1000]
+          identities = []
+          for step in expected_steps:
+              directory = root / f"step-{step:04d}"
+              stage = json.loads((directory / "generation-stage.json").read_text(encoding="utf-8"))
+              score = json.loads((directory / "development-score.json").read_text(encoding="utf-8"))
+              if stage.get("repository_holdout_requests") != 0:
+                  raise SystemExit("generation touched repository holdout")
+              if (stage.get("humaneval_requests"), stage.get("mbpp_requests")) != (45, 130):
+                  raise SystemExit("development generation cardinality drifted")
+              if score.get("repository_holdout_evaluated") is not False:
+                  raise SystemExit("scoring touched repository holdout")
+              if (score.get("humaneval_total"), score.get("mbpp_total"), score.get("combined_total")) != (45, 130, 175):
+                  raise SystemExit("development score cardinality drifted")
+              identities.append((score.get("label"), score.get("step")))
+          if identities != [(os.environ["CANDIDATE"], step) for step in expected_steps]:
+              raise SystemExit("trajectory score identity drifted")
+          print(json.dumps(identities, indent=2))
+          PY
+          test "$(find "${EVAL_OUTPUT}" -name development-score.json -type f | wc -l)" -eq 5
+
+      - name: Upload complete development trajectory evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: p9-004c-${{ matrix.label }}-development-${{ github.sha }}
+          path: ${{ env.EVAL_OUTPUT }}/
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 14
+
+      - name: Upload partial development evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p9-004c-${{ matrix.label }}-development-partial-${{ github.sha }}
+          path: ${{ env.EVAL_OUTPUT }}/
+          if-no-files-found: ignore
+          include-hidden-files: true
+          retention-days: 7
+
+  select-development-candidate:
+    name: Select at most one P9-004 qualification candidate
+    needs: evaluate-trajectory
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      TOKENIZERS_PARALLELISM: "false"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      SCORES_ROOT: .p9-004c-scores
+      FINAL_OUTPUT: artifacts/eval/python/p9-minimum-intervention-development-v1/selection
+
+    steps:
+      - name: Check out exact selection source
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          clean: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Sync frozen environment
+        run: uv sync --frozen
+
+      - name: Validate frozen P9-004C registries
+        run: uv run --frozen python -m tiny_qwen_coder.evaluation.python_minimum_intervention validate --repo-root .
+
+      - name: Download all five completed development trajectories
+        uses: actions/download-artifact@v5
+        with:
+          pattern: p9-004c-*-development-${{ github.sha }}
+          path: ${{ env.SCORES_ROOT }}
+          merge-multiple: false
+
+      - name: Require exactly 25 development scores and zero holdout use
+        run: |
+          set -euo pipefail
+          uv run --frozen python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["SCORES_ROOT"])
+          files = sorted(root.rglob("development-score.json"))
+          if len(files) != 25:
+              raise SystemExit(f"expected exactly 25 development scores, found {len(files)}")
+          identities = set()
+          for path in files:
+              row = json.loads(path.read_text(encoding="utf-8"))
+              if row.get("repository_holdout_evaluated") is not False:
+                  raise SystemExit(f"qualification holdout was evaluated: {path}")
+              if (row.get("humaneval_total"), row.get("mbpp_total"), row.get("combined_total")) != (45, 130, 175):
+                  raise SystemExit(f"development cardinality drifted: {path}")
+              identities.add((row.get("label"), row.get("step")))
+          if len(identities) != 25:
+              raise SystemExit("development score identities are not unique")
+          print(f"verified {len(files)} development-only score files")
+          PY
+
+      - name: Apply frozen 25-way selection policy
+        run: |
+          set -euo pipefail
+          uv run --frozen python -m tiny_qwen_coder.evaluation.python_minimum_intervention \
+            select --scores-root "${SCORES_ROOT}" --repo-root .
+          test -f "${SCORES_ROOT}/p9-004c-development-selection.json"
+
+      - name: Freeze selection evidence manifest
+        env:
+          SOURCE_GIT_SHA: ${{ github.sha }}
+          WORKFLOW_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${FINAL_OUTPUT}"
+          cp "${SCORES_ROOT}/p9-004c-development-selection.json" "${FINAL_OUTPUT}/p9-004c-development-selection.json"
+          uv run --frozen python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          scores_root = Path(os.environ["SCORES_ROOT"])
+          output = Path(os.environ["FINAL_OUTPUT"])
+          selection_path = output / "p9-004c-development-selection.json"
+          selection = json.loads(selection_path.read_text(encoding="utf-8"))
+          files = sorted(scores_root.rglob("development-score.json"))
+          inventory = [
+              {
+                  "path": path.relative_to(scores_root).as_posix(),
+                  "size_bytes": path.stat().st_size,
+                  "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+              }
+              for path in files
+          ]
+          manifest = {
+              "schema_version": 1,
+              "task_id": "P9-004",
+              "stage": "development-evidence-manifest",
+              "source_git_sha": os.environ["SOURCE_GIT_SHA"],
+              "workflow_run_id": int(os.environ["WORKFLOW_RUN_ID"]),
+              "development_manifest_sha256": "260682d773640b28673357c7a441474656bbaffc67f0b5fcbe45eca3a07283de",
+              "membership_sha256": "c8765b7a3a69f134be4066e274a64640a15f2d05858374035432207b3521498b",
+              "checkpoint_registry_sha256": "31362b22f3f84fe05a6c499accf63a23b65295b337c3c9d614568732c0643196",
+              "score_count": len(inventory),
+              "score_inventory": inventory,
+              "selection_sha256": hashlib.sha256(selection_path.read_bytes()).hexdigest(),
+              "qualification_authorized": selection["qualification_authorized"],
+              "selected": selection["selected"],
+              "repository_holdout_evaluated": False,
+          }
+          if manifest["score_count"] != 25:
+              raise SystemExit("selection evidence does not contain exactly 25 scores")
+          (output / "p9-004c-development-evidence-manifest.json").write_text(
+              json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+          )
+          print(json.dumps(manifest, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload frozen P9-004C selection evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: p9-004c-development-selection-${{ github.sha }}
+          path: ${{ env.FINAL_OUTPUT }}/
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 30
