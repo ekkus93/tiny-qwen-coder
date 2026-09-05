@@ -1,1 +1,273 @@
-{"checkpoint_registry_id":"python-p9-004c-checkpoints-v1","schema_version":1,"study_id":"python-p9-minimum-intervention-v1","task_id":"P9-004","trajectories":[{"adapter_id":"language/python/p9-min-lr-1e5","label":"lr-1e-5","learning_rate":1e-05,"snapshots":[{"adapter_config_sha256":"797b053fb1660251153be90465e6cd9e950b4a395b45e0f8d8d42ba0a52903f4","adapter_config_size_bytes":1438,"adapter_model_sha256":"7c81a1e69d186414b44920a47632fac6c0b638873fd2eb1f69fac22b03fe6966","adapter_model_size_bytes":32539280,"artifact_set_sha256":"6506e4ca7a1a1575528894e1c40cd4af91861095436758636141940f30c13b7f","step":50},{"adapter_config_sha256":"797b053fb1660251153be90465e6cd9e950b4a395b45e0f8d8d42ba0a52903f4","adapter_config_size_bytes":1438,"adapter_model_sha256":"58b2fa429da5aaa949b8c9473fa94bef2ae038ba93971c4ef640f3c5b0c96c09","adapter_model_size_bytes":32539280,"artifact_set_sha256":"2aa3892d8ab10f467bef2746006b2cfceacfcf506a848d70620fe2d38ac28d03","step":100},{"adapter_config_sha256":"797b053fb1660251153be90465e6cd9e950b4a395b45e0f8d8d42ba0a52903f4","adapter_config_size_bytes":1438,"adapter_model_sha256":"e2d2d55badc95ac45ed95cf8f2ce05e5394c06bc57377291494ae1bd9aa4efb7","adapter_model_size_bytes":32539280,"artifact_set_sha256":"9942fc7f23b49f0d9a25fcfb61d0a837f142831c95528109954226127a25448a","step":250},{"adapter_config_sha256":"797b053fb1660251153be90465e6cd9e950b4a395b45e0f8d8d42ba0a52903f4","adapter_config_size_bytes":1438,"adapter_model_sha256":"628a5bcfb2ca4c07f981449fa0ad88818552ed39de79308613654a23a8b2541e","adapter_model_size_bytes":32539280,"artifact_set_sha256":"af1fb43e3af27280fd83f47d74282cb91be6396368b5faf47c7c2bc4bd640733","step":500},{"adapter_config_sha256":"797b053fb1660251153be90465e6cd9e950b4a395b45e0f8d8d42ba0a52903f4","adapter_config_size_bytes":1438,"adapter_model_sha256":"de849949da8a8b02c9026548190970114170f660ffb5e5470088852e3520ac19","adapter_model_size_bytes":32539280,"artifact_set_sha256":"d0bd74c4d647406139941186596320e77cf3b2dd21a34d4b36ed0ddbfcb2972c","step":1000}],"training_artifact_digest":"sha256:ed1134f16bb63182dca21b5de10d43f536f8e4a036a52b0bdadd7bd136624b69","training_artifact_id":9937463933,"training_artifact_name":"python-p9-minimum-lr-1e-5-db2d208ffe4e74619fef5ebcf4b2b0c88f609499","training_run_id":"training-python-20260904T095621745694Z-db2d208f-dd240816","training_source_git_sha":"db2d208ffe4e74619fef5ebcf4b2b0c88f609499","training_workflow_run_id":33860511337},{"adapter_id":"language/python/p9-min-lr-2e5","label":"lr-2e-5","learning_rate":2e-05,"snapshots":[{"adapter_config_sha256":"797b053fb1660251153be90465e6cd9e950b4a395b45e0f8d8d42ba0a52903f4","adapter_config_size_bytes":1438,"adapter_model_sha256":"12b59f2d763f0daa8a726ef8229b9bd7517e1d62c893b03791454768682309d5","adapter_model_size_bytes":32539280,"artifact_set_sha256":"ff05f69ee73691731a0549d899a20c593c741cb8fec803fcf7e79f7f0f35f476","step":50},{"adapter_config_sha256":"797b053fb1660251153be90465e6cd9e950b4a395b45e0f8d8d42ba0a52903f4","adapter_config_size_bytes":1438,"adapter_model_sha256":"3156b76bf605c37fc4799e63133427736bf2323ce36288054e65ea4e99c87855","adapter_model_size_bytes":32539280,"artifact_set_sha256":"78008b76e32864749228ab0f5e08b4918126adb6304a8afbd5eaefc450a40d8d","step":100},{"adapter_config_sha256":"797b053fb1660251153be90465e6cd9e950b4a395b45e0f8d8d42ba0a52903f4","adapter_config_size_bytes":1438,"adapter_model_sha256":"172675ad22ed36e039b6e83bc1a65d95d4a0efff5fed28f7a9c59635a6e1f9f1","adapter_model_size_bytes":32539280,"artifact_set_sha256":"1029658aa2814d5ab1bc59d6b51ec2e3e949b3acc021519da699b677fc05ee85","step":250},{"adapter_config_sha256":"797b053fb1660251153be90465e6cd9e950b4a395b45e0f8d8d42ba0a52903f4","adapter_config_size_bytes":1438,"adapter_model_sha256":"e7670ea8c00e2fdb4094ca74dfe2896153b94216027e6406dc53ed6826be8340","adapter_model_size_bytes":32539280,"artifact_set_sha256":"33d873ff5d38c56b5814196260313008cf5d15c0659094551323c9529008d199","step":500},{"adapter_config_sha256":"797b053fb1660251153be90465e6cd9e950b4a395b45e0f8d8d42ba0a52903f4","adapter_config_size_bytes":1438,"adapter_model_sha256":"a694873b7083cab21d80f7611e7401d012344d6de7d070a100e6767b5b7d2e34","adapter_model_size_bytes":32539280,"artifact_set_sha256":"dcaea81a4859f067f07dd5ddd4b09291e51886141705ed26a7965b9d3f9f112a","step":1000}],"training_artifact_digest":"sha256:71dfb43560fed3b92d40f00ac739ecb807f0e5ca4aac8bae34eeddbe103e0310","training_artifact_id":9944334810,"training_artifact_name":"python-p9-minimum-lr-2e-5-db2d208ffe4e74619fef5ebcf4b2b0c88f609499","training_run_id":"training-python-20260904T130055261454Z-db2d208f-6790cbbe","training_source_git_sha":"db2d208ffe4e74619fef5ebcf4b2b0c88f609499","training_workflow_run_id":33860511337},{"adapter_id":"language/python/p9-min-lr-5e5","label":"lr-5e-5","learning_rate":5e-05,"snapshots":[{"adapter_config_sha256":"797b053fb1660251153be90465e6cd9e950b4a395b45e0f8d8d42ba0a52903f4","adapter_config_size_bytes":1438,"adapter_model_sha256":"b3836d7e6513d166c0976c35057e5d1f454fac517719b60fa2827b9d8a09d359","adapter_model_size_bytes":32539280,"artifact_set_sha256":"f2925f95c52301e7617239cd43ba5ef1e178c2294a8865402bad643a66903f92","step":50},{"adapter_config_sha256":"797b053fb1660251153be90465e6cd9e950b4a395b45e0f8d8d42ba0a52903f4","adapter_config_size_bytes":1438,"adapter_model_sha256":"57b5d172c7e10fa14840149d8711c2d11c5f85a36e6eceb74e35790b346148d9","adapter_model_size_bytes":32539280,"artifact_set_sha256":"5f1149738635b4938d2df5be9ce7be04535d30138754248b52633f35e09faf98","step":100},{"adapter_config_sha256":"797b053fb1660251153be90465e6cd9e950b4a395b45e0f8d8d42ba0a52903f4","adapter_config_size_bytes":1438,"adapter_model_sha256":"0a76716424db481e62e8e7f745d9e022bd57473900065b8f8d53af1ea60fba70","adapter_model_size_bytes":32539280,"artifact_set_sha256":"bf9314d3df85c3d5d06821b53c2e40d506c8a7c39a0e0ae94174795d59bef640","step":250},{"adapter_config_sha256":"797b053fb1660251153be90465e6cd9e950b4a395b45e0f8d8d42ba0a52903f4","adapter_config_size_bytes":1438,"adapter_model_sha256":"c60e2c3e916de74083beffb3a41eeea8bb30a4aa40e9ec0c66402e3c2dc1e9f9","adapter_model_size_bytes":32539280,"artifact_set_sha256":"4983194975658533dd361b1015ed44921461513ed2a5ac7ac9901983e761c5a0","step":500},{"adapter_config_sha256":"797b053fb1660251153be90465e6cd9e950b4a395b45e0f8d8d42ba0a52903f4","adapter_config_size_bytes":1438,"adapter_model_sha256":"6cd23bc750cf9692f79b5b494a9e7a449a3294ef71ced9ab7bfd397d32cefb64","adapter_model_size_bytes":32539280,"artifact_set_sha256":"f6d9f07cd9f290c75fa09168128857ad8681330db42a85db76ee97591ac7d3c9","step":1000}],"training_artifact_digest":"sha256:6369ead872ee95d861f0acdfcd4cae55c0542801fb1f7bca46f463cd1447967b","training_artifact_id":9958167106,"training_artifact_name":"python-p9-minimum-lr-5e-5-a1b4c0ed670eb877448ac6b1a1a161dfe62146e4","training_run_id":"training-python-20260904T203807243922Z-a1b4c0ed-493e983f","training_source_git_sha":"a1b4c0ed670eb877448ac6b1a1a161dfe62146e4","training_workflow_run_id":33916526717},{"adapter_id":"language/python/p9-min-lr-1e4","label":"lr-1e-4","learning_rate":0.0001,"snapshots":[{"adapter_config_sha256":"797b053fb1660251153be90465e6cd9e950b4a395b45e0f8d8d42ba0a52903f4","adapter_config_size_bytes":1438,"adapter_model_sha256":"fa9a07ad5595a49b32f4a28850385761409c10180c045b54929d8602ada9f0dd","adapter_model_size_bytes":32539280,"artifact_set_sha256":"c362430ee5f076e5d47425cf3647daf638c73e0ac362878525a7708fba53de6f","step":50},{"adapter_config_sha256":"797b053fb1660251153be90465e6cd9e950b4a395b45e0f8d8d42ba0a52903f4","adapter_config_size_bytes":1438,"adapter_model_sha256":"adc09083a42b0b24f263b3e678205cdca21e72bde1379fc0dd5887bbfc83d2cd","adapter_model_size_bytes":32539280,"artifact_set_sha256":"95216a906f4489df0a50e754f418cdf64315722a781c8cf21f2a7890817b14b1","step":100},{"adapter_config_sha256":"797b053fb1660251153be90465e6cd9e950b4a395b45e0f8d8d42ba0a52903f4","adapter_config_size_bytes":1438,"adapter_model_sha256":"906bdd76935cc311ce948ea97f677bdd95148615d97457a2b1b6e9f52a61bb31","adapter_model_size_bytes":32539280,"artifact_set_sha256":"ac19499c498e6181429375e44f5d97f2053f273907412308548396357f3a50ab","step":250},{"adapter_config_sha256":"797b053fb1660251153be90465e6cd9e950b4a395b45e0f8d8d42ba0a52903f4","adapter_config_size_bytes":1438,"adapter_model_sha256":"a91dfd77cd812439ea3791bf2543f42181cd926931497526ab5b6ebebf6b51ac","adapter_model_size_bytes":32539280,"artifact_set_sha256":"5f71908db15a3545baa783548ff2425128d8353d1578f16a4f55888d981cae30","step":500},{"adapter_config_sha256":"797b053fb1660251153be90465e6cd9e950b4a395b45e0f8d8d42ba0a52903f4","adapter_config_size_bytes":1438,"adapter_model_sha256":"7377e266bff3562f9d08184e07aee98e0187e5a0e03fa0ad6bf60544e55da80e","adapter_model_size_bytes":32539280,"artifact_set_sha256":"102424cf726290876942726c34489879117e78722a54a4c00d9ae13d1c5dfc7a","step":1000}],"training_artifact_digest":"sha256:774e57736f6add41ae42465b916cee20d71a3a2700c182a6491460b00df72689","training_artifact_id":9961232719,"training_artifact_name":"python-p9-minimum-lr-1e-4-a1b4c0ed670eb877448ac6b1a1a161dfe62146e4","training_run_id":"training-python-20260904T233459705747Z-a1b4c0ed-45b95288","training_source_git_sha":"a1b4c0ed670eb877448ac6b1a1a161dfe62146e4","training_workflow_run_id":33916526717},{"adapter_id":"language/python/p9-min-lr-2e4","label":"lr-2e-4","learning_rate":0.0002,"snapshots":[{"adapter_config_sha256":"797b053fb1660251153be90465e6cd9e950b4a395b45e0f8d8d42ba0a52903f4","adapter_config_size_bytes":1438,"adapter_model_sha256":"a55f3800adc45bb66424d40c4275842bcfd2e6717993469f6898321e95f35c1c","adapter_model_size_bytes":32539280,"artifact_set_sha256":"127fda1171410929a7031766c8872229ba90fbe2c6861613c8e8897b3923cd2f","step":50},{"adapter_config_sha256":"797b053fb1660251153be90465e6cd9e950b4a395b45e0f8d8d42ba0a52903f4","adapter_config_size_bytes":1438,"adapter_model_sha256":"600a8760ef72e47683c65210e57909b5032c7aa3eb07617b5d6e7c42f6f3a657","adapter_model_size_bytes":32539280,"artifact_set_sha256":"b276962ee1636111fdd5bf0f91fb0f2c102695187ce961bc811c74c0aecb0c61","step":100},{"adapter_config_sha256":"797b053fb1660251153be90465e6cd9e950b4a395b45e0f8d8d42ba0a52903f4","adapter_config_size_bytes":1438,"adapter_model_sha256":"e189ffa1340797678810f1f1df6bf2be574911fe38946fc881e554a57ab5689a","adapter_model_size_bytes":32539280,"artifact_set_sha256":"e536bb4caed9e042b8e7e82384931b19ee8c44eed82769d16587c0de6a9dc258","step":250},{"adapter_config_sha256":"797b053fb1660251153be90465e6cd9e950b4a395b45e0f8d8d42ba0a52903f4","adapter_config_size_bytes":1438,"adapter_model_sha256":"274882ae837fd24db36967a9ded0c6b818d3893bb19665055242e91e5589fed6","adapter_model_size_bytes":32539280,"artifact_set_sha256":"07e5a817269fc4fe4c0bd70a3b84e479f17cdbbd918b2f00bd039445b780ca91","step":500},{"adapter_config_sha256":"797b053fb1660251153be90465e6cd9e950b4a395b45e0f8d8d42ba0a52903f4","adapter_config_size_bytes":1438,"adapter_model_sha256":"98833e9333a3392f97e523815140132cbd67fd21a6b3865e4c78cae90b2dc032","adapter_model_size_bytes":32539280,"artifact_set_sha256":"d57c9997d09100ae70be5bff2b522822896291401497651129906093b6918156","step":1000}],"training_artifact_digest":"sha256:f3c7caeea442f4016358a24f8eafc4f32f43609d21b4d20b423ee8482dcf1f61","training_artifact_id":9963712937,"training_artifact_name":"python-p9-minimum-lr-2e-4-a1b4c0ed670eb877448ac6b1a1a161dfe62146e4","training_run_id":"training-python-20260905T023153867551Z-a1b4c0ed-a9bc2d7c","training_source_git_sha":"a1b4c0ed670eb877448ac6b1a1a161dfe62146e4","training_workflow_run_id":33916526717}]}
+{
+  "checkpoint_registry_id": "python-p9-004c-checkpoints-v1",
+  "schema_version": 1,
+  "study_id": "python-p9-minimum-intervention-v1",
+  "task_id": "P9-004",
+  "trajectories": [
+    {
+      "adapter_id": "language/python/p9-min-lr-1e5",
+      "label": "lr-1e-5",
+      "learning_rate": 1e-05,
+      "snapshots": [
+        {
+          "adapter_config_sha256": "4db6de345a7ec754422ddceea2bce0c6553f46b99e744014bac061c1e5b2f2c9",
+          "adapter_config_size_bytes": 1233,
+          "adapter_model_sha256": "7c81a1e69d183897f18d679f15a4563f6f09ce88382bfbf5e0f82dad19422148",
+          "adapter_model_size_bytes": 32539280,
+          "artifact_set_sha256": "36c2bcbd18be2b5f8f6beb454efb37d0bf3328fefd5b9f4c15679a118833390e",
+          "step": 50
+        },
+        {
+          "adapter_config_sha256": "4db6de345a7ec754422ddceea2bce0c6553f46b99e744014bac061c1e5b2f2c9",
+          "adapter_config_size_bytes": 1233,
+          "adapter_model_sha256": "58b2fa429da5904db624be753e735947431f243701a7e059469430c1ab7059b8",
+          "adapter_model_size_bytes": 32539280,
+          "artifact_set_sha256": "14f0ba495e06f9b2f01ebc13ac7aa7e289b2315cc1e2b900237eff1d311fc2aa",
+          "step": 100
+        },
+        {
+          "adapter_config_sha256": "4db6de345a7ec754422ddceea2bce0c6553f46b99e744014bac061c1e5b2f2c9",
+          "adapter_config_size_bytes": 1233,
+          "adapter_model_sha256": "e2d2d55badc9828fa4def75aa001d8c25910fe55f608159d25812ee972c7de62",
+          "adapter_model_size_bytes": 32539280,
+          "artifact_set_sha256": "608f8748ba88b1aac3525d8f025f050e92c888c424083ce9eb3e2506cdb48aa7",
+          "step": 250
+        },
+        {
+          "adapter_config_sha256": "4db6de345a7ec754422ddceea2bce0c6553f46b99e744014bac061c1e5b2f2c9",
+          "adapter_config_size_bytes": 1233,
+          "adapter_model_sha256": "628a5bcfb2ca0cfb435354311390aca6ed9da5e31e965d6ca2b76f474aa1f88c",
+          "adapter_model_size_bytes": 32539280,
+          "artifact_set_sha256": "aad42831fa28be80912b989149c8f1f478659c0a7534bda76b66efc735846f2a",
+          "step": 500
+        },
+        {
+          "adapter_config_sha256": "4db6de345a7ec754422ddceea2bce0c6553f46b99e744014bac061c1e5b2f2c9",
+          "adapter_config_size_bytes": 1233,
+          "adapter_model_sha256": "de849949da8a69d2b164c231da6aea4257359e699c7f5a6d6a37cb219b247bb2",
+          "adapter_model_size_bytes": 32539280,
+          "artifact_set_sha256": "16ffc9360db09b6695d692a361dbfa4a3b489d5ec2eec702c8ee4d499cc73b35",
+          "step": 1000
+        }
+      ],
+      "training_artifact_digest": "sha256:ed1134f16bb63182dca21b5de10d43f536f8e4a036a52b0bdadd7bd136624b69",
+      "training_artifact_id": 9937463933,
+      "training_artifact_name": "python-p9-minimum-lr-1e-5-db2d208ffe4e74619fef5ebcf4b2b0c88f609499",
+      "training_run_id": "training-python-20260904T095621745694Z-db2d208f-dd240816",
+      "training_source_git_sha": "db2d208ffe4e74619fef5ebcf4b2b0c88f609499",
+      "training_workflow_run_id": 33860511337
+    },
+    {
+      "adapter_id": "language/python/p9-min-lr-2e5",
+      "label": "lr-2e-5",
+      "learning_rate": 2e-05,
+      "snapshots": [
+        {
+          "adapter_config_sha256": "ad40050082920eab964d6803e2802817f5ef29b391b0004b75de4a5d6aa545b5",
+          "adapter_config_size_bytes": 1233,
+          "adapter_model_sha256": "12b59f2d763f17db228f5d290be28b3685806f630458dfb22f3ecf70b8edea73",
+          "adapter_model_size_bytes": 32539280,
+          "artifact_set_sha256": "84b4a2de1d795ad89ae1ddc3da3a7d940f91e4a9f3bd048dab42b066a4ec9e7f",
+          "step": 50
+        },
+        {
+          "adapter_config_sha256": "ad40050082920eab964d6803e2802817f5ef29b391b0004b75de4a5d6aa545b5",
+          "adapter_config_size_bytes": 1233,
+          "adapter_model_sha256": "3156b76bf605d351c93626320cf6c6b9ed0fbfdf36bc511b31ff7497632ac560",
+          "adapter_model_size_bytes": 32539280,
+          "artifact_set_sha256": "f229ee809981d89daa0504553af88d69d07dbcd3b28e502ce51aff54941d0206",
+          "step": 100
+        },
+        {
+          "adapter_config_sha256": "ad40050082920eab964d6803e2802817f5ef29b391b0004b75de4a5d6aa545b5",
+          "adapter_config_size_bytes": 1233,
+          "adapter_model_sha256": "172675ad22eda2c9ea1e7a7cf0d2bea335292987d28303989841c9298178ba5c",
+          "adapter_model_size_bytes": 32539280,
+          "artifact_set_sha256": "73e371b6aa9c15d159d19daf847b717d524298e63aa7755ef598edf53ea86c06",
+          "step": 250
+        },
+        {
+          "adapter_config_sha256": "ad40050082920eab964d6803e2802817f5ef29b391b0004b75de4a5d6aa545b5",
+          "adapter_config_size_bytes": 1233,
+          "adapter_model_sha256": "e7670ea8c00e04da094fb0e534d46607034edcd0baec52be28c70308ef8781e8",
+          "adapter_model_size_bytes": 32539280,
+          "artifact_set_sha256": "b1487f4e1c489996a6f1ef5c2046fe6a15f3a03324264828d9c6129aa4354d10",
+          "step": 500
+        },
+        {
+          "adapter_config_sha256": "ad40050082920eab964d6803e2802817f5ef29b391b0004b75de4a5d6aa545b5",
+          "adapter_config_size_bytes": 1233,
+          "adapter_model_sha256": "a694873b70832e45bc4e4ada036932e1903cd7f0d3f5d7e9a3ce7bd5c4f7d983",
+          "adapter_model_size_bytes": 32539280,
+          "artifact_set_sha256": "465436ce79ca72044ceb02220d3874da57d38fb7dec9b8ba3e5af1e172a022f0",
+          "step": 1000
+        }
+      ],
+      "training_artifact_digest": "sha256:71dfb43560fed3b92d40f00ac739ecb807f0e5ca4aac8bae34eeddbe103e0310",
+      "training_artifact_id": 9944334810,
+      "training_artifact_name": "python-p9-minimum-lr-2e-5-db2d208ffe4e74619fef5ebcf4b2b0c88f609499",
+      "training_run_id": "training-python-20260904T130055261454Z-db2d208f-6790cbbe",
+      "training_source_git_sha": "db2d208ffe4e74619fef5ebcf4b2b0c88f609499",
+      "training_workflow_run_id": 33860511337
+    },
+    {
+      "adapter_id": "language/python/p9-min-lr-5e5",
+      "label": "lr-5e-5",
+      "learning_rate": 5e-05,
+      "snapshots": [
+        {
+          "adapter_config_sha256": "2e7441c8b0953ddc74f3b49fea144980cc5315a193a1bd2dc296888de3f9b306",
+          "adapter_config_size_bytes": 1233,
+          "adapter_model_sha256": "b3836d7e6513545ee864b4880813308205427f9322e4f994adbbd04ce2d371ba",
+          "adapter_model_size_bytes": 32539280,
+          "artifact_set_sha256": "2395952ea88ef174ec1c7c512c777e1e093c00736a3d98cbe8e4ffb4e366485c",
+          "step": 50
+        },
+        {
+          "adapter_config_sha256": "2e7441c8b0953ddc74f3b49fea144980cc5315a193a1bd2dc296888de3f9b306",
+          "adapter_config_size_bytes": 1233,
+          "adapter_model_sha256": "57b5d172c7e1507fe97768b808ff0f7f3ec4e122eb7068505dd7a2b2a5e0de18",
+          "adapter_model_size_bytes": 32539280,
+          "artifact_set_sha256": "68254ced68ce20fff079f1950f6124045ddb6055a6ed9bc0275bc2a872582e3f",
+          "step": 100
+        },
+        {
+          "adapter_config_sha256": "2e7441c8b0953ddc74f3b49fea144980cc5315a193a1bd2dc296888de3f9b306",
+          "adapter_config_size_bytes": 1233,
+          "adapter_model_sha256": "0a76716424db384d213def3a545482fd8f1e4f1c99899fba20412d0149795d9e",
+          "adapter_model_size_bytes": 32539280,
+          "artifact_set_sha256": "122cb7297ebcb48024f9c6006c58af7cdc5a31911f5ce96f00928f9739fcde7f",
+          "step": 250
+        },
+        {
+          "adapter_config_sha256": "2e7441c8b0953ddc74f3b49fea144980cc5315a193a1bd2dc296888de3f9b306",
+          "adapter_config_size_bytes": 1233,
+          "adapter_model_sha256": "c60e2c3e916d361c0988217562c1187b67830423527535c8c10fc5f8375ad1d0",
+          "adapter_model_size_bytes": 32539280,
+          "artifact_set_sha256": "766b2c25ae62fde221200c2e4ad752727bb0b0eee452b74be37478582a960abd",
+          "step": 500
+        },
+        {
+          "adapter_config_sha256": "2e7441c8b0953ddc74f3b49fea144980cc5315a193a1bd2dc296888de3f9b306",
+          "adapter_config_size_bytes": 1233,
+          "adapter_model_sha256": "6cd23bc750cf80788574728c97d4d5f10a449d0a7da644acd2f3675b00727076",
+          "adapter_model_size_bytes": 32539280,
+          "artifact_set_sha256": "d1728ee29d7e9ce29caabb3b2b2e524e40032e3bbe0625832e0a01312edfcb22",
+          "step": 1000
+        }
+      ],
+      "training_artifact_digest": "sha256:6369ead872ee95d861f0acdfcd4cae55c0542801fb1f7bca46f463cd1447967b",
+      "training_artifact_id": 9958167106,
+      "training_artifact_name": "python-p9-minimum-lr-5e-5-a1b4c0ed670eb877448ac6b1a1a161dfe62146e4",
+      "training_run_id": "training-python-20260904T203807243922Z-a1b4c0ed-493e983f",
+      "training_source_git_sha": "a1b4c0ed670eb877448ac6b1a1a161dfe62146e4",
+      "training_workflow_run_id": 33916526717
+    },
+    {
+      "adapter_id": "language/python/p9-min-lr-1e4",
+      "label": "lr-1e-4",
+      "learning_rate": 0.0001,
+      "snapshots": [
+        {
+          "adapter_config_sha256": "a9f27aebed39e7bca603309680ffbd7a17dce9c6bdd2515766c188526270d553",
+          "adapter_config_size_bytes": 1233,
+          "adapter_model_sha256": "fa9a07ad559546b2375fcf58befd45bcf060e63cf66cb99e000b6cd41dcc1ce8",
+          "adapter_model_size_bytes": 32539280,
+          "artifact_set_sha256": "f706cee40b8eeadd5fe7c7615ab65bd03ef4089b546ad78c7a488cf9d7b9ce64",
+          "step": 50
+        },
+        {
+          "adapter_config_sha256": "a9f27aebed39e7bca603309680ffbd7a17dce9c6bdd2515766c188526270d553",
+          "adapter_config_size_bytes": 1233,
+          "adapter_model_sha256": "adc09083a42b4c8bce48fa7a80b0bfd56cbf7d65ad38ef745313548d6091d2ee",
+          "adapter_model_size_bytes": 32539280,
+          "artifact_set_sha256": "b6a45d0d0f7058f5f971dcf2d46808c6bd0e94646f9a5d72bc1f4c4e2a75e82c",
+          "step": 100
+        },
+        {
+          "adapter_config_sha256": "a9f27aebed39e7bca603309680ffbd7a17dce9c6bdd2515766c188526270d553",
+          "adapter_config_size_bytes": 1233,
+          "adapter_model_sha256": "906bdd76935c71d9652e37f4c44544fd21b8a9f26f8712d419b11cac026cd215",
+          "adapter_model_size_bytes": 32539280,
+          "artifact_set_sha256": "7d1e4277edf81b8bc27ddee2333cac46abc2d0288410ccd2f3ec8f2631c61711",
+          "step": 250
+        },
+        {
+          "adapter_config_sha256": "a9f27aebed39e7bca603309680ffbd7a17dce9c6bdd2515766c188526270d553",
+          "adapter_config_size_bytes": 1233,
+          "adapter_model_sha256": "a91dfd77cd819e4c1391f511e1ecdf047e32dcd9457e7122160ce8d8cc5e5ab0",
+          "adapter_model_size_bytes": 32539280,
+          "artifact_set_sha256": "525f340f3670de1bd33fa050da2832fa7536b889913e552408e02e22e8c09f65",
+          "step": 500
+        },
+        {
+          "adapter_config_sha256": "a9f27aebed39e7bca603309680ffbd7a17dce9c6bdd2515766c188526270d553",
+          "adapter_config_size_bytes": 1233,
+          "adapter_model_sha256": "7377e266bff3ce279d0931adb4aca1c9c802d77cad0b3e3af87f788da0c034d9",
+          "adapter_model_size_bytes": 32539280,
+          "artifact_set_sha256": "3e94d2c922a28f4fff572a72d09c72e981a0112ad27feb9c65d0df57197474f1",
+          "step": 1000
+        }
+      ],
+      "training_artifact_digest": "sha256:774e57736f6add41ae42465b916cee20d71a3a2700c182a6491460b00df72689",
+      "training_artifact_id": 9961232719,
+      "training_artifact_name": "python-p9-minimum-lr-1e-4-a1b4c0ed670eb877448ac6b1a1a161dfe62146e4",
+      "training_run_id": "training-python-20260904T233459705747Z-a1b4c0ed-45b95288",
+      "training_source_git_sha": "a1b4c0ed670eb877448ac6b1a1a161dfe62146e4",
+      "training_workflow_run_id": 33916526717
+    },
+    {
+      "adapter_id": "language/python/p9-min-lr-2e4",
+      "label": "lr-2e-4",
+      "learning_rate": 0.0002,
+      "snapshots": [
+        {
+          "adapter_config_sha256": "5e2bf8c23956f05af4acd597bd86526b37d95b7a178d52673e7aa825e72d083d",
+          "adapter_config_size_bytes": 1233,
+          "adapter_model_sha256": "a55f3800adc40dca348359f98ace898cb0711db32dbe40b0558bfe42633fa330",
+          "adapter_model_size_bytes": 32539280,
+          "artifact_set_sha256": "3c127fec48a3c719547ded4285a2cda930f21a2aa09f014eb229dd54441d7a14",
+          "step": 50
+        },
+        {
+          "adapter_config_sha256": "5e2bf8c23956f05af4acd597bd86526b37d95b7a178d52673e7aa825e72d083d",
+          "adapter_config_size_bytes": 1233,
+          "adapter_model_sha256": "600a8760ef722c13d81686e4910e53d68d74b73be57b355475d56ffa372607f8",
+          "adapter_model_size_bytes": 32539280,
+          "artifact_set_sha256": "1cd41152c1cf48a2be46fec1545e80150cc49d63d67fc877e8d8ede105ad42de",
+          "step": 100
+        },
+        {
+          "adapter_config_sha256": "5e2bf8c23956f05af4acd597bd86526b37d95b7a178d52673e7aa825e72d083d",
+          "adapter_config_size_bytes": 1233,
+          "adapter_model_sha256": "e189ffa1340769dc542ef99118eb4a2993004d10c1d262abd3340d03e8643ee1",
+          "adapter_model_size_bytes": 32539280,
+          "artifact_set_sha256": "b79c26245519581e2d7b3084cf7a493c81cae46807a4bdec96b6eb65d914d0f7",
+          "step": 250
+        },
+        {
+          "adapter_config_sha256": "5e2bf8c23956f05af4acd597bd86526b37d95b7a178d52673e7aa825e72d083d",
+          "adapter_config_size_bytes": 1233,
+          "adapter_model_sha256": "274882ae837f9646c402542c0aaa2a8833ceec9db3a7e8a6b525b364d06b1b5a",
+          "adapter_model_size_bytes": 32539280,
+          "artifact_set_sha256": "6ba6e03d87349d9c03561530bff3d12044f21b0ad294c4b6cee22e8c702d2787",
+          "step": 500
+        },
+        {
+          "adapter_config_sha256": "5e2bf8c23956f05af4acd597bd86526b37d95b7a178d52673e7aa825e72d083d",
+          "adapter_config_size_bytes": 1233,
+          "adapter_model_sha256": "98833e9333a392c289567e219f15d2f158ca9a99e15eda584a42333d7bafd6d6",
+          "adapter_model_size_bytes": 32539280,
+          "artifact_set_sha256": "f28967c55c01a727cdea5fddbd353575b0f3998233ea10979a7cfa33882282ad",
+          "step": 1000
+        }
+      ],
+      "training_artifact_digest": "sha256:f3c7caeea442f4016358a24f8eafc4f32f43609d21b4d20b423ee8482dcf1f61",
+      "training_artifact_id": 9963712937,
+      "training_artifact_name": "python-p9-minimum-lr-2e-4-a1b4c0ed670eb877448ac6b1a1a161dfe62146e4",
+      "training_run_id": "training-python-20260905T023153867551Z-a1b4c0ed-a9bc2d7c",
+      "training_source_git_sha": "a1b4c0ed670eb877448ac6b1a1a161dfe62146e4",
+      "training_workflow_run_id": 33916526717
+    }
+  ]
+}
