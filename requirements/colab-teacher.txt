@@ -1,3 +1,5 @@
+--extra-index-url https://download.pytorch.org/whl/cu129
+torch==2.13.0+cu129
+torchaudio==2.11.0+cu129
+torchvision==0.28.0+cu129
 vllm==0.28.0
-vllm-bnb-plugin==0.0.3
-bitsandbytes==0.50.2
