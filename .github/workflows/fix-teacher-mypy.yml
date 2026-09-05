@@ -33,34 +33,25 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Patch explicit importlib metadata alias
+      - name: Patch test-owned importlib metadata dependency
         run: |
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
 
-          backend = Path("src/tiny_qwen_coder/distillation/vllm_backend.py")
-          text = backend.read_text(encoding="utf-8")
-          assert text.count("import importlib.metadata\n") == 1
-          text = text.replace(
-              "import importlib.metadata\n",
-              "from importlib import metadata as importlib_metadata\n",
-          )
-          assert text.count("importlib.metadata.version") == 1
-          text = text.replace("importlib.metadata.version", "importlib_metadata.version")
-          assert text.count("importlib.metadata.PackageNotFoundError") == 1
-          text = text.replace(
-              "importlib.metadata.PackageNotFoundError",
-              "importlib_metadata.PackageNotFoundError",
-          )
-          backend.write_text(text, encoding="utf-8")
-
           tests = Path("tests/unit/test_teacher_distillation.py")
           text = tests.read_text(encoding="utf-8")
+          import_anchor = "import json\nimport sys\n"
+          assert text.count(import_anchor) == 1
+          text = text.replace(
+              import_anchor,
+              import_anchor + "from importlib import metadata as importlib_metadata\n",
+              1,
+          )
           assert text.count("backend_module.importlib.metadata") == 2
           text = text.replace(
               "backend_module.importlib.metadata",
-              "backend_module.importlib_metadata",
+              "importlib_metadata",
           )
           tests.write_text(text, encoding="utf-8")
           PY
@@ -84,5 +75,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git diff --cached --quiet && exit 0
-          git commit -m "fix: satisfy strict typing for teacher backend"
+          git commit -m "fix: satisfy strict typing for teacher backend tests"
           git push origin HEAD:master
