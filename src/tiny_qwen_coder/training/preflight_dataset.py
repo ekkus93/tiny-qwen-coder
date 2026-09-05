@@ -64,6 +64,28 @@ def _sha(mapping: dict[str, object], key: str, *, context: str) -> str:
     return value
 
 
+def _manifest_split_sha(
+    checksums: dict[str, object],
+    *,
+    legacy_key: str,
+    generic_key: str,
+    context: str,
+) -> str:
+    """Read either the P0 legacy split checksum or the generic P3 manifest checksum."""
+
+    has_legacy = legacy_key in checksums
+    has_generic = generic_key in checksums
+    if has_legacy == has_generic:
+        raise AdapterTrainingError(
+            f"{context} must contain exactly one of {legacy_key!r} or {generic_key!r}"
+        )
+    return _sha(
+        checksums,
+        legacy_key if has_legacy else generic_key,
+        context=context,
+    )
+
+
 def _ordered_content_sha256(
     records: tuple[NormalizedTrainingRecord, ...],
 ) -> tuple[str, tuple[str, ...]]:
@@ -121,11 +143,17 @@ def verify_frozen_training_dataset(plan: AdapterTrainingPlan) -> DatasetPrefligh
     expected_validation_count = _int(
         counts, "validation_records", context="dataset manifest.counts"
     )
-    expected_train_sha = _sha(
-        checksums, "train_content_sha256", context="dataset manifest.checksums"
+    expected_train_sha = _manifest_split_sha(
+        checksums,
+        legacy_key="train_content_sha256",
+        generic_key="train_records_sha256",
+        context="dataset manifest.checksums",
     )
-    expected_validation_sha = _sha(
-        checksums, "validation_content_sha256", context="dataset manifest.checksums"
+    expected_validation_sha = _manifest_split_sha(
+        checksums,
+        legacy_key="validation_content_sha256",
+        generic_key="validation_records_sha256",
+        context="dataset manifest.checksums",
     )
 
     train_records = load_normalized_training_records_jsonl(

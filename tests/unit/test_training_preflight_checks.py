@@ -27,6 +27,7 @@ from tiny_qwen_coder.training.plan import (
     AdapterTrainingPlan,
     TrainerArtifactPaths,
     TrainingDatasetIdentity,
+    load_training_dataset_identity,
 )
 from tiny_qwen_coder.training.preflight_dataset import verify_frozen_training_dataset
 from tiny_qwen_coder.training.preflight_hardware import (
@@ -121,6 +122,7 @@ def _plan(
     *,
     output_dir: str | None = None,
     shared_record: bool = False,
+    generic_checksums: bool = False,
 ) -> AdapterTrainingPlan:
     train_path = tmp_path / "train.jsonl"
     validation_path = tmp_path / "validation.jsonl"
@@ -129,6 +131,11 @@ def _plan(
     validation_records = (train_records[0],) if shared_record else (_record("validation"),)
     _write_records(train_path, train_records)
     _write_records(validation_path, validation_records)
+    checksum_keys = (
+        ("train_records_sha256", "validation_records_sha256")
+        if generic_checksums
+        else ("train_content_sha256", "validation_content_sha256")
+    )
     manifest_payload = {
         "schema_version": 1,
         "manifest_id": "dataset/python/p0",
@@ -141,8 +148,8 @@ def _plan(
         },
         "counts": {"train_records": 1, "validation_records": 1},
         "checksums": {
-            "train_content_sha256": _content_sha(train_records),
-            "validation_content_sha256": _content_sha(validation_records),
+            checksum_keys[0]: _content_sha(train_records),
+            checksum_keys[1]: _content_sha(validation_records),
         },
     }
     manifest_path.write_text(
@@ -196,12 +203,46 @@ def _plan(
     )
 
 
+def test_training_dataset_identity_derives_id_from_generic_manifest(tmp_path: Path) -> None:
+    manifest = tmp_path / "dataset-manifest.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "language": "python",
+                "identity": {
+                    "config": {"output_dir": "data/python/qwen38-27b-distilled-v1"}
+                },
+                "tokenizer": {
+                    "repository": "Qwen/Qwen3.5-4B",
+                    "revision": _REVISION,
+                    "chat_template_sha256": _TEMPLATE_SHA,
+                },
+            },
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    identity = load_training_dataset_identity(manifest)
+
+    assert identity.manifest_id == "dataset/python/qwen38-27b-distilled-v1"
+
+
 def test_dataset_preflight_verifies_manifest_sidecar_and_split_content(tmp_path: Path) -> None:
     evidence = verify_frozen_training_dataset(_plan(tmp_path))
 
     assert evidence.train_records == 1
     assert evidence.validation_records == 1
     assert evidence.split_overlap_records == 0
+
+
+def test_dataset_preflight_accepts_generic_p3_split_checksum_names(tmp_path: Path) -> None:
+    evidence = verify_frozen_training_dataset(_plan(tmp_path, generic_checksums=True))
+
+    assert evidence.train_records == 1
+    assert evidence.validation_records == 1
 
 
 def test_dataset_preflight_rejects_manifest_sidecar_drift(tmp_path: Path) -> None:

@@ -180,6 +180,27 @@ def _required_string(mapping: dict[str, object], key: str, *, context: str) -> s
     return value
 
 
+def _training_manifest_id(root: dict[str, object]) -> str:
+    manifest_id = root.get("manifest_id")
+    if manifest_id is not None:
+        if not isinstance(manifest_id, str) or not manifest_id.strip():
+            raise AdapterTrainingError("dataset manifest.manifest_id must be a non-empty string")
+        return manifest_id
+
+    identity = _mapping(root.get("identity"), context="dataset manifest.identity")
+    config = _mapping(identity.get("config"), context="dataset manifest.identity.config")
+    output_dir = _required_string(
+        config, "output_dir", context="dataset manifest.identity.config"
+    )
+    leaf = Path(output_dir).name
+    if not leaf:
+        raise AdapterTrainingError(
+            "generic dataset manifest output_dir must have a final path component"
+        )
+    language = _required_string(root, "language", context="dataset manifest")
+    return f"dataset/{language}/{leaf}"
+
+
 def load_training_dataset_identity(path: Path) -> TrainingDatasetIdentity:
     """Read the language/tokenizer identity from any compatible frozen dataset manifest."""
 
@@ -192,7 +213,7 @@ def load_training_dataset_identity(path: Path) -> TrainingDatasetIdentity:
     root = _mapping(payload, context="dataset manifest")
     tokenizer = _mapping(root.get("tokenizer"), context="dataset manifest.tokenizer")
     identity = TrainingDatasetIdentity(
-        manifest_id=_required_string(root, "manifest_id", context="dataset manifest"),
+        manifest_id=_training_manifest_id(root),
         language=_required_string(root, "language", context="dataset manifest"),
         tokenizer_repository=_required_string(
             tokenizer, "repository", context="dataset manifest.tokenizer"
