@@ -699,6 +699,12 @@ tiny-qwen-coder/
 │       ├── runtime/
 │       └── reporting/
 ├── scripts/
+│   ├── teacher_distillation/
+│   │   ├── README.md
+│   │   ├── prepare_teacher_input.py
+│   │   ├── select_teacher_input.py
+│   │   ├── generate_teacher_data.py
+│   │   └── finalize_teacher_data.py
 │   ├── inspect_model.py
 │   ├── prepare_data.py
 │   ├── train_adapter.py
