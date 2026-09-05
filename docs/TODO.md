@@ -880,14 +880,27 @@ Acceptance criteria:
 
 - Learning curve/diminishing-return evidence produced.
 
-## P9-004 — Training-length/learning-rate study
+## P9-004 — Checkpointed low-LR minimum-intervention study
 
-- [ ] additional epoch/step options.
-- [ ] lower/higher LR candidates.
+- [x] Freeze five r8 learning-rate trajectories: `1e-5`, `2e-5`, `5e-5`, `1e-4`, `2e-4`.
+- [x] Freeze a common 1,000-step scheduler horizon and snapshots at steps 50/100/250/500/1000.
+- [x] Freeze deterministic development/qualification membership before checkpoint scoring.
+- [x] Keep the complete repository holdout qualification-only.
+- [x] Train all five trajectories and freeze exact adapter-only snapshot identities.
+- [x] Score all 25 snapshots on the frozen development slice only.
+- [x] Apply the precommitted selection policy mechanically.
+- [x] Stop without qualification because no checkpoint beat/preserved the unchanged base.
 
 Acceptance criteria:
 
-- Overfitting/general regression explicitly measured.
+- Every trajectory differs from completed r8 only in learning rate, adapter ID, and output path.
+- All checkpoints share the same 1,000-step scheduler horizon.
+- Repeated tuning consumes only the frozen development slice, never the qualification-only repository holdout.
+- A candidate reaches qualification only if development combined passes strictly beat base with no HumanEval/MBPP development regression.
+- Qualification is winner-only and one-shot; no runner-up is tried after observing results.
+- Training/validation loss, VRAM, and throughput cannot override executable benchmark results.
+
+Implementation note: canonical development run `33950802529` scored all 25 checkpoints and mechanically selected none. The unchanged base scored `103/175`; the best checkpoint, `lr-1e-5` at step 50, scored `100/175` (`33/45` HumanEval, `67/130` MBPP). Selection evidence SHA-256 is `cc4bd3d89f8b9e9e1ebf481509c6b97ec50de7263e954247b68c30899941bc6c`; `qualification_authorized` is false and the repository holdout was not evaluated. P9-004 therefore closes as a negative experiment and further P0 rank/LR/epoch search is stopped in favor of dataset/objective redesign. Full evidence is frozen in `docs/P9_004_MINIMUM_INTERVENTION.md` and `docs/evidence/P9_004_MINIMUM_INTERVENTION_DEVELOPMENT.json`.
 
 ## P9-005 — BF16 LoRA vs QLoRA comparison
 
