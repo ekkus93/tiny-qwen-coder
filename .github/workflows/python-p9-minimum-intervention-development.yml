@@ -27,31 +27,31 @@ jobs:
       matrix:
         include:
           - label: lr-1e-5
-            suffix: 1e5
+            suffix: "1e5"
             training_run_id: 33860511337
             artifact_id: 9937463933
             artifact_name: "python-p9-minimum-lr-1e-5-db2d208ffe4e74619fef5ebcf4b2b0c88f609499"
             artifact_digest: "sha256:ed1134f16bb63182dca21b5de10d43f536f8e4a036a52b0bdadd7bd136624b69"
           - label: lr-2e-5
-            suffix: 2e5
+            suffix: "2e5"
             training_run_id: 33860511337
             artifact_id: 9944334810
             artifact_name: "python-p9-minimum-lr-2e-5-db2d208ffe4e74619fef5ebcf4b2b0c88f609499"
             artifact_digest: "sha256:71dfb43560fed3b92d40f00ac739ecb807f0e5ca4aac8bae34eeddbe103e0310"
           - label: lr-5e-5
-            suffix: 5e5
+            suffix: "5e5"
             training_run_id: 33916526717
             artifact_id: 9958167106
             artifact_name: "python-p9-minimum-lr-5e-5-a1b4c0ed670eb877448ac6b1a1a161dfe62146e4"
             artifact_digest: "sha256:6369ead872ee95d861f0acdfcd4cae55c0542801fb1f7bca46f463cd1447967b"
           - label: lr-1e-4
-            suffix: 1e4
+            suffix: "1e4"
             training_run_id: 33916526717
             artifact_id: 9961232719
             artifact_name: "python-p9-minimum-lr-1e-4-a1b4c0ed670eb877448ac6b1a1a161dfe62146e4"
             artifact_digest: "sha256:774e57736f6add41ae42465b916cee20d71a3a2700c182a6491460b00df72689"
           - label: lr-2e-4
-            suffix: 2e4
+            suffix: "2e4"
             training_run_id: 33916526717
             artifact_id: 9963712937
             artifact_name: "python-p9-minimum-lr-2e-4-a1b4c0ed670eb877448ac6b1a1a161dfe62146e4"
