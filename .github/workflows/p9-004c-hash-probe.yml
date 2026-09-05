@@ -1,4 +1,4 @@
-name: P9-004C hash probe
+name: P9-004C repair frozen development manifest
 
 on:
   push:
@@ -8,59 +8,68 @@ on:
       - ".github/workflows/p9-004c-hash-probe.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  hash:
+  repair:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
         with:
           ref: ralph/p9-004-minimum-intervention
-          persist-credentials: false
-      - name: Print exact hashes and partition diff
+          fetch-depth: 0
+      - name: Regenerate canonical frozen membership
         run: |
           set -euo pipefail
-          sha256sum configs/eval/python/p9_minimum_intervention_development_v1.json
-          sha256sum configs/eval/python/p9_minimum_intervention_checkpoints_v1.json
           python - <<'PY'
           import hashlib
           import json
           from pathlib import Path
 
+          path = Path('configs/eval/python/p9_minimum_intervention_development_v1.json')
+          obj = json.loads(path.read_text())
           salt = 'python-p9-004-development-v1'
-          def is_dev(suite, task_key):
+
+          def is_dev(suite: str, task_key: str) -> bool:
               payload = f'{salt}\0{suite}\0{task_key}'.encode()
               return int.from_bytes(hashlib.sha256(payload).digest()[:8], 'big') % 4 == 0
 
-          p = Path('configs/eval/python/p9_minimum_intervention_development_v1.json')
-          obj = json.loads(p.read_text())
-          actual = obj['membership']
-          expected_he_dev = [f'HumanEval/{i}' for i in range(164) if is_dev('humaneval', f'HumanEval/{i}')]
-          expected_he_qual = [f'HumanEval/{i}' for i in range(164) if not is_dev('humaneval', f'HumanEval/{i}')]
-          expected_mb_dev = [f'MBPP/{i}' for i in range(11, 511) if is_dev('mbpp', str(i))]
-          expected_mb_qual = [f'MBPP/{i}' for i in range(11, 511) if not is_dev('mbpp', str(i))]
+          he_dev = [f'HumanEval/{i}' for i in range(164) if is_dev('humaneval', f'HumanEval/{i}')]
+          he_qual = [f'HumanEval/{i}' for i in range(164) if not is_dev('humaneval', f'HumanEval/{i}')]
+          mbpp_dev = [f'MBPP/{i}' for i in range(11, 511) if is_dev('mbpp', str(i))]
+          mbpp_qual = [f'MBPP/{i}' for i in range(11, 511) if not is_dev('mbpp', str(i))]
 
-          for suite, partition, expected in (
-              ('humaneval', 'development', expected_he_dev),
-              ('humaneval', 'qualification', expected_he_qual),
-              ('mbpp', 'development', expected_mb_dev),
-              ('mbpp', 'qualification', expected_mb_qual),
-          ):
-              observed = actual[suite][partition]
-              print(suite, partition, 'observed', len(observed), 'expected', len(expected))
-              print(' missing', sorted(set(expected) - set(observed)))
-              print(' extra', sorted(set(observed) - set(expected)))
-              print(' order_equal', observed == expected)
+          assert (len(he_dev), len(he_qual), len(mbpp_dev), len(mbpp_qual)) == (45, 119, 130, 370)
+          assert obj['membership']['repository_holdout']['development'] == []
+          assert len(obj['membership']['repository_holdout']['qualification']) == 11
 
-          expected_membership = {
-              'humaneval': {'development': expected_he_dev, 'qualification': expected_he_qual},
-              'mbpp': {'development': expected_mb_dev, 'qualification': expected_mb_qual},
-              'repository_holdout': actual['repository_holdout'],
+          membership = {
+              'humaneval': {'development': he_dev, 'qualification': he_qual},
+              'mbpp': {'development': mbpp_dev, 'qualification': mbpp_qual},
+              'repository_holdout': obj['membership']['repository_holdout'],
           }
-          actual_payload = json.dumps(actual, sort_keys=True, separators=(',', ':'), ensure_ascii=True).encode()
-          expected_payload = json.dumps(expected_membership, sort_keys=True, separators=(',', ':'), ensure_ascii=True).encode()
-          print('actual-membership-sha', hashlib.sha256(actual_payload).hexdigest())
-          print('expected-membership-sha', hashlib.sha256(expected_payload).hexdigest())
-          print('manifest-embedded', obj['membership_sha256'])
+          membership_payload = json.dumps(
+              membership, sort_keys=True, separators=(',', ':'), ensure_ascii=True
+          ).encode()
+          membership_sha = hashlib.sha256(membership_payload).hexdigest()
+          assert membership_sha == 'c8765b7a3a69f134be4066e274a64640a15f2d05858374035432207b3521498b'
+
+          obj['membership'] = membership
+          obj['membership_sha256'] = membership_sha
+          rendered = json.dumps(obj, indent=2, ensure_ascii=True) + '\n'
+          file_sha = hashlib.sha256(rendered.encode()).hexdigest()
+          assert file_sha == '260682d773640b28673357c7a441474656bbaffc67f0b5fcbe45eca3a07283de'
+          path.write_text(rendered)
+          print('membership_sha256', membership_sha)
+          print('manifest_sha256', file_sha)
           PY
+          sha256sum configs/eval/python/p9_minimum_intervention_development_v1.json
+          git diff --check
+      - name: Commit corrected manifest
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add configs/eval/python/p9_minimum_intervention_development_v1.json
+          git commit -m "P9-004C: repair frozen development membership"
+          git push origin HEAD:ralph/p9-004-minimum-intervention
