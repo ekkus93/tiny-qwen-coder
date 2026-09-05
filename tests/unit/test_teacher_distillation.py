@@ -160,9 +160,7 @@ def test_generation_checkpoints_reasoning_free_shards_and_resumes(tmp_path: Path
     assert "reasoning_sha256" in shard_text
     assert "final_response" in shard_text
 
-    status = inspect_teacher_generation(
-        _config(), checkpoint_dir=checkpoint, input_path=input_path
-    )
+    status = inspect_teacher_generation(_config(), checkpoint_dir=checkpoint, input_path=input_path)
     assert status.complete
     assert status.completed_records == 5
     assert status.missing_shards == ()
@@ -201,9 +199,7 @@ def test_generation_recovers_payload_left_before_checksum_commit(tmp_path: Path)
     sidecar = checkpoint / "shards" / "shard-000000.sha256"
     sidecar.unlink()
 
-    status = inspect_teacher_generation(
-        _config(), checkpoint_dir=checkpoint, input_path=input_path
-    )
+    status = inspect_teacher_generation(_config(), checkpoint_dir=checkpoint, input_path=input_path)
     assert not status.complete
     assert status.missing_shards == (0,)
 

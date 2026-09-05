@@ -102,11 +102,11 @@ import os
 from pathlib import Path
 
 os.environ["TQC_DRIVE"] = "/content/drive/MyDrive/tiny-qwen-coder"
-os.environ["RUN_ROOT"] = f'{os.environ["TQC_DRIVE"]}/distillation/qwen38-27b-v1'
-os.environ["INPUT_DIR"] = f'{os.environ["RUN_ROOT"]}/input'
-os.environ["SUBSET_DIR"] = f'{os.environ["RUN_ROOT"]}/subsets'
-os.environ["SMOKE_DIR"] = f'{os.environ["TQC_DRIVE"]}/distillation/qwen38-27b-v1-smoke'
-os.environ["PILOT_DIR"] = f'{os.environ["TQC_DRIVE"]}/distillation/qwen38-27b-v1-2000'
+os.environ["RUN_ROOT"] = f"{os.environ['TQC_DRIVE']}/distillation/qwen38-27b-v1"
+os.environ["INPUT_DIR"] = f"{os.environ['RUN_ROOT']}/input"
+os.environ["SUBSET_DIR"] = f"{os.environ['RUN_ROOT']}/subsets"
+os.environ["SMOKE_DIR"] = f"{os.environ['TQC_DRIVE']}/distillation/qwen38-27b-v1-smoke"
+os.environ["PILOT_DIR"] = f"{os.environ['TQC_DRIVE']}/distillation/qwen38-27b-v1-2000"
 
 for key in ("RUN_ROOT", "INPUT_DIR", "SUBSET_DIR", "SMOKE_DIR", "PILOT_DIR"):
     Path(os.environ[key]).mkdir(parents=True, exist_ok=True)

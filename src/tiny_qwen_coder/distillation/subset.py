@@ -138,8 +138,7 @@ def write_teacher_input_subset(
     records = load_normalized_training_records_jsonl(input_path, expected_language=language)
     selected = select_teacher_input_records(records, count=count, seed=seed)
     content = "".join(
-        json.dumps(asdict(record), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-        + "\n"
+        json.dumps(asdict(record), ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n"
         for record in selected
     )
     _atomic_write(output_path, content)

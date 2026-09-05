@@ -303,18 +303,21 @@ def _run_identity_payload(
     input_file_sha256: str,
     total_records: int,
 ) -> str:
-    return json.dumps(
-        {
-            "schema_version": 1,
-            "config_sha256": config_sha256,
-            "implementation_sha256": _implementation_sha256(),
-            "input_file_sha256": input_file_sha256,
-            "total_records": total_records,
-            "config": asdict(config),
-        },
-        indent=2,
-        sort_keys=True,
-    ) + "\n"
+    return (
+        json.dumps(
+            {
+                "schema_version": 1,
+                "config_sha256": config_sha256,
+                "implementation_sha256": _implementation_sha256(),
+                "input_file_sha256": input_file_sha256,
+                "total_records": total_records,
+                "config": asdict(config),
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n"
+    )
 
 
 def _ensure_run_identity(

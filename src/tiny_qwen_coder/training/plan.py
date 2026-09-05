@@ -189,9 +189,7 @@ def _training_manifest_id(root: dict[str, object]) -> str:
 
     identity = _mapping(root.get("identity"), context="dataset manifest.identity")
     config = _mapping(identity.get("config"), context="dataset manifest.identity.config")
-    output_dir = _required_string(
-        config, "output_dir", context="dataset manifest.identity.config"
-    )
+    output_dir = _required_string(config, "output_dir", context="dataset manifest.identity.config")
     leaf = Path(output_dir).name
     if not leaf:
         raise AdapterTrainingError(

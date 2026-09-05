@@ -210,9 +210,7 @@ def test_training_dataset_identity_derives_id_from_generic_manifest(tmp_path: Pa
             {
                 "schema_version": 1,
                 "language": "python",
-                "identity": {
-                    "config": {"output_dir": "data/python/qwen38-27b-distilled-v1"}
-                },
+                "identity": {"config": {"output_dir": "data/python/qwen38-27b-distilled-v1"}},
                 "tokenizer": {
                     "repository": "Qwen/Qwen3.5-4B",
                     "revision": _REVISION,

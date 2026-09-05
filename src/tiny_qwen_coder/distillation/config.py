@@ -163,9 +163,7 @@ def _mapping(value: object, *, context: str) -> dict[str, object]:
     return output
 
 
-def _require_keys(
-    mapping: dict[str, object], *, required: frozenset[str], context: str
-) -> None:
+def _require_keys(mapping: dict[str, object], *, required: frozenset[str], context: str) -> None:
     missing = sorted(required - set(mapping))
     unknown = sorted(set(mapping) - required)
     if missing:
@@ -229,9 +227,7 @@ def parse_teacher_distillation_config(value: object) -> TeacherDistillationConfi
     runtime = _mapping(root["runtime"], context="distillation.runtime")
     _require_keys(
         runtime,
-        required=frozenset(
-            {"vllm_version", "vllm_bnb_plugin_version", "bitsandbytes_version"}
-        ),
+        required=frozenset({"vllm_version", "vllm_bnb_plugin_version", "bitsandbytes_version"}),
         context="distillation.runtime",
     )
     teacher = _mapping(root["teacher"], context="distillation.teacher")
@@ -286,9 +282,7 @@ def parse_teacher_distillation_config(value: object) -> TeacherDistillationConfi
     quantization = _string(teacher, "quantization", context="distillation.teacher")
     if quantization != "bitsandbytes":
         raise TeacherDistillationConfigError("teacher.quantization must be 'bitsandbytes'")
-    reasoning_effort = _string(
-        generation, "reasoning_effort", context="distillation.generation"
-    )
+    reasoning_effort = _string(generation, "reasoning_effort", context="distillation.generation")
     if reasoning_effort not in {"low", "medium", "xhigh"}:
         raise TeacherDistillationConfigError(
             "generation.reasoning_effort must be one of: low, medium, xhigh"

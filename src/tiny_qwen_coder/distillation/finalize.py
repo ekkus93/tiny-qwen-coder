@@ -78,8 +78,7 @@ def _atomic_write_text(path: Path, content: str, *, encoding: str = "utf-8") -> 
 
 def _write_records(path: Path, records: tuple[NormalizedTrainingRecord, ...]) -> None:
     content = "".join(
-        json.dumps(asdict(record), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-        + "\n"
+        json.dumps(asdict(record), ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n"
         for record in records
     )
     _atomic_write_text(path, content)
