@@ -41,7 +41,7 @@ jobs:
 
           tests = Path("tests/unit/test_teacher_distillation.py")
           text = tests.read_text(encoding="utf-8")
-          import_anchor = "import json\nimport sys\n"
+          import_anchor = "from dataclasses import asdict, replace\n"
           assert text.count(import_anchor) == 1
           text = text.replace(
               import_anchor,
