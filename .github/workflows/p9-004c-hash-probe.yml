@@ -18,7 +18,7 @@ jobs:
         with:
           ref: ralph/p9-004-minimum-intervention
           persist-credentials: false
-      - name: Print exact hashes
+      - name: Print exact hashes and partition diff
         run: |
           set -euo pipefail
           sha256sum configs/eval/python/p9_minimum_intervention_development_v1.json
@@ -27,11 +27,40 @@ jobs:
           import hashlib
           import json
           from pathlib import Path
+
+          salt = 'python-p9-004-development-v1'
+          def is_dev(suite, task_key):
+              payload = f'{salt}\0{suite}\0{task_key}'.encode()
+              return int.from_bytes(hashlib.sha256(payload).digest()[:8], 'big') % 4 == 0
+
           p = Path('configs/eval/python/p9_minimum_intervention_development_v1.json')
           obj = json.loads(p.read_text())
-          payload = json.dumps(obj['membership'], sort_keys=True, separators=(',', ':'), ensure_ascii=True).encode()
-          print('membership-canonical', hashlib.sha256(payload).hexdigest())
+          actual = obj['membership']
+          expected_he_dev = [f'HumanEval/{i}' for i in range(164) if is_dev('humaneval', f'HumanEval/{i}')]
+          expected_he_qual = [f'HumanEval/{i}' for i in range(164) if not is_dev('humaneval', f'HumanEval/{i}')]
+          expected_mb_dev = [f'MBPP/{i}' for i in range(11, 511) if is_dev('mbpp', str(i))]
+          expected_mb_qual = [f'MBPP/{i}' for i in range(11, 511) if not is_dev('mbpp', str(i))]
+
+          for suite, partition, expected in (
+              ('humaneval', 'development', expected_he_dev),
+              ('humaneval', 'qualification', expected_he_qual),
+              ('mbpp', 'development', expected_mb_dev),
+              ('mbpp', 'qualification', expected_mb_qual),
+          ):
+              observed = actual[suite][partition]
+              print(suite, partition, 'observed', len(observed), 'expected', len(expected))
+              print(' missing', sorted(set(expected) - set(observed)))
+              print(' extra', sorted(set(observed) - set(expected)))
+              print(' order_equal', observed == expected)
+
+          expected_membership = {
+              'humaneval': {'development': expected_he_dev, 'qualification': expected_he_qual},
+              'mbpp': {'development': expected_mb_dev, 'qualification': expected_mb_qual},
+              'repository_holdout': actual['repository_holdout'],
+          }
+          actual_payload = json.dumps(actual, sort_keys=True, separators=(',', ':'), ensure_ascii=True).encode()
+          expected_payload = json.dumps(expected_membership, sort_keys=True, separators=(',', ':'), ensure_ascii=True).encode()
+          print('actual-membership-sha', hashlib.sha256(actual_payload).hexdigest())
+          print('expected-membership-sha', hashlib.sha256(expected_payload).hexdigest())
           print('manifest-embedded', obj['membership_sha256'])
-          print('dev-counts', obj['counts']['development'])
-          print('qual-counts', obj['counts']['qualification'])
           PY
