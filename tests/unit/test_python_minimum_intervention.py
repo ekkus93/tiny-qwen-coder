@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from typing import Any, cast
 
 import pytest
 
 from tiny_qwen_coder.evaluation.python_minimum_intervention import (
     DevelopmentScore,
     MinimumInterventionEvaluationError,
+    SnapshotTrajectoryGenerator,
     load_checkpoint_registry,
     load_development_manifest,
     select_development_candidate,
@@ -129,3 +131,41 @@ def test_selection_refuses_incomplete_or_duplicate_grid() -> None:
     duplicated[-1] = duplicated[0]
     with pytest.raises(MinimumInterventionEvaluationError, match="exactly the frozen 25"):
         select_development_candidate(duplicated)
+
+
+class _FakePeftStatus:
+    def __init__(self) -> None:
+        self.active_adapters: list[str] = []
+        self.trainable_params = 0
+        self.requires_grad: dict[str, bool] = {}
+
+
+class _FakePeftModel:
+    def __init__(self) -> None:
+        self.status = _FakePeftStatus()
+        self.calls: list[tuple[str, bool]] = []
+
+    def set_adapter(self, adapter_name: str, *, inference_mode: bool = False) -> None:
+        self.calls.append((adapter_name, inference_mode))
+        self.status.active_adapters = [adapter_name]
+        self.status.trainable_params = 0 if inference_mode else 1
+        self.status.requires_grad = {adapter_name: not inference_mode}
+
+    def get_model_status(self) -> _FakePeftStatus:
+        return self.status
+
+
+def test_snapshot_selection_keeps_peft_adapter_frozen_for_inference() -> None:
+    generator = cast(Any, SnapshotTrajectoryGenerator.__new__(SnapshotTrajectoryGenerator))
+    model = _FakePeftModel()
+    generator._model = model
+    generator._settings = cast(Any, type("Settings", (), {"seed": 123})())
+    generator._active_step = None
+
+    generator.select_step(50)
+
+    assert model.calls == [("step-0050", True)]
+    assert model.status.active_adapters == ["step-0050"]
+    assert model.status.trainable_params == 0
+    assert model.status.requires_grad == {"step-0050": False}
+    assert generator._active_step == 50

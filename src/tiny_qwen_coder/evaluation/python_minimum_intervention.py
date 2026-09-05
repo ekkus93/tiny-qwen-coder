@@ -677,17 +677,23 @@ class SnapshotTrajectoryGenerator:
         setter = getattr(self._model, "set_adapter", None)
         if not callable(setter):
             raise MinimumInterventionEvaluationError("PEFT model cannot switch adapters")
-        setter(self._adapter_name(step))
+        adapter_name = self._adapter_name(step)
+        setter(adapter_name, inference_mode=True)
         status_getter = getattr(self._model, "get_model_status", None)
         if not callable(status_getter):
             raise MinimumInterventionEvaluationError("PEFT model lacks status reporting")
         status = status_getter()
         active = tuple(getattr(status, "active_adapters", ()))
-        if active != (self._adapter_name(step),):
+        if active != (adapter_name,):
             raise MinimumInterventionEvaluationError(
                 "PEFT active adapter does not match requested step"
             )
-        if getattr(status, "trainable_params", None) != 0:
+        requires_grad = getattr(status, "requires_grad", None)
+        if (
+            getattr(status, "trainable_params", None) != 0
+            or not isinstance(requires_grad, Mapping)
+            or requires_grad.get(adapter_name) is not False
+        ):
             raise MinimumInterventionEvaluationError("P9-004C adapter unexpectedly trainable")
         self._active_step = step
         seed_everything(self._settings.seed)
