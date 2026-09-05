@@ -7,6 +7,9 @@ on:
       - ralph/p9-004-minimum-intervention
     paths:
       - ".github/workflows/python-p9-minimum-intervention-development.yml"
+      - "src/tiny_qwen_coder/evaluation/python_minimum_intervention.py"
+      - "configs/eval/python/p9_minimum_intervention_development_v1.json"
+      - "configs/eval/python/p9_minimum_intervention_checkpoints_v1.json"
 
 permissions:
   actions: read
