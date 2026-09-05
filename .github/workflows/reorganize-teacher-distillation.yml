@@ -66,6 +66,19 @@ jobs:
           for old, new in path_replacements.items():
               colab_section = colab_section.replace(old, new)
 
+          stale_runbook_link = (
+              "The cells below are written in **Colab notebook syntax** and can be copied into\n"
+              "separate Python cells. For the full checkpoint/failure-recovery contract, see\n"
+              "[`docs/TEACHER_DISTILLATION_COLAB.md`](docs/TEACHER_DISTILLATION_COLAB.md).\n\n"
+          )
+          canonical_runbook_text = (
+              "The cells below are written in **Colab notebook syntax** and can be copied into\n"
+              "separate Python cells. This README is the canonical checkpoint and recovery contract.\n\n"
+          )
+          if stale_runbook_link not in colab_section:
+              raise RuntimeError("root README Colab runbook link changed unexpectedly")
+          colab_section = colab_section.replace(stale_runbook_link, canonical_runbook_text, 1)
+
           frozen_start = old_runbook.index("## Frozen v1 contract\n")
           frozen_end = old_runbook.index("## 1. Start an A100 Colab runtime", frozen_start)
           frozen_contract = old_runbook[frozen_start:frozen_end].rstrip()
