@@ -69,96 +69,108 @@ jobs:
           frozen_start = old_runbook.index("## Frozen v1 contract\n")
           frozen_end = old_runbook.index("## 1. Start an A100 Colab runtime", frozen_start)
           frozen_contract = old_runbook[frozen_start:frozen_end].rstrip()
-
           limitations_marker = "## What v1 does and does not prove\n"
           limitations = old_runbook[old_runbook.index(limitations_marker):].rstrip()
-
           colab_section = colab_section.replace(
               "## Google Colab: generate Qwen3.8-27B teacher data",
               "## Google Colab runbook",
               1,
           ).rstrip()
 
-          runbook = f'''# Qwen3.8-27B teacher distillation
-
-**Start here for generating the new Python training data on Google Colab.**
-
-This directory intentionally keeps the runnable entry points and their operating
-instructions together. The teacher is `Qwen/Qwen3.8-27B` on a Google Colab A100;
-the student remains `Qwen/Qwen3.5-4B`, fine-tuned later on the RTX 4070 Ti SUPER.
-
-## Directory contents
-
-| File | Purpose |
-| --- | --- |
-| `prepare_teacher_input.py` | Build and SHA-256 seal the canonical prompt-only teacher input. |
-| `select_teacher_input.py` | Create deterministic source-stratified 16/500/2,000-record pilot inputs. |
-| `generate_teacher_data.py` | Run resumable Qwen3.8 generation with durable Google Drive checkpoints. |
-| `finalize_teacher_data.py` | Validate/filter completed shards and emit the Qwen3.5-4B training corpus and manifest. |
-| `README.md` | This Google Colab runbook and recovery contract. |
-
-All commands below are run from the **repository root** after cloning
-`tiny-qwen-coder`. The scripts live here so there is one obvious place to find
-both the workflow and its documentation.
-
-{frozen_contract}
-
-{colab_section}
-
-{limitations}
-'''
+          intro_lines = [
+              "# Qwen3.8-27B teacher distillation",
+              "",
+              "**Start here for generating the new Python training data on Google Colab.**",
+              "",
+              "This directory intentionally keeps the runnable entry points and their operating",
+              "instructions together. The teacher is `Qwen/Qwen3.8-27B` on a Google Colab A100;",
+              "the student remains `Qwen/Qwen3.5-4B`, fine-tuned later on the RTX 4070 Ti SUPER.",
+              "",
+              "## Directory contents",
+              "",
+              "| File | Purpose |",
+              "| --- | --- |",
+              "| `prepare_teacher_input.py` | Build and SHA-256 seal the canonical prompt-only teacher input. |",
+              "| `select_teacher_input.py` | Create deterministic source-stratified 16/500/2,000-record pilot inputs. |",
+              "| `generate_teacher_data.py` | Run resumable Qwen3.8 generation with durable Google Drive checkpoints. |",
+              "| `finalize_teacher_data.py` | Validate/filter completed shards and emit the Qwen3.5-4B training corpus and manifest. |",
+              "| `README.md` | This Google Colab runbook and recovery contract. |",
+              "",
+              "All commands below are run from the **repository root** after cloning",
+              "`tiny-qwen-coder`. The scripts live here so there is one obvious place to find",
+              "both the workflow and its documentation.",
+          ]
+          runbook = (
+              "\n".join(intro_lines)
+              + "\n\n"
+              + frozen_contract
+              + "\n\n"
+              + colab_section
+              + "\n\n"
+              + limitations
+              + "\n"
+          )
           runbook_path.write_text(runbook, encoding="utf-8")
 
-          concise = '''## Qwen3.8 teacher-data generation
+          concise_lines = [
+              "## Qwen3.8 teacher-data generation",
+              "",
+              "The Google Colab A100 teacher-distillation workflow is self-contained under",
+              "[`scripts/teacher_distillation/`](scripts/teacher_distillation/README.md).",
+              "",
+              "Start with that directory's README. It contains the four Python entry points,",
+              "copy/paste Colab instructions, Google Drive checkpoint/resume behavior, the",
+              "16/500/2,000-record pilot sequence, and finalization instructions for bringing",
+              "the generated corpus back to the RTX 4070 Ti training machine.",
+              "",
+              "```text",
+              "scripts/teacher_distillation/",
+              "├── README.md",
+              "├── prepare_teacher_input.py",
+              "├── select_teacher_input.py",
+              "├── generate_teacher_data.py",
+              "└── finalize_teacher_data.py",
+              "```",
+              "",
+          ]
+          root = root[:start] + "\n".join(concise_lines) + "\n" + root[end:]
 
-The Google Colab A100 teacher-distillation workflow is self-contained under
-[`scripts/teacher_distillation/`](scripts/teacher_distillation/README.md).
-
-Start with that directory's README. It contains the four Python entry points,
-copy/paste Colab instructions, Google Drive checkpoint/resume behavior, the
-16/500/2,000-record pilot sequence, and finalization instructions for bringing
-the generated corpus back to the RTX 4070 Ti training machine.
-
-```text
-scripts/teacher_distillation/
-├── README.md
-├── prepare_teacher_input.py
-├── select_teacher_input.py
-├── generate_teacher_data.py
-└── finalize_teacher_data.py
-```
-
-'''
-          root = root[:start] + concise + root[end:]
-
-          old_layout = '''scripts/
-    inspect_model.py
-    prepare_data.py
-    train_adapter.py
-    evaluate.py
-    infer.py
-    serve.py
-'''
-          new_layout = '''scripts/
-    teacher_distillation/   Qwen3.8 Colab data-generation workflow + README
-    inspect_model.py
-    prepare_data.py
-    train_adapter.py
-    evaluate.py
-    infer.py
-    serve.py
-'''
+          old_layout = "\n".join([
+              "scripts/",
+              "    inspect_model.py",
+              "    prepare_data.py",
+              "    train_adapter.py",
+              "    evaluate.py",
+              "    infer.py",
+              "    serve.py",
+              "",
+          ])
+          new_layout = "\n".join([
+              "scripts/",
+              "    teacher_distillation/   Qwen3.8 Colab data-generation workflow + README",
+              "    inspect_model.py",
+              "    prepare_data.py",
+              "    train_adapter.py",
+              "    evaluate.py",
+              "    infer.py",
+              "    serve.py",
+              "",
+          ])
           if old_layout not in root:
               raise RuntimeError("root README scripts layout block changed unexpectedly")
           root = root.replace(old_layout, new_layout, 1)
 
-          old_doc_bullet = '''- [`docs/TEACHER_DISTILLATION_COLAB.md`](docs/TEACHER_DISTILLATION_COLAB.md) — detailed
-  Qwen3.8-27B A100 distillation, checkpoint, resume, and finalization runbook.
-'''
-          new_doc_bullet = '''- [`scripts/teacher_distillation/README.md`](scripts/teacher_distillation/README.md) —
-  Qwen3.8-27B A100 distillation scripts, Colab instructions, checkpoint/resume contract,
-  and finalization runbook.
-'''
+          old_doc_bullet = "\n".join([
+              "- [`docs/TEACHER_DISTILLATION_COLAB.md`](docs/TEACHER_DISTILLATION_COLAB.md) — detailed",
+              "  Qwen3.8-27B A100 distillation, checkpoint, resume, and finalization runbook.",
+              "",
+          ])
+          new_doc_bullet = "\n".join([
+              "- [`scripts/teacher_distillation/README.md`](scripts/teacher_distillation/README.md) —",
+              "  Qwen3.8-27B A100 distillation scripts, Colab instructions, checkpoint/resume contract,",
+              "  and finalization runbook.",
+              "",
+          ])
           if old_doc_bullet not in root:
               raise RuntimeError("root README teacher documentation bullet changed unexpectedly")
           root = root.replace(old_doc_bullet, new_doc_bullet, 1)
@@ -166,34 +178,37 @@ scripts/teacher_distillation/
 
           spec_path = Path("docs/SPEC.md")
           spec = spec_path.read_text(encoding="utf-8")
-          spec_old = '''├── scripts/
-│   ├── inspect_model.py
-│   ├── prepare_data.py
-│   ├── train_adapter.py
-│   ├── evaluate.py
-│   ├── infer.py
-│   └── serve.py
-'''
-          spec_new = '''├── scripts/
-│   ├── teacher_distillation/
-│   │   ├── README.md
-│   │   ├── prepare_teacher_input.py
-│   │   ├── select_teacher_input.py
-│   │   ├── generate_teacher_data.py
-│   │   └── finalize_teacher_data.py
-│   ├── inspect_model.py
-│   ├── prepare_data.py
-│   ├── train_adapter.py
-│   ├── evaluate.py
-│   ├── infer.py
-│   └── serve.py
-'''
+          spec_old = "\n".join([
+              "├── scripts/",
+              "│   ├── inspect_model.py",
+              "│   ├── prepare_data.py",
+              "│   ├── train_adapter.py",
+              "│   ├── evaluate.py",
+              "│   ├── infer.py",
+              "│   └── serve.py",
+              "",
+          ])
+          spec_new = "\n".join([
+              "├── scripts/",
+              "│   ├── teacher_distillation/",
+              "│   │   ├── README.md",
+              "│   │   ├── prepare_teacher_input.py",
+              "│   │   ├── select_teacher_input.py",
+              "│   │   ├── generate_teacher_data.py",
+              "│   │   └── finalize_teacher_data.py",
+              "│   ├── inspect_model.py",
+              "│   ├── prepare_data.py",
+              "│   ├── train_adapter.py",
+              "│   ├── evaluate.py",
+              "│   ├── infer.py",
+              "│   └── serve.py",
+              "",
+          ])
           if spec_old not in spec:
               raise RuntimeError("SPEC scripts layout block changed unexpectedly")
           spec_path.write_text(spec.replace(spec_old, spec_new, 1), encoding="utf-8")
           PY
 
-          # Fail if any documentation still points at the removed entry-point locations.
           if grep -R -nE 'scripts/(prepare_teacher_input|select_teacher_input|generate_teacher_data|finalize_teacher_data)\.py|docs/TEACHER_DISTILLATION_COLAB\.md' README.md docs scripts/teacher_distillation; then
             echo "stale teacher-distillation path found" >&2
             exit 1
