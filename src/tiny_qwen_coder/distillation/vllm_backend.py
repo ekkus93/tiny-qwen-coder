@@ -14,15 +14,18 @@ from tiny_qwen_coder.distillation.generation import (
 
 
 class VllmTeacherBackend:
-    """Batch Qwen3.8 inference using vLLM and in-flight 4-bit quantization."""
+    """Batch Qwen3.8 inference using vLLM with BF16 or optional 4-bit weights."""
 
     @staticmethod
     def _verify_runtime(config: TeacherDistillationConfig) -> None:
-        required = {
-            "vllm": config.runtime.vllm_version,
-            "vllm-bnb-plugin": config.runtime.vllm_bnb_plugin_version,
-            "bitsandbytes": config.runtime.bitsandbytes_version,
-        }
+        required = {"vllm": config.runtime.vllm_version}
+        if config.teacher.quantization == "bitsandbytes":
+            required.update(
+                {
+                    "vllm-bnb-plugin": config.runtime.vllm_bnb_plugin_version,
+                    "bitsandbytes": config.runtime.bitsandbytes_version,
+                }
+            )
         for distribution, expected in required.items():
             try:
                 actual = importlib.metadata.version(distribution)
@@ -41,8 +44,8 @@ class VllmTeacherBackend:
             from vllm import LLM, SamplingParams  # type: ignore[import-not-found]
         except ImportError as exc:
             raise TeacherGenerationError(
-                "vLLM is unavailable; Colab setup must install vllm, vllm-bnb-plugin, "
-                "and bitsandbytes before generation"
+                "vLLM is unavailable; Colab setup must install the pinned teacher runtime "
+                "before generation"
             ) from exc
         self._sampling_params_factory: Any = SamplingParams
         try:
@@ -50,7 +53,9 @@ class VllmTeacherBackend:
                 model=config.teacher.repository,
                 revision=config.teacher.revision,
                 dtype=config.teacher.dtype,
-                quantization=config.teacher.quantization,
+                quantization=(
+                    None if config.teacher.quantization == "none" else config.teacher.quantization
+                ),
                 max_model_len=config.teacher.max_model_len,
                 gpu_memory_utilization=config.teacher.gpu_memory_utilization,
                 language_model_only=True,

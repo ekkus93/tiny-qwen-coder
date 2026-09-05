@@ -28,9 +28,8 @@ been extracted into Colab scratch space.
 - Teacher: `Qwen/Qwen3.8-27B`
 - Teacher revision: `72a217afab8029b39e4af1c7273a829995a3dbaf`
 - Runtime: vLLM 0.28.0, text-only mode
-- BitsAndBytes plugin: vllm-bnb-plugin 0.0.3
-- BitsAndBytes: 0.50.2
-- Weight loading: in-flight 4-bit BitsAndBytes quantization
+- Weight loading: native BF16 on the 80 GB A100
+- Weight quantization: disabled (`quantization: none`)
 - Thinking: enabled
 - Reasoning effort: `xhigh` (explicitly frozen rather than relying on a default)
 - Preserved historical thinking: disabled
@@ -176,8 +175,7 @@ if checksum_path.exists():
     expected_sha256 = checksum_path.read_text(encoding="ascii").split()[0]
     if archive_sha256 != expected_sha256:
         raise RuntimeError(
-            "Repository ZIP checksum changed. Do not resume this experiment "
-            "with different code."
+            "Repository ZIP checksum changed. Do not resume this experiment with different code."
         )
 else:
     checksum_path.write_text(

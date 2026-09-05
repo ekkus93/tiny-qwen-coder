@@ -1,5 +1,5 @@
 schema_version: 1
-id: python-qwen38-27b-v1
+id: python-qwen38-27b-bf16-v1
 language: python
 input_records: data/python/p0/accepted.jsonl
 
@@ -13,7 +13,7 @@ teacher:
   revision: 72a217afab8029b39e4af1c7273a829995a3dbaf
   backend: vllm
   dtype: bfloat16
-  quantization: bitsandbytes
+  quantization: none
   max_model_len: 16384
   gpu_memory_utilization: 0.90
 

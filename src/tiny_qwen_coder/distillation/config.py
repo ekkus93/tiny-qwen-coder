@@ -12,7 +12,7 @@ import yaml
 
 TeacherBackendName = Literal["vllm"]
 TeacherDtype = Literal["bfloat16"]
-TeacherQuantization = Literal["bitsandbytes"]
+TeacherQuantization = Literal["bitsandbytes", "none"]
 TeacherReasoningEffort = Literal["low", "medium", "xhigh"]
 
 
@@ -280,8 +280,10 @@ def parse_teacher_distillation_config(value: object) -> TeacherDistillationConfi
     if dtype != "bfloat16":
         raise TeacherDistillationConfigError("teacher.dtype must be 'bfloat16'")
     quantization = _string(teacher, "quantization", context="distillation.teacher")
-    if quantization != "bitsandbytes":
-        raise TeacherDistillationConfigError("teacher.quantization must be 'bitsandbytes'")
+    if quantization not in {"bitsandbytes", "none"}:
+        raise TeacherDistillationConfigError(
+            "teacher.quantization must be one of: bitsandbytes, none"
+        )
     reasoning_effort = _string(generation, "reasoning_effort", context="distillation.generation")
     if reasoning_effort not in {"low", "medium", "xhigh"}:
         raise TeacherDistillationConfigError(

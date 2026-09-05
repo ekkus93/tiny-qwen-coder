@@ -360,6 +360,26 @@ def test_vllm_backend_rejects_runtime_version_drift(monkeypatch: pytest.MonkeyPa
         backend_module.VllmTeacherBackend._verify_runtime(_config())
 
 
+def test_unquantized_bfloat16_runtime_only_requires_vllm(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import tiny_qwen_coder.distillation.vllm_backend as backend_module
+
+    config = replace(
+        _config(),
+        teacher=replace(_config().teacher, quantization="none"),
+    )
+    installed = {"vllm": "0.28.0"}
+    monkeypatch.setattr(
+        importlib_metadata,
+        "version",
+        lambda distribution: installed[distribution],
+    )
+
+    backend_module.VllmTeacherBackend._verify_runtime(config)
+    assert parse_teacher_distillation_config(asdict(config)) == config
+
+
 def test_teacher_finalization_prefilter_rejects_truncation_and_bad_python() -> None:
     from tiny_qwen_coder.distillation.finalize import _prefilter_candidates
 
