@@ -1,0 +1,37 @@
+name: P9-004C hash probe
+
+on:
+  push:
+    branches:
+      - ralph/p9-004-minimum-intervention
+    paths:
+      - ".github/workflows/p9-004c-hash-probe.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  hash:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ralph/p9-004-minimum-intervention
+          persist-credentials: false
+      - name: Print exact hashes
+        run: |
+          set -euo pipefail
+          sha256sum configs/eval/python/p9_minimum_intervention_development_v1.json
+          sha256sum configs/eval/python/p9_minimum_intervention_checkpoints_v1.json
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+          p = Path('configs/eval/python/p9_minimum_intervention_development_v1.json')
+          obj = json.loads(p.read_text())
+          payload = json.dumps(obj['membership'], sort_keys=True, separators=(',', ':'), ensure_ascii=True).encode()
+          print('membership-canonical', hashlib.sha256(payload).hexdigest())
+          print('manifest-embedded', obj['membership_sha256'])
+          print('dev-counts', obj['counts']['development'])
+          print('qual-counts', obj['counts']['qualification'])
+          PY
