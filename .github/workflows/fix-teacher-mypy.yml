@@ -1,0 +1,88 @@
+name: Temporary teacher-distillation mypy fix
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/fix-teacher-mypy.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  fix-and-validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      HF_HUB_OFFLINE: "1"
+      HF_DATASETS_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      TOKENIZERS_PARALLELISM: "false"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Patch explicit importlib metadata alias
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          backend = Path("src/tiny_qwen_coder/distillation/vllm_backend.py")
+          text = backend.read_text(encoding="utf-8")
+          assert text.count("import importlib.metadata\n") == 1
+          text = text.replace(
+              "import importlib.metadata\n",
+              "from importlib import metadata as importlib_metadata\n",
+          )
+          assert text.count("importlib.metadata.version") == 1
+          text = text.replace("importlib.metadata.version", "importlib_metadata.version")
+          assert text.count("importlib.metadata.PackageNotFoundError") == 1
+          text = text.replace(
+              "importlib.metadata.PackageNotFoundError",
+              "importlib_metadata.PackageNotFoundError",
+          )
+          backend.write_text(text, encoding="utf-8")
+
+          tests = Path("tests/unit/test_teacher_distillation.py")
+          text = tests.read_text(encoding="utf-8")
+          assert text.count("backend_module.importlib.metadata") == 2
+          text = text.replace(
+              "backend_module.importlib.metadata",
+              "backend_module.importlib_metadata",
+          )
+          tests.write_text(text, encoding="utf-8")
+          PY
+
+      - name: Run full CPU quality gates
+        run: |
+          set -euo pipefail
+          uv sync --frozen
+          uv run --frozen ruff format .
+          uv run --frozen ruff format --check .
+          uv run --frozen ruff check .
+          uv run --frozen mypy src scripts tests
+          uv run --frozen pytest
+          git diff --check
+
+      - name: Commit validated fix and remove helper
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/fix-teacher-mypy.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: satisfy strict typing for teacher backend"
+          git push origin HEAD:master
