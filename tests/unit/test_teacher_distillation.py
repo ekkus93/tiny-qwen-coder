@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sys
 from dataclasses import asdict, replace
+from importlib import metadata as importlib_metadata
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 
@@ -348,7 +349,7 @@ def test_vllm_backend_rejects_runtime_version_drift(monkeypatch: pytest.MonkeyPa
         "bitsandbytes": "0.50.2",
     }
     monkeypatch.setattr(
-        backend_module.importlib.metadata,
+        importlib_metadata,
         "version",
         lambda distribution: installed[distribution],
     )
@@ -396,7 +397,7 @@ def test_vllm_backend_uses_text_only_qwen_thinking_contract(
         "bitsandbytes": "0.50.2",
     }
     monkeypatch.setattr(
-        backend_module.importlib.metadata,
+        importlib_metadata,
         "version",
         lambda distribution: installed[distribution],
     )
