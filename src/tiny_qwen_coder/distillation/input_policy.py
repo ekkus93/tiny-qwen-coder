@@ -14,9 +14,13 @@ class TeacherInputPolicyError(ValueError):
 def strip_teacher_input_policy(record: NormalizedTrainingRecord) -> NormalizedTrainingRecord:
     """Remove a recognized teacher-only policy before student tokenization or corpus writing."""
 
-    policy_id = dict(record.provenance.source_metadata).get("distillation.input_policy")
-    if policy_id is None:
+    metadata = dict(record.provenance.source_metadata)
+    policy_id = metadata.get("distillation.input_policy")
+    policy_sha256 = metadata.get("distillation.input_policy_sha256")
+    if policy_id is None and policy_sha256 is None:
         return record
+    if policy_id is None or policy_sha256 is None:
+        raise TeacherInputPolicyError("incomplete distillation input policy metadata")
     if policy_id == "concise-v2":
         return strip_v2_teacher_input_policy(record)
     if policy_id == V3_POLICY_ID:
