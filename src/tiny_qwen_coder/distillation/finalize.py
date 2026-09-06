@@ -19,6 +19,8 @@ from tiny_qwen_coder.distillation.config import (
     teacher_distillation_config_sha256,
 )
 from tiny_qwen_coder.distillation.generation import load_completed_distilled_records
+from tiny_qwen_coder.evaluation.contamination import ProtectedBenchmarkExample
+from tiny_qwen_coder.evaluation.python_protected_examples import load_python_protected_examples
 from tiny_qwen_coder.languages.python import (
     load_python_plugin,
     load_python_protected_benchmark_registry,
@@ -26,6 +28,7 @@ from tiny_qwen_coder.languages.python import (
 from tiny_qwen_coder.languages.python_quality import validate_python_quality
 from tiny_qwen_coder.model.inspection import load_inspection_target
 from tiny_qwen_coder.reporting.dataset_manifest import (
+    ContaminationStatus,
     dataset_manifest_json,
     dataset_manifest_sha256,
 )
@@ -146,6 +149,21 @@ def _summary(
     )
 
 
+def _require_clean_contamination(pipeline: DatasetPipelineResult) -> None:
+    contamination = pipeline.manifest.contamination
+    if contamination.status is ContaminationStatus.CLEAN:
+        return
+    if contamination.status is ContaminationStatus.FINDINGS:
+        benchmark_ids = sorted({finding.protected_dataset_id for finding in contamination.findings})
+        raise TeacherFinalizationError(
+            "protected benchmark contamination detected; refusing to write a training corpus: "
+            f"findings={len(contamination.findings)}, benchmarks={benchmark_ids!r}"
+        )
+    raise TeacherFinalizationError(
+        "protected benchmark contamination checks did not run; refusing to write a training corpus"
+    )
+
+
 def finalize_teacher_corpus(
     *,
     distillation_config: TeacherDistillationConfig,
@@ -156,6 +174,7 @@ def finalize_teacher_corpus(
     output_dir: Path | None = None,
     local_files_only: bool = False,
     limit: int | None = None,
+    protected_examples: tuple[ProtectedBenchmarkExample, ...] | None = None,
 ) -> FinalizedTeacherCorpus:
     """Validate every durable shard and prepare train/validation files for the student."""
 
@@ -181,6 +200,11 @@ def finalize_teacher_corpus(
     tokenizer = load_canonical_tokenizer(target, local_files_only=local_files_only)
     plugin = load_python_plugin()
     registry = load_python_protected_benchmark_registry()
+    selected_protected_examples = (
+        load_python_protected_examples(registry)
+        if protected_examples is None
+        else protected_examples
+    )
     pipeline = run_dataset_pipeline(
         prefiltered,
         config=effective_data_config,
@@ -188,7 +212,9 @@ def finalize_teacher_corpus(
         tokenizer=tokenizer,
         target=target,
         protected_benchmarks=registry,
+        protected_examples=selected_protected_examples,
     )
+    _require_clean_contamination(pipeline)
     summary = _summary(
         config=distillation_config,
         generated=len(generated),
