@@ -12,6 +12,7 @@ from tiny_qwen_coder.data.records import (
 )
 from tiny_qwen_coder.distillation.config import load_teacher_distillation_config
 from tiny_qwen_coder.distillation.diagnostics import diagnose_teacher_records
+from tiny_qwen_coder.distillation.qualification import qualify_teacher_study
 from tiny_qwen_coder.distillation.v2_input import (
     V2_DISTILLATION_INSTRUCTION,
     apply_v2_teacher_input_policy,
@@ -190,4 +191,36 @@ def test_python_protected_example_loader_covers_every_registered_benchmark() -> 
         example.solution is None
         for example in examples
         if example.benchmark_id == "repository-holdout"
+    )
+
+
+def test_bounded_teacher_study_requires_rates_and_clean_contamination() -> None:
+    diagnostics: dict[str, object] = {
+        "total_records": 200,
+        "stop_rate": 0.95,
+        "student_length_accept_rate_given_stop": 0.85,
+    }
+    clean_manifest: dict[str, object] = {"contamination": {"status": "clean"}}
+
+    qualified = qualify_teacher_study(
+        diagnostics_summary=diagnostics,
+        dataset_manifest=clean_manifest,
+    )
+
+    assert qualified.qualified
+    assert qualified.failed_gates == ()
+
+    failed = qualify_teacher_study(
+        diagnostics_summary={
+            **diagnostics,
+            "stop_rate": 0.89,
+            "student_length_accept_rate_given_stop": 0.79,
+        },
+        dataset_manifest={"contamination": {"status": "not_run"}},
+    )
+    assert not failed.qualified
+    assert failed.failed_gates == (
+        "stop_rate",
+        "student_length_accept_rate_given_stop",
+        "contamination",
     )
