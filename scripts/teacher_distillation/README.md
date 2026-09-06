@@ -7,6 +7,8 @@ There are now two executable notebooks:
 - [`qwen38_teacher_distillation_colab.ipynb`](qwen38_teacher_distillation_colab.ipynb) — preserved v1 workflow and historical 16/500/2,000 progression.
 - [`qwen38_teacher_distillation_v2_colab.ipynb`](qwen38_teacher_distillation_v2_colab.ipynb) — current bounded v2 successor study after the v1 2,000-candidate diagnosis.
 
+**Open the current v2 workflow in Colab:** [qwen38_teacher_distillation_v2_colab.ipynb](https://colab.research.google.com/github/ekkus93/tiny-qwen-coder/blob/master/scripts/teacher_distillation/qwen38_teacher_distillation_v2_colab.ipynb)
+
 For new work after the v1 pilot, use the **v2 notebook**. Select an **A100 80 GB** runtime. Colab is only a disposable GPU worker: it does not need GitHub credentials, SSH keys, `git clone`, `git pull`, or `git push`.
 
 ## Directory contents
