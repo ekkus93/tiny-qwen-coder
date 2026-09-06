@@ -145,12 +145,33 @@ def test_generic_policy_stripper_dispatches_v3_and_rejects_unknown_policy() -> N
 
     metadata = _metadata(source)
     metadata["distillation.input_policy"] = "future-policy"
+    metadata["distillation.input_policy_sha256"] = "0" * 64
     unknown = replace(
         source,
         provenance=replace(source.provenance, source_metadata=tuple(sorted(metadata.items()))),
     )
     with pytest.raises(TeacherInputPolicyError, match="future-policy"):
         strip_teacher_input_policy(unknown)
+
+
+@pytest.mark.parametrize(
+    "metadata",
+    (
+        {"distillation.input_policy": V3_POLICY_ID},
+        {"distillation.input_policy_sha256": "0" * 64},
+    ),
+)
+def test_generic_policy_stripper_rejects_incomplete_policy_metadata(
+    metadata: dict[str, str],
+) -> None:
+    source = _record()
+    corrupted = replace(
+        source,
+        provenance=replace(source.provenance, source_metadata=tuple(sorted(metadata.items()))),
+    )
+
+    with pytest.raises(TeacherInputPolicyError, match="incomplete"):
+        strip_teacher_input_policy(corrupted)
 
 
 def test_v3_config_preserves_v2_teacher_and_generation_contract() -> None:
