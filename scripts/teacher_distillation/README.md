@@ -2,12 +2,13 @@
 
 **Start here for generating replacement Python training data with Qwen3.8-27B on Google Colab.**
 
-There are now two executable notebooks:
+There are now three executable notebooks:
 
 - [`qwen38_teacher_distillation_colab.ipynb`](qwen38_teacher_distillation_colab.ipynb) — preserved v1 workflow and historical 16/500/2,000 progression.
-- [`qwen38_teacher_distillation_v2_colab.ipynb`](qwen38_teacher_distillation_v2_colab.ipynb) — current bounded v2 successor study after the v1 2,000-candidate diagnosis.
+- [`qwen38_teacher_distillation_v2_colab.ipynb`](qwen38_teacher_distillation_v2_colab.ipynb) — preserved bounded v2 high-reasoning study.
+- [`qwen38_teacher_distillation_v3_colab.ipynb`](qwen38_teacher_distillation_v3_colab.ipynb) — current bounded v3 per-record answer-budget study.
 
-**Open the current v2 workflow in Colab:** [qwen38_teacher_distillation_v2_colab.ipynb](https://colab.research.google.com/github/ekkus93/tiny-qwen-coder/blob/master/scripts/teacher_distillation/qwen38_teacher_distillation_v2_colab.ipynb)
+**Open the current v3 workflow in Colab:** [qwen38_teacher_distillation_v3_colab.ipynb](https://colab.research.google.com/github/ekkus93/tiny-qwen-coder/blob/master/scripts/teacher_distillation/qwen38_teacher_distillation_v3_colab.ipynb)
 
 For new work after the v1 pilot, use the **v2 notebook**. Select an **A100 80 GB** runtime. Colab is only a disposable GPU worker: it does not need GitHub credentials, SSH keys, `git clone`, `git pull`, or `git push`.
 
@@ -20,6 +21,7 @@ For new work after the v1 pilot, use the **v2 notebook**. Select an **A100 80 GB
 | `prepare_teacher_input.py` | Build and SHA-256 seal the canonical prompt-only teacher input. |
 | `select_teacher_input.py` | Create deterministic source-stratified subsets. |
 | `prepare_teacher_v2_input.py` | Add and SHA-256 bind the teacher-only concise-answer v2 policy. |
+| `prepare_teacher_v3_input.py` | Compute, inject, and SHA-256 bind the canonical Qwen3.5-4B per-record final-answer budget. |
 | `generate_teacher_data.py` | Run resumable Qwen3.8 generation with durable Google Drive checkpoints. |
 | `diagnose_teacher_data.py` | Measure teacher/runtime and student-tokenizer length behavior without persisting hidden reasoning. |
 | `finalize_teacher_data.py` | Filter, contamination-check, and emit the Qwen3.5-4B training corpus. |
@@ -191,3 +193,22 @@ Do not jump directly to the full ~40k corpus.
 - A sealed shard with a bad checksum fails closed as corruption.
 
 There is intentionally no GitHub write workflow in Colab. Development, commits, pushes, and pulls happen outside the disposable GPU runtime.
+
+
+## Bounded v3 per-record answer-budget contract
+
+The 200-record v2 high-reasoning study fixed the v1 runaway-generation problem: all 200 candidates stopped normally and protected-benchmark contamination was clean. Its remaining failure was narrow and specifically student-envelope related: 153/200 records (76.5%) fit the 2,048-token student boundary, below the predeclared 80% floor. Prompt lengths were not the driver; rejected final answers were substantially longer than accepted answers.
+
+v3 therefore keeps the successful v2 teacher/runtime/generation contract fixed and changes only the teacher-only input policy:
+
+- Qwen3.8-27B at the same pinned revision, native BF16, vLLM 0.28.0;
+- reasoning effort remains `high`;
+- sampling parameters, seed, 16-record shard size, 16,384-token context, and 8,192-token teacher generation cap remain unchanged;
+- the same deterministic 200 source records are used for the bounded study;
+- the Qwen3.5-4B canonical tokenizer measures each source prompt before teacher-only policy injection;
+- each record receives `min(1792, 2048 - student_prompt_tokens - 128)` as its approximate final-answer budget;
+- the 128-token reserve protects chat-template boundaries and imperfect token-budget adherence;
+- the 8,192 teacher generation cap is deliberately not reduced because it includes hidden reasoning, while the new budget applies only to the final answer;
+- the dynamic instruction is stripped before Python quality checks, student tokenization, contamination checks, or corpus writing.
+
+The existing formal scale floor remains >=90% normal stops, >=80% student-length acceptance among normal stops, and contamination `clean`. For v3, the notebook uses a stricter **85% student-length scale gate** to provide margin before spending on a fresh 2,000-record run. Do not lower either gate after observing the result.

@@ -16,7 +16,7 @@ from tiny_qwen_coder.distillation.config import (
     load_teacher_distillation_config,
 )
 from tiny_qwen_coder.distillation.generation import load_completed_distilled_records
-from tiny_qwen_coder.distillation.v2_input import strip_v2_teacher_input_policy
+from tiny_qwen_coder.distillation.input_policy import strip_teacher_input_policy
 from tiny_qwen_coder.model.inspection import load_inspection_target
 
 
@@ -184,7 +184,7 @@ def diagnose_teacher_records(
     for input_index, record in enumerate(records):
         if len(record.messages) < 2 or record.messages[-1].role != "assistant":
             raise TeacherDiagnosticsError("distilled record must end with an assistant answer")
-        student_record = strip_v2_teacher_input_policy(record)
+        student_record = strip_teacher_input_policy(record)
         answer = student_record.messages[-1].content
         prompt = student_record.messages[:-1]
         full_tokens = len(tokenize_training_record(student_tokenizer, student_record))

@@ -87,7 +87,7 @@ def test_v3_short_prompt_uses_answer_budget_ceiling_and_round_trips() -> None:
 
     assert stripped.messages[:-1] == source.messages[:-1]
     assert stripped.messages[-1].content == "return 1"
-    assert V3_POLICY_ID == _metadata(stripped)["distillation.input_policy"]
+    assert _metadata(stripped)["distillation.input_policy"] == V3_POLICY_ID
 
 
 def test_v3_longer_prompt_gets_smaller_dynamic_budget() -> None:

@@ -19,7 +19,7 @@ from tiny_qwen_coder.distillation.config import (
     teacher_distillation_config_sha256,
 )
 from tiny_qwen_coder.distillation.generation import load_completed_distilled_records
-from tiny_qwen_coder.distillation.v2_input import strip_v2_teacher_input_policy
+from tiny_qwen_coder.distillation.input_policy import strip_teacher_input_policy
 from tiny_qwen_coder.evaluation.contamination import ProtectedBenchmarkExample
 from tiny_qwen_coder.evaluation.python_protected_examples import load_python_protected_examples
 from tiny_qwen_coder.languages.python import (
@@ -191,7 +191,7 @@ def finalize_teacher_corpus(
         input_path=input_path,
         limit=limit,
     )
-    student_records = tuple(strip_v2_teacher_input_policy(record) for record in generated)
+    student_records = tuple(strip_teacher_input_policy(record) for record in generated)
     prefiltered, finish_rejections, quality_rejections = _prefilter_candidates(student_records)
     if len(prefiltered) < 2:
         raise TeacherFinalizationError("fewer than two teacher candidates survived prefiltering")
