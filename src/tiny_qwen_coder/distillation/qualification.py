@@ -83,7 +83,9 @@ def qualify_teacher_study(
             "diagnostics.student_length_accept_rate_given_stop must be in [0, 1]"
         )
 
-    contamination = _mapping(dataset_manifest.get("contamination"), context="manifest.contamination")
+    contamination = _mapping(
+        dataset_manifest.get("contamination"), context="manifest.contamination"
+    )
     raw_status = contamination.get("status")
     if not isinstance(raw_status, str):
         raise TeacherStudyQualificationError("manifest.contamination.status must be a string")
