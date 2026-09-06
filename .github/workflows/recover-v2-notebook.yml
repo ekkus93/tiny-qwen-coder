@@ -1,0 +1,110 @@
+name: Recover bounded v2 Colab notebook
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/recover-v2-notebook.yml
+
+permissions:
+  contents: write
+
+jobs:
+  recover:
+    runs-on: ubuntu-24.04
+    env:
+      HF_HUB_OFFLINE: "1"
+      HF_DATASETS_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      TOKENIZERS_PARALLELISM: "false"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+      - name: Sync frozen environment
+        run: uv sync --frozen
+      - name: Generate notebook from validated helper source
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          helper = Path(".github/workflows/finalize-v2-notebook.yml")
+          lines = helper.read_text(encoding="utf-8").splitlines()
+          start = lines.index("          python - <<'PY'") + 1
+          end = lines.index("          PY", start)
+          script_lines = []
+          for line in lines[start:end]:
+              if line.startswith("          "):
+                  script_lines.append(line[10:])
+              else:
+                  script_lines.append(line)
+          script = "\n".join(script_lines) + "\n"
+
+          # Custom cells are already parsed when code(...) constructs them. The
+          # inherited, previously validated v1 setup deliberately contains Colab
+          # shell magics such as !nvidia-smi, which Python's ast module cannot parse.
+          marker_start = "# Fail the helper before writing malformed notebook code.\n"
+          marker_end = "notebook = {\n"
+          before, separator, remainder = script.partition(marker_start)
+          if not separator:
+              raise RuntimeError("could not locate obsolete AST validation block")
+          _, separator, after = remainder.partition(marker_end)
+          if not separator:
+              raise RuntimeError("could not locate notebook construction block")
+          script = before + marker_end + after
+
+          exec(compile(script, str(helper), "exec"), {"__name__": "__main__"})
+          PY
+      - name: Format repository
+        run: uv run --frozen ruff format .
+      - name: Validate dedicated notebook
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("scripts/teacher_distillation/qwen38_teacher_distillation_v2_colab.ipynb")
+          notebook = json.loads(path.read_text(encoding="utf-8"))
+          assert notebook["nbformat"] == 4
+          assert notebook["nbformat_minor"] == 5
+          assert len(notebook["cells"]) >= 30
+          joined = "\n".join(
+              "".join(cell.get("source", [])) for cell in notebook["cells"]
+          )
+          for required in (
+              "from `xhigh` to `medium`",
+              "qwen38_27b_v2.yaml",
+              "--status-only",
+              "diagnose_teacher_data.py",
+              "finalize_teacher_data.py",
+              "qualify_teacher_study.py",
+              "DO NOT SCALE",
+              "2,000-record generation is blocked",
+          ):
+              assert required in joined, required
+          assert "from `xhigh` to `high`" not in joined
+          PY
+      - name: Validate full CPU quality gates
+        run: |
+          uv run --frozen ruff format --check .
+          uv run --frozen ruff check .
+          uv run --frozen mypy src scripts tests
+          uv run --frozen pytest
+          git diff --check
+      - name: Commit validated notebook and remove helpers
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/finalize-v2-notebook.yml
+          git rm .github/workflows/recover-v2-notebook.yml
+          git add -A
+          git commit -m "feat: finalize bounded teacher v2 workflow"
+          git push origin HEAD:master
