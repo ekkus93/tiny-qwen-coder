@@ -16,6 +16,7 @@ from tiny_qwen_coder.distillation.config import (
     load_teacher_distillation_config,
 )
 from tiny_qwen_coder.distillation.generation import load_completed_distilled_records
+from tiny_qwen_coder.distillation.v2_input import strip_v2_teacher_input_policy
 from tiny_qwen_coder.model.inspection import load_inspection_target
 
 
@@ -170,7 +171,12 @@ def diagnose_teacher_records(
     student_tokenizer: object,
     student_max_tokens: int = 2048,
 ) -> TeacherLengthDiagnostics:
-    """Measure lengths without persisting hidden reasoning content."""
+    """Measure lengths without persisting hidden reasoning content.
+
+    Teacher-runtime counters describe the exact teacher prompt/completion. Student
+    counters first remove any teacher-only v2 prompt policy so they describe the
+    conversation that would actually be written to the training corpus.
+    """
 
     if student_max_tokens < 1:
         raise TeacherDiagnosticsError("student_max_tokens must be positive")
@@ -178,9 +184,10 @@ def diagnose_teacher_records(
     for input_index, record in enumerate(records):
         if len(record.messages) < 2 or record.messages[-1].role != "assistant":
             raise TeacherDiagnosticsError("distilled record must end with an assistant answer")
-        answer = record.messages[-1].content
-        prompt = record.messages[:-1]
-        full_tokens = len(tokenize_training_record(student_tokenizer, record))
+        student_record = strip_v2_teacher_input_policy(record)
+        answer = student_record.messages[-1].content
+        prompt = student_record.messages[:-1]
+        full_tokens = len(tokenize_training_record(student_tokenizer, student_record))
         diagnostics.append(
             TeacherLengthDiagnosticRecord(
                 input_index=input_index,
