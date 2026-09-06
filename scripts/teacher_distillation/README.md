@@ -57,29 +57,32 @@ The notebook therefore:
 
 1. installs/updates `uv`;
 2. creates `/content/tqc-teacher-venv` with `uv venv`;
-3. installs `vllm==0.28.0` and this repository with
-   `uv pip install --torch-backend=cu129`;
-4. lets vLLM own its compatible Torch/TorchAudio/TorchVision constraints while uv
-   selects the CUDA 12.9 wheel backend; and
-5. runs all teacher scripts through `/content/tqc-teacher-venv/bin/python`.
+3. installs `ninja==1.13.2`, `vllm==0.28.0`, and this repository with
+   `uv pip install --torch-backend=cu130`;
+4. lets vLLM own its compatible PyTorch constraint while uv selects the CUDA 13.0
+   wheel backend;
+5. prepends the uv environment `bin/` directory to `PATH` so FlashInfer JIT builds
+   can find Ninja; and
+6. runs all teacher scripts through `/content/tqc-teacher-venv/bin/python`.
 
-`requirements/colab-teacher.txt` intentionally pins only the top-level teacher runtime:
+`requirements/colab-teacher.txt` pins the required top-level runtime tools:
 
 ```text
+ninja==1.13.2
 vllm==0.28.0
 ```
 
-Do not manually add `torch==...+cu129`, `torchaudio==...+cu129`, or
-`torchvision==...+cu129` pins. The vLLM wheel and uv backend selection should resolve
-the compatible CUDA stack together.
+Do not manually add PyTorch/TorchAudio/TorchVision CUDA pins. The vLLM wheel and uv
+backend selection should resolve the compatible CUDA stack together.
 
-The NVIDIA driver may still report CUDA 13.0 in `nvidia-smi`. That is expected. The
-notebook verifies that the isolated PyTorch runtime itself is using CUDA 12.9.
+The NVIDIA driver and the isolated PyTorch runtime should both report CUDA 13.0.
 
 ## Frozen repository ZIP
 
 Before opening Colab, make or download a ZIP containing the exact repository version
-you want to run. The ZIP does not need a `.git` directory.
+you want to run. The ZIP does not need a `.git` directory. After extraction, the notebook
+creates a deterministic local Git commit solely for source-tree provenance. No remote is
+configured, and this does not require GitHub credentials or network Git operations.
 
 Place it at:
 
