@@ -13,7 +13,7 @@ import yaml
 TeacherBackendName = Literal["vllm"]
 TeacherDtype = Literal["bfloat16"]
 TeacherQuantization = Literal["bitsandbytes", "none"]
-TeacherReasoningEffort = Literal["low", "medium", "xhigh"]
+TeacherReasoningEffort = Literal["low", "high", "xhigh"]
 
 
 class TeacherDistillationConfigError(ValueError):
@@ -82,9 +82,9 @@ class TeacherGenerationConfig:
     seed: int
 
     def __post_init__(self) -> None:
-        if self.reasoning_effort not in {"low", "medium", "xhigh"}:
+        if self.reasoning_effort not in {"low", "high", "xhigh"}:
             raise TeacherDistillationConfigError(
-                "generation.reasoning_effort must be one of: low, medium, xhigh"
+                "generation.reasoning_effort must be one of: low, high, xhigh"
             )
         if self.temperature < 0:
             raise TeacherDistillationConfigError("generation.temperature must be non-negative")
@@ -285,9 +285,9 @@ def parse_teacher_distillation_config(value: object) -> TeacherDistillationConfi
             "teacher.quantization must be one of: bitsandbytes, none"
         )
     reasoning_effort = _string(generation, "reasoning_effort", context="distillation.generation")
-    if reasoning_effort not in {"low", "medium", "xhigh"}:
+    if reasoning_effort not in {"low", "high", "xhigh"}:
         raise TeacherDistillationConfigError(
-            "generation.reasoning_effort must be one of: low, medium, xhigh"
+            "generation.reasoning_effort must be one of: low, high, xhigh"
         )
 
     return TeacherDistillationConfig(

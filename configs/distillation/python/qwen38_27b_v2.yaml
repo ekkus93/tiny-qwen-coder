@@ -17,7 +17,7 @@ teacher:
 generation:
   thinking: true
   preserve_thinking: false
-  reasoning_effort: medium
+  reasoning_effort: high
   temperature: 1.0
   top_p: 0.95
   top_k: 20

@@ -4,13 +4,19 @@ import json
 from dataclasses import asdict, replace
 from pathlib import Path
 
+import pytest
+
 from tiny_qwen_coder.data.records import (
     LicenseMetadata,
     NormalizedTrainingRecord,
     SourceProvenance,
     TrainingMessage,
 )
-from tiny_qwen_coder.distillation.config import load_teacher_distillation_config
+from tiny_qwen_coder.distillation.config import (
+    TeacherDistillationConfigError,
+    load_teacher_distillation_config,
+    parse_teacher_distillation_config,
+)
 from tiny_qwen_coder.distillation.diagnostics import diagnose_teacher_records
 from tiny_qwen_coder.distillation.qualification import qualify_teacher_study
 from tiny_qwen_coder.distillation.v2_input import (
@@ -86,9 +92,20 @@ def test_v2_config_changes_reasoning_effort_without_changing_generation_cap() ->
     v2 = load_teacher_distillation_config(Path("configs/distillation/python/qwen38_27b_v2.yaml"))
 
     assert v1.generation.reasoning_effort == "xhigh"
-    assert v2.generation.reasoning_effort == "medium"
+    assert v2.generation.reasoning_effort == "high"
     assert v2.generation.max_tokens == v1.generation.max_tokens == 8192
     assert v2.teacher == v1.teacher
+
+
+def test_v2_config_rejects_unsupported_medium_reasoning_effort() -> None:
+    v2 = load_teacher_distillation_config(Path("configs/distillation/python/qwen38_27b_v2.yaml"))
+    payload = asdict(v2)
+    generation = payload["generation"]
+    assert isinstance(generation, dict)
+    generation["reasoning_effort"] = "medium"
+
+    with pytest.raises(TeacherDistillationConfigError, match="low, high, xhigh"):
+        parse_teacher_distillation_config(payload)
 
 
 class _FakeTokenizer:

@@ -68,7 +68,7 @@ The failure mode is therefore dominated by generation length and student-envelop
 - same 16,384-token model context;
 - same 8,192-token generation cap;
 - same sampling parameters, seed, and durable shard size;
-- reasoning effort reduced from `xhigh` to **`medium`**; and
+- reasoning effort reduced from `xhigh` to **`high`**; and
 - a deterministic teacher-only concise-answer instruction is injected by `prepare_teacher_v2_input.py`.
 
 The v2 instruction asks the teacher to solve the user's task completely while keeping the final answer concise enough for the Qwen3.5-4B 2,048-token full-conversation envelope. The original user request is not rewritten.
@@ -161,7 +161,7 @@ Durable generation shards bind only the exact source of:
 
 plus the semantic distillation config, input SHA-256, record identity, prompt identity, and shard checksum.
 
-The v2 diagnostic/finalization work deliberately did not change those three v1 generation-identity source files. The preserved v1 checkpoint can therefore be inspected by the new diagnostic tooling without rewriting or weakening its run identity.
+The v2 reasoning-effort correction changes `config.py`, which is part of the generation implementation identity. Inspect preserved v1 checkpoints with the frozen v1 repository archive that created them; do not weaken or rewrite their run identity to make newer code accept them.
 
 Never edit `run-identity.json`, shard payloads, or checksum sidecars to force compatibility.
 
