@@ -1,0 +1,205 @@
+name: Finalize teacher v2 study
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/finalize-teacher-v2-study.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-24.04
+    env:
+      HF_HUB_OFFLINE: "1"
+      HF_DATASETS_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      TOKENIZERS_PARALLELISM: "false"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+      - name: Sync frozen environment
+        run: uv sync --frozen
+      - name: Update v2 runbook and notebook
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          readme = Path("scripts/teacher_distillation/README.md")
+          text = readme.read_text(encoding="utf-8")
+          marker = "## Bounded v2 study after the 2,000-record v1 diagnosis"
+          section = r'''
+
+          ## Bounded v2 study after the 2,000-record v1 diagnosis
+
+          The first native-BF16 v1 2,000-candidate run is preserved as scientific evidence. It
+          produced 2,000 durable teacher candidates, but 1,297 ended with
+          `finish_reason=length`; of the 703 normal-stop candidates, another 361 exceeded the
+          student's 2,048-token full-record boundary. Only 342 unique records survived. That
+          corpus is **not** the canonical 2,000-record learning experiment.
+
+          The successor v2 study changes only the generation policy that the evidence implicated:
+
+          - `configs/distillation/python/qwen38_27b_v2.yaml` keeps the same pinned teacher,
+            native BF16 weights, 16,384-token model context, 8,192-token generation cap, seed,
+            sampling parameters, and 16-record durable shard size;
+          - reasoning effort changes from `xhigh` to `high`;
+          - `prepare_teacher_v2_input.py` injects a deterministic, SHA-256-bound instruction
+            asking for a complete but concise final answer suitable for the 2,048-token student
+            envelope; and
+          - the original user request and source assistant seed answer remain unchanged in the
+            sealed input record. Generation still removes that source assistant answer before the
+            teacher sees the prompt.
+
+          Do not jump directly to another 2,000-record generation. Run the deterministic 200-record
+          v2 study first. `diagnose_teacher_data.py` writes per-record and aggregate evidence for
+          teacher prompt/completion tokens, retained reasoning character count, teacher final-answer
+          tokens, student prompt/final/full-record tokens, finish reason, and student-length
+          acceptance. Hidden reasoning text remains absent from all diagnostics.
+
+          Finalization now loads every registered Python protected benchmark after generation and
+          runs the existing exact/high-overlap contamination checker against the retained corpus.
+          HumanEval and MBPP canonical solutions are included in that in-memory check; the
+          repository-owned holdout is checked by prompt. Benchmark text is never written into the
+          distilled corpus or manifest. Finalization fails closed on `not_run` or any finding and
+          writes a corpus only when contamination status is `clean`.
+
+          The bounded study is permitted to scale only when
+          `qualify_teacher_study.py` proves all three gates:
+
+          1. normal-stop rate is at least **0.90**;
+          2. student-length acceptance among normal-stop records is at least **0.80**; and
+          3. protected-benchmark contamination status is **clean**.
+
+          A failed gate is evidence to revise the generation policy; it is not permission to
+          compensate by blindly generating more records.
+          '''
+          if marker not in text:
+              readme.write_text(text.rstrip() + section + "\n", encoding="utf-8")
+
+          notebook_path = Path(
+              "scripts/teacher_distillation/qwen38_teacher_distillation_colab.ipynb"
+          )
+          notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
+          cells = notebook["cells"]
+          notebook_marker = "## 13. Diagnose the preserved v1 2,000-record run"
+          if not any(notebook_marker in "".join(cell.get("source", [])) for cell in cells):
+              def markdown(source: str) -> dict[str, object]:
+                  return {
+                      "cell_type": "markdown",
+                      "metadata": {},
+                      "source": source.splitlines(keepends=True),
+                  }
+
+              def code(source: str) -> dict[str, object]:
+                  return {
+                      "cell_type": "code",
+                      "execution_count": None,
+                      "metadata": {},
+                      "outputs": [],
+                      "source": source.splitlines(keepends=True),
+                  }
+
+              cells.extend(
+                  [
+                      markdown(
+                          "## 13. Diagnose the preserved v1 2,000-record run\n\n"
+                          "The first v1 pilot is evidence, not the final training corpus. This cell measures where its token budget went without storing hidden reasoning text.\n"
+                      ),
+                      code(
+                          "os.environ[\"V1_DIAG_DIR\"] = f\"{os.environ['PILOT_DIR']}/diagnostics\"\n"
+                          "Path(os.environ[\"V1_DIAG_DIR\"]).mkdir(parents=True, exist_ok=True)\n\n"
+                          "!$TQC_PYTHON scripts/teacher_distillation/diagnose_teacher_data.py \\\n"
+                          "  --input \"$SUBSET_DIR/p0-2000.jsonl\" \\\n"
+                          "  --checkpoint-dir \"$PILOT_DIR/checkpoint\" \\\n"
+                          "  --output-dir \"$V1_DIAG_DIR\"\n"
+                      ),
+                      markdown(
+                          "## 14. Create the deterministic 200-record v2 study input\n\n"
+                          "v2 keeps the teacher/runtime/generation cap fixed, lowers reasoning effort from `xhigh` to `high`, and adds a sealed concise-final-answer policy. The source user request and source assistant answer are otherwise preserved.\n"
+                      ),
+                      code(
+                          "os.environ[\"V2_DIR\"] = f\"{os.environ['TQC_DRIVE']}/distillation/qwen38-27b-v2-200\"\n"
+                          "os.environ[\"V2_SOURCE_INPUT\"] = f\"{os.environ['SUBSET_DIR']}/p0-200.jsonl\"\n"
+                          "os.environ[\"V2_INPUT\"] = f\"{os.environ['SUBSET_DIR']}/p0-200-v2.jsonl\"\n"
+                          "Path(os.environ[\"V2_DIR\"]).mkdir(parents=True, exist_ok=True)\n\n"
+                          "!$TQC_PYTHON scripts/teacher_distillation/select_teacher_input.py \\\n"
+                          "  --input \"$INPUT_DIR/accepted.jsonl\" \\\n"
+                          "  --output \"$V2_SOURCE_INPUT\" \\\n"
+                          "  --count 200\n\n"
+                          "!$TQC_PYTHON scripts/teacher_distillation/prepare_teacher_v2_input.py \\\n"
+                          "  --input \"$V2_SOURCE_INPUT\" \\\n"
+                          "  --output \"$V2_INPUT\"\n"
+                      ),
+                      markdown(
+                          "## 15. Generate the bounded v2 study\n\n"
+                          "This uses a new checkpoint namespace. Never mix it with the v1 checkpoint.\n"
+                      ),
+                      code(
+                          "!$TQC_PYTHON scripts/teacher_distillation/generate_teacher_data.py \\\n"
+                          "  --distillation-config configs/distillation/python/qwen38_27b_v2.yaml \\\n"
+                          "  --input \"$V2_INPUT\" \\\n"
+                          "  --checkpoint-dir \"$V2_DIR/checkpoint\" \\\n"
+                          "  --work-dir /content/tqc-distillation-v2-200\n"
+                      ),
+                      markdown(
+                          "## 16. Diagnose, finalize, and qualify v2\n\n"
+                          "Finalization now fails closed unless HumanEval, MBPP, and the repository holdout contamination checks run and are clean. Qualification then requires ≥90% normal stops and ≥80% student-length acceptance among normal-stop records.\n"
+                      ),
+                      code(
+                          "!$TQC_PYTHON scripts/teacher_distillation/diagnose_teacher_data.py \\\n"
+                          "  --distillation-config configs/distillation/python/qwen38_27b_v2.yaml \\\n"
+                          "  --input \"$V2_INPUT\" \\\n"
+                          "  --checkpoint-dir \"$V2_DIR/checkpoint\" \\\n"
+                          "  --output-dir \"$V2_DIR/diagnostics\"\n\n"
+                          "!$TQC_PYTHON scripts/teacher_distillation/finalize_teacher_data.py \\\n"
+                          "  --distillation-config configs/distillation/python/qwen38_27b_v2.yaml \\\n"
+                          "  --data-config configs/data/python/qwen38_27b_distilled_v2.yaml \\\n"
+                          "  --input \"$V2_INPUT\" \\\n"
+                          "  --checkpoint-dir \"$V2_DIR/checkpoint\" \\\n"
+                          "  --output-dir \"$V2_DIR/final\"\n\n"
+                          "!$TQC_PYTHON scripts/teacher_distillation/qualify_teacher_study.py \\\n"
+                          "  --diagnostics-summary \"$V2_DIR/diagnostics/teacher-length-summary.json\" \\\n"
+                          "  --dataset-manifest \"$V2_DIR/final/dataset-manifest.json\" \\\n"
+                          "  --output \"$V2_DIR/qualification.json\"\n"
+                      ),
+                      markdown(
+                          "## 17. Scaling decision\n\n"
+                          "Scale v2 to a fresh 2,000-record checkpoint only if Step 16 exits successfully and `qualification.json` has `qualified: true`. A failed gate means revise the policy and run another bounded study; do not compensate by simply generating more samples.\n"
+                      ),
+                  ]
+              )
+              notebook_path.write_text(
+                  json.dumps(notebook, indent=1, ensure_ascii=False) + "\n",
+                  encoding="utf-8",
+              )
+          PY
+      - name: Format
+        run: uv run --frozen ruff format .
+      - name: Validate full CPU quality gates
+        run: |
+          uv run --frozen ruff format --check .
+          uv run --frozen ruff check .
+          uv run --frozen mypy
+          uv run --frozen pytest
+          git diff --check
+      - name: Commit validated runbook and remove helper
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/finalize-teacher-v2-study.yml
+          git add -A
+          git commit -m "feat: finalize bounded teacher v2 study"
+          git push origin HEAD:master
