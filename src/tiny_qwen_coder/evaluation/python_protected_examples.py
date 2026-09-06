@@ -8,17 +8,16 @@ solutions are never written into the distilled training corpus or its manifest.
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping
+from typing import cast
 
 from tiny_qwen_coder.data.records import TrainingMessage
 from tiny_qwen_coder.evaluation.contamination import ProtectedBenchmarkExample
 from tiny_qwen_coder.evaluation.humaneval import (
-    HumanEvalProblem,
     create_humaneval_prompt,
     load_frozen_humaneval_runner_config,
     load_humaneval_problems,
 )
 from tiny_qwen_coder.evaluation.mbpp import (
-    MBPPProblem,
     create_mbpp_prompt,
     load_frozen_mbpp_runner_config,
     load_mbpp_problems,
@@ -46,12 +45,13 @@ def _load_humaneval_rows(
 ) -> Iterable[DatasetRow]:
     from datasets import load_dataset  # type: ignore[import-untyped]
 
-    return load_dataset(
+    loaded = load_dataset(
         repository,
         revision=revision,
         split=split,
         streaming=streaming,
     )
+    return cast(Iterable[DatasetRow], loaded)
 
 
 def _load_mbpp_rows(
@@ -64,13 +64,14 @@ def _load_mbpp_rows(
 ) -> Iterable[DatasetRow]:
     from datasets import load_dataset  # type: ignore[import-untyped]
 
-    return load_dataset(
+    loaded = load_dataset(
         repository,
         dataset_config,
         revision=revision,
         split=split,
         streaming=streaming,
     )
+    return cast(Iterable[DatasetRow], loaded)
 
 
 def _required_row_string(row: DatasetRow, key: str, *, context: str) -> str:
@@ -228,21 +229,20 @@ def load_python_protected_examples(
     emitted when registry coverage expands without corresponding example coverage.
     """
 
-    loaders = {
-        "humaneval": lambda benchmark: _human_eval_examples(
-            benchmark, dataset_loader=humaneval_dataset_loader
-        ),
-        "mbpp": lambda benchmark: _mbpp_examples(benchmark, dataset_loader=mbpp_dataset_loader),
-        "repository-holdout": _repository_holdout_examples,
-    }
     examples: list[ProtectedBenchmarkExample] = []
     for benchmark in registry.list_benchmarks(language="python"):
-        loader = loaders.get(benchmark.id)
-        if loader is None:
+        if benchmark.id == "humaneval":
+            examples.extend(
+                _human_eval_examples(benchmark, dataset_loader=humaneval_dataset_loader)
+            )
+        elif benchmark.id == "mbpp":
+            examples.extend(_mbpp_examples(benchmark, dataset_loader=mbpp_dataset_loader))
+        elif benchmark.id == "repository-holdout":
+            examples.extend(_repository_holdout_examples(benchmark))
+        else:
             raise ValueError(
                 f"no protected-example loader exists for registered benchmark {benchmark.id!r}"
             )
-        examples.extend(loader(benchmark))
     return tuple(examples)
 
 
