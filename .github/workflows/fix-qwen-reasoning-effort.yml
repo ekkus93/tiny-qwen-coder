@@ -79,7 +79,9 @@ jobs:
               test_path.write_text(text, encoding='utf-8')
           PY
       - name: Normalize
-        run: uv run --frozen ruff format .
+        run: |
+          uv run --frozen ruff check --fix .
+          uv run --frozen ruff format .
       - name: Validate CPU quality gates
         run: |
           uv run --frozen ruff format --check .
