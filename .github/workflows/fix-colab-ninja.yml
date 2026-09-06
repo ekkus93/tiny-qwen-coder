@@ -1,0 +1,128 @@
+name: Fix Colab Ninja runtime
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/fix-colab-ninja.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Sync frozen environment
+        run: uv sync --frozen
+
+      - name: Update Colab notebook for Ninja
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("scripts/teacher_distillation/qwen38_teacher_distillation_colab.ipynb")
+          notebook = json.loads(path.read_text(encoding="utf-8"))
+
+          path_cell_found = False
+          verification_cell_found = False
+          markdown_found = False
+
+          for cell in notebook["cells"]:
+              source = "".join(cell.get("source", []))
+
+              if (
+                  cell.get("cell_type") == "code"
+                  and 'os.environ["TQC_PYTHON"] = str(venv / "bin" / "python")' in source
+              ):
+                  if 'os.environ["PATH"]' not in source:
+                      source = source.replace(
+                          'os.environ["TQC_PYTHON"] = str(venv / "bin" / "python")\n',
+                          'os.environ["TQC_PYTHON"] = str(venv / "bin" / "python")\n'
+                          'os.environ["PATH"] = f"{venv / \'bin\'}{os.pathsep}{os.environ[\'PATH\']}"\n',
+                      )
+                      cell["source"] = source.splitlines(keepends=True)
+                  path_cell_found = True
+
+              if (
+                  cell.get("cell_type") == "code"
+                  and "verification_code = textwrap.dedent(" in source
+                  and "import vllm" in source
+              ):
+                  if "import shutil" not in source:
+                      source = source.replace(
+                          '    import sys\n\n    import torch\n',
+                          '    import shutil\n    import subprocess\n    import sys\n\n    import torch\n',
+                      )
+                  if 'print("ninja:"' not in source:
+                      source = source.replace(
+                          '    print("vllm:", vllm.__version__, flush=True)\n',
+                          '    print("vllm:", vllm.__version__, flush=True)\n'
+                          '    ninja = shutil.which("ninja")\n'
+                          '    print("ninja:", ninja or "MISSING", flush=True)\n'
+                          '    if ninja is None:\n'
+                          '        raise RuntimeError("Ninja is not available on PATH inside the teacher runtime.")\n'
+                          '    print("ninja version:", subprocess.check_output([ninja, "--version"], text=True).strip(), flush=True)\n',
+                      )
+                  cell["source"] = source.splitlines(keepends=True)
+                  verification_cell_found = True
+
+              if (
+                  cell.get("cell_type") == "markdown"
+                  and "## 5. Create an isolated uv environment" in source
+              ):
+                  if "FlashInfer JIT" not in source:
+                      source = source.replace(
+                          "The NVIDIA driver may still report CUDA 13.0 in `nvidia-smi`; that is expected.\n",
+                          "The teacher requirements also pin the `ninja` build tool required by FlashInfer JIT, and this step prepends the uv environment's `bin/` directory to `PATH` so child vLLM processes can invoke it.\n\nThe NVIDIA driver may still report CUDA 13.0 in `nvidia-smi`; that is expected.\n",
+                      )
+                      cell["source"] = source.splitlines(keepends=True)
+                  markdown_found = True
+
+          if not path_cell_found:
+              raise RuntimeError("Could not find the uv environment path setup cell")
+          if not verification_cell_found:
+              raise RuntimeError("Could not find the runtime verification cell")
+          if not markdown_found:
+              raise RuntimeError("Could not find the Step 5 markdown cell")
+
+          path.write_text(json.dumps(notebook, indent=1) + "\n", encoding="utf-8")
+          PY
+          uv run --frozen ruff format scripts/teacher_distillation/qwen38_teacher_distillation_colab.ipynb
+
+      - name: Validate full CPU quality gates
+        env:
+          HF_HUB_OFFLINE: '1'
+          HF_DATASETS_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+          TOKENIZERS_PARALLELISM: 'false'
+        run: |
+          uv run --frozen ruff format --check .
+          uv run --frozen ruff check .
+          uv run --frozen mypy src scripts tests
+          uv run --frozen pytest
+          git diff --check
+
+      - name: Commit validated fix and remove helper
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/fix-colab-ninja.yml
+          git add scripts/teacher_distillation/qwen38_teacher_distillation_colab.ipynb
+          git commit -m "fix: make Ninja available to Colab vLLM runtime"
+          git push origin HEAD:master
