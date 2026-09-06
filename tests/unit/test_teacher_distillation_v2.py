@@ -16,6 +16,7 @@ from tiny_qwen_coder.distillation.qualification import qualify_teacher_study
 from tiny_qwen_coder.distillation.v2_input import (
     V2_DISTILLATION_INSTRUCTION,
     apply_v2_teacher_input_policy,
+    strip_v2_teacher_input_policy,
     write_v2_teacher_input,
 )
 from tiny_qwen_coder.evaluation.python_protected_examples import load_python_protected_examples
@@ -59,6 +60,25 @@ def test_v2_input_policy_preserves_user_and_seed_answer_and_is_sealed(tmp_path: 
     assert summary.output_records == 1
     assert output_path.with_suffix(".jsonl.sha256").exists()
     assert output_path.with_suffix(".jsonl.summary.json").exists()
+
+
+def test_v2_teacher_policy_round_trips_to_original_student_conversation() -> None:
+    source = _record()
+    transformed = apply_v2_teacher_input_policy(source)
+    distilled = replace(
+        transformed,
+        messages=transformed.messages[:-1]
+        + (TrainingMessage(role="assistant", content="return 1"),),
+    )
+
+    stripped = strip_v2_teacher_input_policy(distilled)
+
+    assert stripped.messages[:-1] == source.messages[:-1]
+    assert stripped.messages[-1].content == "return 1"
+    assert V2_DISTILLATION_INSTRUCTION not in "\n".join(
+        message.content for message in stripped.messages
+    )
+    assert dict(stripped.provenance.source_metadata)["distillation.input_policy"] == "concise-v2"
 
 
 def test_v2_config_changes_reasoning_effort_without_changing_generation_cap() -> None:
