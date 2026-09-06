@@ -1,3 +1,4 @@
+# Bounded v3 changes only the teacher-only per-record answer-budget policy; generation stays v2-high equivalent.
 schema_version: 1
 id: python-qwen38-27b-bf16-v3
 language: python
