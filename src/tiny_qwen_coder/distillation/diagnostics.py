@@ -174,7 +174,7 @@ def diagnose_teacher_records(
     """Measure lengths without persisting hidden reasoning content.
 
     Teacher-runtime counters describe the exact teacher prompt/completion. Student
-    counters first remove any teacher-only v2 prompt policy so they describe the
+    counters first remove any teacher-only prompt policy so they describe the
     conversation that would actually be written to the training corpus.
     """
 
