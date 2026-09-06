@@ -10,14 +10,15 @@ There are now three executable notebooks:
 
 **Open the current v3 workflow in Colab:** [qwen38_teacher_distillation_v3_colab.ipynb](https://colab.research.google.com/github/ekkus93/tiny-qwen-coder/blob/master/scripts/teacher_distillation/qwen38_teacher_distillation_v3_colab.ipynb)
 
-For new work after the v1 pilot, use the **v2 notebook**. Select an **A100 80 GB** runtime. Colab is only a disposable GPU worker: it does not need GitHub credentials, SSH keys, `git clone`, `git pull`, or `git push`.
+For new teacher-data work, use the **v3 notebook**. Select an **A100 80 GB** runtime. Colab is only a disposable GPU worker: it does not need GitHub credentials, SSH keys, `git clone`, `git pull`, or `git push`.
 
 ## Directory contents
 
 | File | Purpose |
 | --- | --- |
 | `qwen38_teacher_distillation_colab.ipynb` | Preserved v1 executable Colab workflow. |
-| `qwen38_teacher_distillation_v2_colab.ipynb` | Current bounded v2 diagnostic/generation/qualification workflow. |
+| `qwen38_teacher_distillation_v2_colab.ipynb` | Preserved bounded v2 high-reasoning study. |
+| `qwen38_teacher_distillation_v3_colab.ipynb` | Current bounded v3 per-record answer-budget study. |
 | `prepare_teacher_input.py` | Build and SHA-256 seal the canonical prompt-only teacher input. |
 | `select_teacher_input.py` | Create deterministic source-stratified subsets. |
 | `prepare_teacher_v2_input.py` | Add and SHA-256 bind the teacher-only concise-answer v2 policy. |
@@ -25,7 +26,7 @@ For new work after the v1 pilot, use the **v2 notebook**. Select an **A100 80 GB
 | `generate_teacher_data.py` | Run resumable Qwen3.8 generation with durable Google Drive checkpoints. |
 | `diagnose_teacher_data.py` | Measure teacher/runtime and student-tokenizer length behavior without persisting hidden reasoning. |
 | `finalize_teacher_data.py` | Filter, contamination-check, and emit the Qwen3.5-4B training corpus. |
-| `qualify_teacher_study.py` | Mechanically decide whether the bounded v2 study may scale. |
+| `qualify_teacher_study.py` | Mechanically decide whether a bounded teacher study may scale. |
 | `README.md` | Architecture, experiment contract, recovery, and scaling rules. |
 
 ## Preserved v1 contract
@@ -60,9 +61,9 @@ The first native-BF16 v1 2,000-candidate run is preserved as scientific evidence
 
 The failure mode is therefore dominated by generation length and student-envelope mismatch. Generating more v1 samples would mostly spend GPU time producing records we already know are unlikely to survive.
 
-## Bounded v2 successor contract
+## Preserved bounded v2 study
 
-`configs/distillation/python/qwen38_27b_v2.yaml` intentionally keeps the expensive/runtime variables fixed and changes only the generation policy implicated by the v1 evidence:
+`configs/distillation/python/qwen38_27b_v2.yaml` kept the expensive/runtime variables fixed and changed only the generation policy implicated by the v1 evidence:
 
 - same pinned Qwen3.8-27B teacher and revision;
 - same native BF16 weights;
@@ -71,15 +72,35 @@ The failure mode is therefore dominated by generation length and student-envelop
 - same 8,192-token generation cap;
 - same sampling parameters, seed, and durable shard size;
 - reasoning effort reduced from `xhigh` to **`high`**; and
-- a deterministic teacher-only concise-answer instruction is injected by `prepare_teacher_v2_input.py`.
+- a deterministic teacher-only concise-answer instruction injected by `prepare_teacher_v2_input.py`.
 
-The v2 instruction asks the teacher to solve the user's task completely while keeping the final answer concise enough for the Qwen3.5-4B 2,048-token full-conversation envelope. The original user request is not rewritten.
+The bounded v2 run used 200 deterministic source records. It achieved:
 
-The teacher-only instruction is **not student training data**. It is removed again before Python quality checking, student tokenization, contamination checking, final corpus writing, and student-length qualification. Its policy ID and SHA-256 remain only as provenance metadata.
+- **200/200 normal stops (100%)**;
+- protected-benchmark contamination status **`clean`**; and
+- **153/200 student-length accepted records (76.5%)**.
 
-## v2 qualification study
+It therefore failed only the predeclared 80% student-length acceptance gate. Diagnostics showed that prompt length was not the driver: accepted prompts had a median of 148 student tokens and rejected prompts a median of 141, while rejected final answers had a median of 2,650 student tokens versus 813 for accepted answers.
 
-Do **not** jump directly to another 2,000-record generation. The first v2 generation is a deterministic **200-record bounded study** using a new checkpoint namespace.
+The v2 teacher-only instruction is **not student training data**. It is removed again before Python quality checking, student tokenization, contamination checking, final corpus writing, and student-length qualification. Its policy ID and SHA-256 remain only as provenance metadata.
+
+## Bounded v3 per-record answer-budget contract
+
+v3 keeps the successful v2 teacher/runtime/generation contract fixed and changes only the teacher-only input policy:
+
+- Qwen3.8-27B at the same pinned revision, native BF16, vLLM 0.28.0;
+- reasoning effort remains `high`;
+- sampling parameters, seed, 16-record shard size, 16,384-token context, and 8,192-token teacher generation cap remain unchanged;
+- the same deterministic 200 source records are used for the bounded study;
+- the Qwen3.5-4B canonical tokenizer measures each source prompt before teacher-only policy injection;
+- each record receives `min(1792, 2048 - student_prompt_tokens - 128)` as its approximate final-answer budget;
+- the 128-token reserve protects chat-template boundaries and imperfect token-budget adherence;
+- the 8,192 teacher generation cap is deliberately not reduced because it includes hidden reasoning, while the new budget applies only to the final answer; and
+- the dynamic instruction is stripped before Python quality checks, student tokenization, contamination checks, or corpus writing.
+
+The generic input-policy stripper fails closed on missing, incomplete, unknown, or corrupted policy metadata so a teacher-only instruction cannot silently leak into student training data.
+
+The historical formal floor remains >=90% normal stops, >=80% student-length acceptance among normal stops, and contamination `clean`. For the v3 scaling decision, the notebook deliberately uses the stricter **85% student-length gate** to leave margin before spending on a fresh 2,000-record run. Do not lower the gate after observing the result.
 
 After generation, `diagnose_teacher_data.py` records per-record and aggregate evidence for:
 
@@ -92,12 +113,6 @@ After generation, `diagnose_teacher_data.py` records per-record and aggregate ev
 - student full-record tokens;
 - finish reason; and
 - whether the student record fits the 2,048-token boundary.
-
-The study may scale only when `qualify_teacher_study.py` proves all three gates:
-
-1. normal-stop rate is at least **0.90**;
-2. student-length acceptance among normal-stop records is at least **0.80**; and
-3. protected-benchmark contamination status is **`clean`**.
 
 A failed gate means revise the policy and run another bounded study. It is not permission to compensate by blindly generating more samples.
 
@@ -137,7 +152,7 @@ Do not manually add PyTorch/TorchAudio/TorchVision CUDA pins.
 
 ## Frozen repository ZIPs
 
-The v1 and v2 runs must not silently share mutable source archives. Keep the preserved v1 archive untouched and give the successor code a new filename, for example:
+Each experimental generation must use its own immutable source archive and checkpoint namespace. Keep prior archives untouched. The current v3 notebook expects:
 
 ```text
 MyDrive/
@@ -146,16 +161,18 @@ MyDrive/
         ├── tiny-qwen-coder.zip
         ├── tiny-qwen-coder.zip.sha256
         ├── tiny-qwen-coder-v2.zip
-        └── tiny-qwen-coder-v2.zip.sha256
+        ├── tiny-qwen-coder-v2.zip.sha256
+        ├── tiny-qwen-coder-v3.zip
+        └── tiny-qwen-coder-v3.zip.sha256
 ```
 
-The v2 notebook expects `tiny-qwen-coder-v2.zip`. On first use it seals the exact ZIP bytes with the adjacent `.sha256` file; later runs must match that checksum.
+On first use, the v3 notebook seals the exact `tiny-qwen-coder-v3.zip` bytes with the adjacent `.sha256` file; later runs in that experiment namespace must match that checksum.
 
 GitHub source ZIPs contain no `.git` directory. After extraction, the notebook creates a deterministic local Git commit solely so generic dataset-manifest provenance can record an exact source-tree identity. No remote is configured and no GitHub credentials are required.
 
-## Why the preserved v1 checkpoint remains readable
+## Why old checkpoints require their frozen source archive
 
-Durable generation shards bind only the exact source of:
+Durable generation shards bind the exact source of:
 
 - `generation.py`;
 - `config.py`; and
@@ -163,19 +180,21 @@ Durable generation shards bind only the exact source of:
 
 plus the semantic distillation config, input SHA-256, record identity, prompt identity, and shard checksum.
 
-The v2 reasoning-effort correction changes `config.py`, which is part of the generation implementation identity. Inspect preserved v1 checkpoints with the frozen v1 repository archive that created them; do not weaken or rewrite their run identity to make newer code accept them.
+The v2 reasoning-effort correction changed `config.py`, which is part of the generation implementation identity. Inspect preserved v1 checkpoints with the frozen v1 repository archive that created them; do not weaken or rewrite their run identity to make newer code accept them. The same rule applies to every later experiment generation.
 
 Never edit `run-identity.json`, shard payloads, or checksum sidecars to force compatibility.
 
 ## Current recommended progression
 
-1. Preserve the completed v1 2,000-candidate checkpoint as evidence.
-2. Run the v2 notebook's v1 diagnostic cell to record the failure distribution with the new tooling.
-3. Generate the deterministic 200-record v2 study in a fresh checkpoint directory.
-4. Diagnose, finalize, run contamination checks, and mechanically qualify the 200 records.
-5. Only if all qualification gates pass, generate a fresh **2,000-record v2** experiment.
-6. Train/evaluate the Qwen3.5-4B student on that qualified corpus.
-7. Generate more than 2,000 records only if the v2 2,000-record adapter improves the frozen base benchmark.
+1. Preserve the completed v1 and v2 checkpoints and diagnostics as evidence.
+2. Start the **v3 notebook** from a fresh A100 80 GB Colab allocation using a frozen v3 repository ZIP.
+3. Recreate the same deterministic 200-record source subset and transform it with the v3 per-record answer-budget policy.
+4. Generate/resume the bounded 200-record v3 checkpoint.
+5. Diagnose, finalize, run fail-closed contamination checks, and mechanically qualify the v3 study.
+6. Scale only if normal stops are >=90%, student-length acceptance is >=85%, and contamination is `clean`.
+7. If v3 qualifies, prepare a fresh **2,000-record v3** experiment rather than reusing the 200-record checkpoint namespace.
+8. Train/evaluate the Qwen3.5-4B student on the qualified 2,000-record corpus.
+9. Generate more than 2,000 records only if the v3 2,000-record adapter improves the frozen base benchmark.
 
 Do not jump directly to the full ~40k corpus.
 
@@ -186,29 +205,10 @@ Do not jump directly to the full ~40k corpus.
 - Reuse the exact same sealed input and repository ZIP when resuming a checkpoint.
 - Recreate `/content/tqc-teacher-venv` after a fresh Colab allocation.
 - Always run teacher scripts with the notebook's `$TQC_PYTHON`.
-- Keep v1, v2-200, v2-2000, and any later experiment in separate checkpoint directories.
+- Keep v1, v2, v3-200, v3-2000, and later experiments in separate checkpoint directories.
 - Never replace a code ZIP after generation has started in the checkpoint namespace it governs.
 - Never edit `run-identity.json`, generated shards, or checksum sidecars.
 - An incomplete/unsealed shard is regenerated automatically.
 - A sealed shard with a bad checksum fails closed as corruption.
 
 There is intentionally no GitHub write workflow in Colab. Development, commits, pushes, and pulls happen outside the disposable GPU runtime.
-
-
-## Bounded v3 per-record answer-budget contract
-
-The 200-record v2 high-reasoning study fixed the v1 runaway-generation problem: all 200 candidates stopped normally and protected-benchmark contamination was clean. Its remaining failure was narrow and specifically student-envelope related: 153/200 records (76.5%) fit the 2,048-token student boundary, below the predeclared 80% floor. Prompt lengths were not the driver; rejected final answers were substantially longer than accepted answers.
-
-v3 therefore keeps the successful v2 teacher/runtime/generation contract fixed and changes only the teacher-only input policy:
-
-- Qwen3.8-27B at the same pinned revision, native BF16, vLLM 0.28.0;
-- reasoning effort remains `high`;
-- sampling parameters, seed, 16-record shard size, 16,384-token context, and 8,192-token teacher generation cap remain unchanged;
-- the same deterministic 200 source records are used for the bounded study;
-- the Qwen3.5-4B canonical tokenizer measures each source prompt before teacher-only policy injection;
-- each record receives `min(1792, 2048 - student_prompt_tokens - 128)` as its approximate final-answer budget;
-- the 128-token reserve protects chat-template boundaries and imperfect token-budget adherence;
-- the 8,192 teacher generation cap is deliberately not reduced because it includes hidden reasoning, while the new budget applies only to the final answer;
-- the dynamic instruction is stripped before Python quality checks, student tokenization, contamination checks, or corpus writing.
-
-The existing formal scale floor remains >=90% normal stops, >=80% student-length acceptance among normal stops, and contamination `clean`. For v3, the notebook uses a stricter **85% student-length scale gate** to provide margin before spending on a fresh 2,000-record run. Do not lower either gate after observing the result.
