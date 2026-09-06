@@ -43,7 +43,7 @@ def _load_humaneval_rows(
     split: str,
     streaming: bool,
 ) -> Iterable[DatasetRow]:
-    from datasets import load_dataset
+    from datasets import load_dataset  # type: ignore[import-untyped]
 
     loaded = load_dataset(
         repository,
