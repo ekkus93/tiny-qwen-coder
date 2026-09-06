@@ -62,12 +62,8 @@ def test_v2_input_policy_preserves_user_and_seed_answer_and_is_sealed(tmp_path: 
 
 
 def test_v2_config_changes_reasoning_effort_without_changing_generation_cap() -> None:
-    v1 = load_teacher_distillation_config(
-        Path("configs/distillation/python/qwen38_27b_v1.yaml")
-    )
-    v2 = load_teacher_distillation_config(
-        Path("configs/distillation/python/qwen38_27b_v2.yaml")
-    )
+    v1 = load_teacher_distillation_config(Path("configs/distillation/python/qwen38_27b_v1.yaml"))
+    v2 = load_teacher_distillation_config(Path("configs/distillation/python/qwen38_27b_v2.yaml"))
 
     assert v1.generation.reasoning_effort == "xhigh"
     assert v2.generation.reasoning_effort == "high"
@@ -133,7 +129,7 @@ def _humaneval_rows() -> tuple[dict[str, object], ...]:
     return tuple(
         {
             "task_id": f"HumanEval/{index}",
-            "prompt": f"def task_{index}():\n    \"\"\"Return {index}.\"\"\"\n",
+            "prompt": f'def task_{index}():\n    """Return {index}."""\n',
             "canonical_solution": f"    return {index}\n",
             "test": f"def check(candidate):\n    assert candidate() == {index}\n",
             "entry_point": f"task_{index}",
