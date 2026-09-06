@@ -116,7 +116,9 @@ def strip_v2_teacher_input_policy(record: NormalizedTrainingRecord) -> Normalize
     elif first.content.endswith(_V2_POLICY_SUFFIX):
         original_system = first.content[: -len(_V2_POLICY_SUFFIX)]
         if not original_system:
-            raise TeacherV2InputError("v2 policy stripping produced an empty original system message")
+            raise TeacherV2InputError(
+                "v2 policy stripping produced an empty original system message"
+            )
         messages[0] = TrainingMessage(role="system", content=original_system)
     else:
         raise TeacherV2InputError("v2 policy metadata does not match the teacher prompt content")
