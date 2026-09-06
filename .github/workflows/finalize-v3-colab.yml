@@ -1,0 +1,133 @@
+name: Finalize v3 Colab runbook
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-24.04
+    env:
+      HF_HUB_OFFLINE: "1"
+      HF_DATASETS_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      TOKENIZERS_PARALLELISM: "false"
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - uses: astral-sh/setup-uv@v7
+      - run: uv sync --frozen
+      - name: Patch v3 notebook and diagnostics wording
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          notebook_path = Path("scripts/teacher_distillation/qwen38_teacher_distillation_v3_colab.ipynb")
+          notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
+
+          for index, cell in enumerate(notebook["cells"]):
+              source = "".join(cell.get("source", []))
+
+              if "def run_teacher(" in source:
+                  source = source.replace(
+                      'os.environ["V1_DIAG_DIR"] = f"{os.environ[\'V1_PILOT_DIR\']}/diagnostics-v3-analysis"\n',
+                      "",
+                  )
+                  source = source.replace('    "V1_DIAG_DIR",\n', "")
+                  start = source.index("def run_teacher(")
+                  end_marker = '\n\nprint("preserved v1 pilot:"'
+                  end = source.index(end_marker, start)
+                  helper = '''def run_teacher(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
+              command = [os.environ["TQC_PYTHON"], "-u", *args]
+              print("$", shlex.join(command), flush=True)
+              with subprocess.Popen(
+                  command,
+                  stdout=subprocess.PIPE,
+                  stderr=subprocess.STDOUT,
+                  text=True,
+                  bufsize=1,
+              ) as process:
+                  if process.stdout is None:
+                      raise RuntimeError("teacher subprocess stdout pipe was not created")
+                  for line in process.stdout:
+                      print(line, end="", flush=True)
+                  returncode = process.wait()
+              result = subprocess.CompletedProcess(command, returncode)
+              if check:
+                  result.check_returncode()
+              return result
+              '''
+                  helper = "\n".join(line[14:] if line.startswith("              ") else line for line in helper.splitlines())
+                  source = source[:start] + helper.rstrip() + source[end:]
+
+              if cell.get("cell_type") == "markdown" and "## 8. Optionally diagnose" in source:
+                  cell["source"] = [
+                      "## 8. Preserve the historical v1 evidence boundary\n",
+                      "\n",
+                      "The v1 checkpoint was created by an older generation-implementation identity.\n",
+                      "Diagnose it only with the frozen v1 repository archive that created it. The v3\n",
+                      "study does not depend on that checkpoint, so this notebook deliberately does not\n",
+                      "open or reinterpret it. Continue to Step 9.\n",
+                  ]
+                  next_cell = notebook["cells"][index + 1]
+                  next_cell["source"] = [
+                      'print("Skipping preserved-v1 checkpoint inspection in the v3 source identity.")\n',
+                      'print("Use the frozen v1 archive separately for historical diagnostics. Continue to Step 9.")\n',
+                  ]
+                  continue
+
+              if cell.get("cell_type") == "markdown" and "## 9. Build and seal" in source:
+                  source = source.replace(
+                      "the teacher-only concise-answer policy is applied and SHA-256 sealed.",
+                      "the teacher-only per-record answer-budget policy is applied and SHA-256 sealed.",
+                  )
+
+              if cell.get("cell_type") == "markdown" and "## 13. Diagnose" in source:
+                  source = source.replace(
+                      "The teacher-only concise policy is stripped before student token counts",
+                      "The teacher-only per-record answer-budget policy is stripped before student token counts",
+                  )
+
+              cell["source"] = source.splitlines(keepends=True)
+
+          notebook_path.write_text(json.dumps(notebook, indent=1) + "\n", encoding="utf-8")
+
+          diagnostics = Path("src/tiny_qwen_coder/distillation/diagnostics.py")
+          text = diagnostics.read_text(encoding="utf-8")
+          text = text.replace(
+              "counters first remove any teacher-only v2 prompt policy so they describe the",
+              "counters first remove any teacher-only prompt policy so they describe the",
+          )
+          diagnostics.write_text(text, encoding="utf-8")
+          PY
+      - name: Normalize
+        run: |
+          uv run --frozen ruff format .
+          uv run --frozen ruff check --fix .
+          uv run --frozen ruff format .
+      - name: Validate full CPU quality gates
+        run: |
+          uv run --frozen ruff format --check .
+          uv run --frozen ruff check .
+          uv run --frozen mypy src scripts tests
+          uv run --frozen pytest
+          git diff --check
+      - name: Commit final runbook and remove helper
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/finalize-v3-colab.yml
+          git add scripts/teacher_distillation/qwen38_teacher_distillation_v3_colab.ipynb \
+                  src/tiny_qwen_coder/distillation/diagnostics.py
+          git commit -m "docs: finalize bounded v3 Colab workflow"
+          git push origin HEAD:master
