@@ -45,7 +45,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git rm .github/workflows/implement-v3-teacher-study.yml
-          git rm .github/scripts/implement_v3_repo_patch.py
+          git rm -f .github/scripts/implement_v3_repo_patch.py
           git add src/tiny_qwen_coder/distillation \
                   scripts/teacher_distillation \
                   configs/distillation/python/qwen38_27b_v3.yaml \
