@@ -1,31 +1,30 @@
 # Qwen3.8-27B teacher distillation
 
-**Start here for generating the new Python training data on Google Colab.**
+**Start here for generating replacement Python training data with Qwen3.8-27B on Google Colab.**
 
-The easiest and canonical way to run this workflow is the executable notebook:
+There are now two executable notebooks:
 
-- [`qwen38_teacher_distillation_colab.ipynb`](qwen38_teacher_distillation_colab.ipynb)
+- [`qwen38_teacher_distillation_colab.ipynb`](qwen38_teacher_distillation_colab.ipynb) — preserved v1 workflow and historical 16/500/2,000 progression.
+- [`qwen38_teacher_distillation_v2_colab.ipynb`](qwen38_teacher_distillation_v2_colab.ipynb) — current bounded v2 successor study after the v1 2,000-candidate diagnosis.
 
-Open that notebook in Google Colab, select an **A100 80 GB** runtime, and run it from
-the beginning. The notebook is the executable source of truth for environment setup,
-Drive paths, smoke testing, resumable generation, and finalization.
-
-Google Colab is only a disposable GPU worker. It does **not** need GitHub credentials,
-SSH keys, `git clone`, `git pull`, or `git push`. Upload a frozen ZIP of the repository
-to Google Drive and run that exact archive on every Colab allocation.
+For new work after the v1 pilot, use the **v2 notebook**. Select an **A100 80 GB** runtime. Colab is only a disposable GPU worker: it does not need GitHub credentials, SSH keys, `git clone`, `git pull`, or `git push`.
 
 ## Directory contents
 
 | File | Purpose |
 | --- | --- |
-| `qwen38_teacher_distillation_colab.ipynb` | Canonical executable Google Colab workflow. |
+| `qwen38_teacher_distillation_colab.ipynb` | Preserved v1 executable Colab workflow. |
+| `qwen38_teacher_distillation_v2_colab.ipynb` | Current bounded v2 diagnostic/generation/qualification workflow. |
 | `prepare_teacher_input.py` | Build and SHA-256 seal the canonical prompt-only teacher input. |
-| `select_teacher_input.py` | Create deterministic source-stratified 16/500/2,000-record pilot inputs. |
+| `select_teacher_input.py` | Create deterministic source-stratified subsets. |
+| `prepare_teacher_v2_input.py` | Add and SHA-256 bind the teacher-only concise-answer v2 policy. |
 | `generate_teacher_data.py` | Run resumable Qwen3.8 generation with durable Google Drive checkpoints. |
-| `finalize_teacher_data.py` | Validate/filter completed shards and emit the Qwen3.5-4B training corpus and manifest. |
-| `README.md` | Architecture, experiment contract, and recovery notes. |
+| `diagnose_teacher_data.py` | Measure teacher/runtime and student-tokenizer length behavior without persisting hidden reasoning. |
+| `finalize_teacher_data.py` | Filter, contamination-check, and emit the Qwen3.5-4B training corpus. |
+| `qualify_teacher_study.py` | Mechanically decide whether the bounded v2 study may scale. |
+| `README.md` | Architecture, experiment contract, recovery, and scaling rules. |
 
-## Frozen v1 contract
+## Preserved v1 contract
 
 - Teacher: `Qwen/Qwen3.8-27B`
 - Teacher revision: `72a217afab8029b39e4af1c7273a829995a3dbaf`
@@ -35,7 +34,7 @@ to Google Drive and run that exact archive on every Colab allocation.
 - Thinking: enabled
 - Reasoning effort: `xhigh`
 - Preserved historical thinking: disabled
-- Sampling: Qwen's recommended thinking-mode values
+- Sampling: Qwen thinking-mode values already frozen in the v1 config
 - Maximum model context: 16,384 tokens
 - Maximum generated completion: 8,192 tokens
 - Generation seed: 1729 plus the canonical input-record index
@@ -43,27 +42,85 @@ to Google Drive and run that exact archive on every Colab allocation.
 - Student: unchanged `Qwen/Qwen3.5-4B`
 - Student preparation boundary: 2,048 tokens with reject-on-overlength
 
-The original P0 assistant response is never sent to the teacher. Only the system/user
-prompt prefix is sent. The teacher's `<think>...</think>` content is not written to
-the training corpus or checkpoint JSONL. Checkpoints retain only its SHA-256 digest
-and character count for bounded audit evidence.
+The original source assistant response is never sent to the teacher. The teacher's `<think>...</think>` content is not written to checkpoint JSONL or the training corpus; checkpoints retain only a digest and character count for bounded audit evidence.
+
+## What the v1 2,000-candidate run taught us
+
+The first native-BF16 v1 2,000-candidate run is preserved as scientific evidence, but it is **not** the canonical 2,000-record learning experiment:
+
+- 2,000 durable teacher candidates were produced;
+- 1,297 ended with `finish_reason=length`;
+- only 703 reached a normal `stop`;
+- of those 703, another 361 exceeded the student's 2,048-token full-record boundary; and
+- only 342 unique records survived final preparation.
+
+The failure mode is therefore dominated by generation length and student-envelope mismatch. Generating more v1 samples would mostly spend GPU time producing records we already know are unlikely to survive.
+
+## Bounded v2 successor contract
+
+`configs/distillation/python/qwen38_27b_v2.yaml` intentionally keeps the expensive/runtime variables fixed and changes only the generation policy implicated by the v1 evidence:
+
+- same pinned Qwen3.8-27B teacher and revision;
+- same native BF16 weights;
+- same vLLM 0.28.0 runtime;
+- same 16,384-token model context;
+- same 8,192-token generation cap;
+- same sampling parameters, seed, and durable shard size;
+- reasoning effort reduced from `xhigh` to **`medium`**; and
+- a deterministic teacher-only concise-answer instruction is injected by `prepare_teacher_v2_input.py`.
+
+The v2 instruction asks the teacher to solve the user's task completely while keeping the final answer concise enough for the Qwen3.5-4B 2,048-token full-conversation envelope. The original user request is not rewritten.
+
+The teacher-only instruction is **not student training data**. It is removed again before Python quality checking, student tokenization, contamination checking, final corpus writing, and student-length qualification. Its policy ID and SHA-256 remain only as provenance metadata.
+
+## v2 qualification study
+
+Do **not** jump directly to another 2,000-record generation. The first v2 generation is a deterministic **200-record bounded study** using a new checkpoint namespace.
+
+After generation, `diagnose_teacher_data.py` records per-record and aggregate evidence for:
+
+- teacher prompt tokens;
+- teacher completion tokens;
+- retained reasoning character count (never reasoning text);
+- teacher final-answer tokens;
+- student prompt tokens after stripping the teacher-only policy;
+- student final-answer tokens;
+- student full-record tokens;
+- finish reason; and
+- whether the student record fits the 2,048-token boundary.
+
+The study may scale only when `qualify_teacher_study.py` proves all three gates:
+
+1. normal-stop rate is at least **0.90**;
+2. student-length acceptance among normal-stop records is at least **0.80**; and
+3. protected-benchmark contamination status is **`clean`**.
+
+A failed gate means revise the policy and run another bounded study. It is not permission to compensate by blindly generating more samples.
+
+## Protected benchmark contamination is fail-closed
+
+Teacher generation never uses protected benchmarks as input. Finalization loads protected examples only after generation and runs the existing exact/high-overlap contamination checker against the retained training corpus.
+
+For Python, coverage must include every registered protected benchmark:
+
+- HumanEval prompts and canonical solutions;
+- MBPP prompts and canonical solutions; and
+- the repository-owned holdout prompts.
+
+Benchmark text is used only in memory by the checker and is not copied into the distilled corpus or manifest. Finalization refuses to write a training corpus if contamination checks did not run or if any finding is present.
 
 ## Colab runtime isolation
 
-Do not use Colab's preinstalled PyTorch/TorchAudio environment for teacher inference.
-Colab images can contain packages built against different CUDA versions.
+Do not use Colab's preinstalled PyTorch/TorchAudio environment for teacher inference. Colab images can contain packages built against different CUDA versions.
 
-The notebook therefore:
+The notebooks therefore:
 
-1. installs/updates `uv`;
-2. creates `/content/tqc-teacher-venv` with `uv venv`;
-3. installs `ninja==1.13.2`, `vllm==0.28.0`, and this repository with
-   `uv pip install --torch-backend=cu130`;
-4. lets vLLM own its compatible PyTorch constraint while uv selects the CUDA 13.0
-   wheel backend;
-5. prepends the uv environment `bin/` directory to `PATH` so FlashInfer JIT builds
-   can find Ninja; and
-6. runs all teacher scripts through `/content/tqc-teacher-venv/bin/python`.
+1. install/update `uv`;
+2. create `/content/tqc-teacher-venv` with `uv venv`;
+3. install `ninja==1.13.2`, `vllm==0.28.0`, and this repository with `uv pip install --torch-backend=cu130`;
+4. let vLLM own its compatible PyTorch constraint while uv selects the CUDA 13.0 wheel backend;
+5. prepend the uv environment `bin/` directory to `PATH` so FlashInfer JIT builds can find Ninja; and
+6. run teacher scripts through `/content/tqc-teacher-venv/bin/python`.
 
 `requirements/colab-teacher.txt` pins the required top-level runtime tools:
 
@@ -72,93 +129,63 @@ ninja==1.13.2
 vllm==0.28.0
 ```
 
-Do not manually add PyTorch/TorchAudio/TorchVision CUDA pins. The vLLM wheel and uv
-backend selection should resolve the compatible CUDA stack together.
+Do not manually add PyTorch/TorchAudio/TorchVision CUDA pins.
 
-The NVIDIA driver and the isolated PyTorch runtime should both report CUDA 13.0.
+## Frozen repository ZIPs
 
-## Frozen repository ZIP
-
-Before opening Colab, make or download a ZIP containing the exact repository version
-you want to run. The ZIP does not need a `.git` directory. After extraction, the notebook
-creates a deterministic local Git commit solely for source-tree provenance. No remote is
-configured, and this does not require GitHub credentials or network Git operations.
-
-Place it at:
+The v1 and v2 runs must not silently share mutable source archives. Keep the preserved v1 archive untouched and give the successor code a new filename, for example:
 
 ```text
 MyDrive/
 └── tiny-qwen-coder/
     └── code/
-        └── tiny-qwen-coder.zip
+        ├── tiny-qwen-coder.zip
+        ├── tiny-qwen-coder.zip.sha256
+        ├── tiny-qwen-coder-v2.zip
+        └── tiny-qwen-coder-v2.zip.sha256
 ```
 
-The notebook creates and verifies:
+The v2 notebook expects `tiny-qwen-coder-v2.zip`. On first use it seals the exact ZIP bytes with the adjacent `.sha256` file; later runs must match that checksum.
 
-```text
-MyDrive/tiny-qwen-coder/code/tiny-qwen-coder.zip.sha256
-```
+GitHub source ZIPs contain no `.git` directory. After extraction, the notebook creates a deterministic local Git commit solely so generic dataset-manifest provenance can record an exact source-tree identity. No remote is configured and no GitHub credentials are required.
 
-Once a real generation run has started, do not overwrite that ZIP with newer code.
-A different code version should use a new archive and new checkpoint directories.
+## Why the preserved v1 checkpoint remains readable
 
-## Recommended progression
+Durable generation shards bind only the exact source of:
 
-1. **16 records** — prove model loading, runtime compatibility, checkpointing, and resume.
-2. **500 records** — inspect teacher output and finalization rejection rates.
-3. **2,000 records** — perform the first real Qwen3.5-4B learning experiment.
-4. Generate more only if the 2,000-record adapter improves the frozen base benchmark.
+- `generation.py`;
+- `config.py`; and
+- `vllm_backend.py`;
+
+plus the semantic distillation config, input SHA-256, record identity, prompt identity, and shard checksum.
+
+The v2 diagnostic/finalization work deliberately did not change those three v1 generation-identity source files. The preserved v1 checkpoint can therefore be inspected by the new diagnostic tooling without rewriting or weakening its run identity.
+
+Never edit `run-identity.json`, shard payloads, or checksum sidecars to force compatibility.
+
+## Current recommended progression
+
+1. Preserve the completed v1 2,000-candidate checkpoint as evidence.
+2. Run the v2 notebook's v1 diagnostic cell to record the failure distribution with the new tooling.
+3. Generate the deterministic 200-record v2 study in a fresh checkpoint directory.
+4. Diagnose, finalize, run contamination checks, and mechanically qualify the 200 records.
+5. Only if all qualification gates pass, generate a fresh **2,000-record v2** experiment.
+6. Train/evaluate the Qwen3.5-4B student on that qualified corpus.
+7. Generate more than 2,000 records only if the v2 2,000-record adapter improves the frozen base benchmark.
 
 Do not jump directly to the full ~40k corpus.
-
-## Why checkpoints are safe to resume
-
-Every durable shard is bound to all of the following:
-
-1. the semantic distillation-config SHA-256, including pinned inference-package versions;
-2. the SHA-256 of the generator/config/backend source implementation;
-3. the byte-level SHA-256 of the complete input JSONL;
-4. the exact source-record index and normalized record fingerprint;
-5. the exact prompt fingerprint;
-6. the pinned teacher repository and revision; and
-7. a SHA-256 sidecar for the completed shard itself.
-
-The repository ZIP is also SHA-256 sealed on Google Drive. A new Colab allocation
-must use the same ZIP bytes before resuming an existing run.
-
-A shard is generated into local Colab scratch first. Only after it is complete is it
-copied to Drive with its checksum sidecar. The Drive copy is then read back and
-validated before progress advances. A killed runtime can therefore lose at most the
-currently unsealed 16-record shard. Re-running the same command verifies and skips
-every already sealed shard.
-
-`run-identity.json` deliberately binds the requested record count. Never reuse a
-smoke-run checkpoint directory for a larger run.
 
 ## Recovery rules
 
 - Treat `/content` as disposable and Google Drive as durable.
-- Keep the frozen repository ZIP and its `.sha256` sidecar on Drive.
-- Reuse the exact same sealed input and exact same repository ZIP on resume.
-- Recreate `/content/tqc-teacher-venv` by rerunning notebook Step 5 after a fresh Colab allocation.
-- Always run teacher scripts with the notebook's `$TQC_PYTHON`, never Colab's system `python`.
-- Keep 16/500/2,000/full experiments in separate checkpoint directories.
-- Never edit `run-identity.json`, generated shards, or checksum sidecars to force progress.
-- An uncommitted shard left by a killed runtime is regenerated automatically.
-- A sealed shard whose checksum is wrong fails closed as corruption.
-- Do not start the full corpus until the bounded 2,000-record experiment shows that the distilled data actually improves the student.
+- Keep each frozen repository ZIP and its `.sha256` sidecar on Drive.
+- Reuse the exact same sealed input and repository ZIP when resuming a checkpoint.
+- Recreate `/content/tqc-teacher-venv` after a fresh Colab allocation.
+- Always run teacher scripts with the notebook's `$TQC_PYTHON`.
+- Keep v1, v2-200, v2-2000, and any later experiment in separate checkpoint directories.
+- Never replace a code ZIP after generation has started in the checkpoint namespace it governs.
+- Never edit `run-identity.json`, generated shards, or checksum sidecars.
+- An incomplete/unsealed shard is regenerated automatically.
+- A sealed shard with a bad checksum fails closed as corruption.
 
-There is intentionally no GitHub write workflow in Colab. Development, commits,
-pushes, and pulls happen on the normal development machine.
-
-## What v1 does and does not prove
-
-This v1 corpus uses a substantially stronger teacher and deterministic,
-preemption-safe provenance. It filters truncation, malformed content, obvious Python
-syntax/Python-2 failures, overlength records, and exact duplicates.
-
-It does **not** claim semantic execution verification for every Magicoder/OLMo prompt
-because those source prompts do not uniformly provide an executable reference-test
-oracle. Teacher output is therefore *distilled*, not *mechanically verified*. The
-frozen downstream benchmark remains the decisive measurement of whether the new
-corpus improves the student.
+There is intentionally no GitHub write workflow in Colab. Development, commits, pushes, and pulls happen outside the disposable GPU runtime.
