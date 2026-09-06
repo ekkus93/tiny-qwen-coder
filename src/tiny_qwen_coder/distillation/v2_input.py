@@ -92,8 +92,7 @@ def write_v2_teacher_input(
         raise TeacherV2InputError("v2 teacher input source is empty")
     transformed = tuple(apply_v2_teacher_input_policy(record) for record in records)
     content = "".join(
-        json.dumps(asdict(record), sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-        + "\n"
+        json.dumps(asdict(record), sort_keys=True, separators=(",", ":"), ensure_ascii=False) + "\n"
         for record in transformed
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
