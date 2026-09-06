@@ -43,7 +43,7 @@ def _load_humaneval_rows(
     split: str,
     streaming: bool,
 ) -> Iterable[DatasetRow]:
-    from datasets import load_dataset  # type: ignore[import-untyped]
+    from datasets import load_dataset
 
     loaded = load_dataset(
         repository,
@@ -62,7 +62,7 @@ def _load_mbpp_rows(
     split: str,
     streaming: bool,
 ) -> Iterable[DatasetRow]:
-    from datasets import load_dataset  # type: ignore[import-untyped]
+    from datasets import load_dataset
 
     loaded = load_dataset(
         repository,
