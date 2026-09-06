@@ -103,14 +103,14 @@ for cell in notebook["cells"]:
     source = "".join(cell.get("source", []))
     source = source.replace(">=80%", ">=85%").replace("≥80%", "≥85%")
     if "scripts/teacher_distillation/qualify_teacher_study.py" in source:
-        marker = '        "--output",\n'
+        marker = '    "--output",\n'
         if "--minimum-student-length-accept-rate-given-stop" not in source:
             if marker not in source:
                 raise RuntimeError("v3 qualification insertion marker missing")
             source = source.replace(
                 marker,
-                '        "--minimum-student-length-accept-rate-given-stop",\n'
-                '        "0.85",\n'
+                '    "--minimum-student-length-accept-rate-given-stop",\n'
+                '    "0.85",\n'
                 + marker,
             )
     cell["source"] = source.splitlines(keepends=True)
