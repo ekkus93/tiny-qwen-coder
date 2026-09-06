@@ -47,9 +47,9 @@ jobs:
                   script_lines.append(line)
           script = "\n".join(script_lines) + "\n"
 
-          # Custom cells are already parsed when code(...) constructs them. The
-          # inherited, previously validated v1 setup deliberately contains Colab
-          # shell magics such as !nvidia-smi, which Python's ast module cannot parse.
+          # Custom cells are parsed by code(...) as they are constructed. The
+          # inherited, already validated v1 setup contains Colab shell magics,
+          # which Python's ast module intentionally cannot parse.
           marker_start = "# Fail the helper before writing malformed notebook code.\n"
           marker_end = "notebook = {\n"
           before, separator, remainder = script.partition(marker_start)
@@ -62,8 +62,11 @@ jobs:
 
           exec(compile(script, str(helper), "exec"), {"__name__": "__main__"})
           PY
-      - name: Format repository
-        run: uv run --frozen ruff format .
+      - name: Normalize generated notebook
+        run: |
+          NOTEBOOK=scripts/teacher_distillation/qwen38_teacher_distillation_v2_colab.ipynb
+          uv run --frozen ruff check --fix "$NOTEBOOK"
+          uv run --frozen ruff format "$NOTEBOOK"
       - name: Validate dedicated notebook
         run: |
           python - <<'PY'
