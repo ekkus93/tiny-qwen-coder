@@ -104,21 +104,21 @@ def test_v4_config_changes_only_reasoning_effort_from_v3_generation_contract() -
 
 def test_v4_selects_only_normal_stop_student_overlength_budget_violations() -> None:
     tokenizer = _FakeTokenizer()
-    long = _v3_distilled(answer_words=2000)
+    long = _v3_distilled(answer_words=2200)
     short = _v3_distilled(answer_words=100)
 
     targets = select_v4_compression_targets((long, short), student_tokenizer=tokenizer)
 
     assert len(targets) == 1
     assert targets[0].input_index == 0
-    assert targets[0].original_answer_tokens == 2000
+    assert targets[0].original_answer_tokens == 2200
     assert targets[0].original_full_record_tokens > 2048
     assert targets[0].original_answer_tokens > targets[0].answer_budget_tokens
 
 
 def test_v4_merge_replaces_only_target_and_clears_active_v3_policy(tmp_path: Path) -> None:
     tokenizer = _FakeTokenizer()
-    source = _v3_distilled(answer_words=2000)
+    source = _v3_distilled(answer_words=2200)
     checkpoint = tmp_path / "checkpoint"
     shards = checkpoint / "shards"
     shards.mkdir(parents=True)
@@ -132,8 +132,8 @@ def test_v4_merge_replaces_only_target_and_clears_active_v3_policy(tmp_path: Pat
         source_record_sha256="e" * 64,
         source_final_response_sha256="f" * 64,
         target_answer_budget_tokens=1792,
-        original_answer_tokens=2000,
-        original_full_record_tokens=2050,
+        original_answer_tokens=2200,
+        original_full_record_tokens=2210,
         compression_prompt_sha256="1" * 64,
         seed=1729,
         compressed_response=compressed,
@@ -144,7 +144,7 @@ def test_v4_merge_replaces_only_target_and_clears_active_v3_policy(tmp_path: Pat
         prompt_tokens=300,
         completion_tokens=200,
         compressed_answer_tokens=200,
-        compressed_full_record_tokens=220,
+        compressed_full_record_tokens=210,
     )
     (shards / "shard-000000.jsonl").write_text(
         json.dumps(asdict(row), sort_keys=True) + "\n",
