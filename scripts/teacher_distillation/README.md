@@ -29,7 +29,7 @@ For unrelated future bounded teacher-data experiments, the preserved v4 notebook
 | `qwen38_teacher_distillation_v4_2000_salvage_colab.ipynb` | Current executable repair workflow for the affected completed v4-2000 generation evidence. |
 | `build_v4_colab_notebook.py` | Deterministically rebuild the bounded v4 notebook from stdlib-only source. |
 | `build_v4_2000_colab_notebook.py` | Deterministically rebuild the preserved first v4-2000 successor notebook. |
-| `build_v4_2000_salvage_colab_notebook.py` | Deterministically rebuild the v4-2000 salvage notebook. |
+| `build_v4_2000_salvage_colab_notebook.py` | Deterministically rebuild and repository-Ruff-canonicalize the v4-2000 salvage notebook. |
 | `prepare_teacher_input.py` | Build and SHA-256 seal the canonical prompt-only teacher input. |
 | `select_teacher_input.py` | Create deterministic source-stratified subsets. |
 | `prepare_teacher_v2_input.py` | Add and SHA-256 bind the teacher-only concise-answer v2 policy. |
