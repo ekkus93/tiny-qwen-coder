@@ -94,6 +94,20 @@ The original remains untouched at:
 MyDrive/tiny-qwen-coder/distillation/qwen38-27b-v4-2000/
 ```
 
+## Executable salvage runbook
+
+The canonical executable repair workflow is:
+
+[`scripts/teacher_distillation/qwen38_teacher_distillation_v4_2000_salvage_colab.ipynb`](../scripts/teacher_distillation/qwen38_teacher_distillation_v4_2000_salvage_colab.ipynb)
+
+Direct Colab link:
+
+https://colab.research.google.com/github/ekkus93/tiny-qwen-coder/blob/master/scripts/teacher_distillation/qwen38_teacher_distillation_v4_2000_salvage_colab.ipynb
+
+Do not run the preserved ordinary v4 notebook against the affected 2,000-record evidence. For this run, the salvage notebook is authoritative. It validates the frozen legacy generation checkpoint, writes the sanitized first-pass corpus into the fresh salvage namespace, recomputes the selective-compression target set, generates only missing fresh compression shards, diagnoses and finalizes the repaired corpus, and runs the final qualification and reasoning-marker audit.
+
+Use a fresh A100 80 GB Colab runtime only after the repository revision containing the salvage notebook has passed the ordinary CPU quality gates. Freeze that exact repository ZIP under the filename expected by the notebook and keep its adjacent SHA-256 sidecar unchanged for all resumes of the salvage namespace.
+
 ## Acceptance criteria
 
 The repaired merged corpus must again pass all of the following before training:
