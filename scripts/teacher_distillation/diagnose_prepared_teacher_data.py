@@ -9,7 +9,10 @@ from pathlib import Path
 from tiny_qwen_coder.data.length_filtering import load_canonical_tokenizer
 from tiny_qwen_coder.data.loading import load_normalized_training_records_jsonl
 from tiny_qwen_coder.distillation.config import load_teacher_distillation_config
-from tiny_qwen_coder.distillation.diagnostics import diagnose_teacher_records, write_teacher_diagnostics
+from tiny_qwen_coder.distillation.diagnostics import (
+    diagnose_teacher_records,
+    write_teacher_diagnostics,
+)
 from tiny_qwen_coder.model.inspection import load_inspection_target
 
 
@@ -42,7 +45,10 @@ def main() -> None:
     )
     for record in records:
         metadata = dict(record.provenance.source_metadata)
-        if "distillation.input_policy" in metadata or "distillation.input_policy_sha256" in metadata:
+        if (
+            "distillation.input_policy" in metadata
+            or "distillation.input_policy_sha256" in metadata
+        ):
             raise RuntimeError(
                 "prepared teacher records still contain an active teacher-only input policy"
             )
