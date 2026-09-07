@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""Selectively compress v3 overlength answers into a durable v4 checkpoint."""
+"""Selectively compress overlength answers into a durable v4 checkpoint."""
 
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 from pathlib import Path
 
 from tiny_qwen_coder.data.length_filtering import load_canonical_tokenizer
+from tiny_qwen_coder.data.loading import load_normalized_training_records_jsonl
 from tiny_qwen_coder.distillation.config import load_teacher_distillation_config
 from tiny_qwen_coder.distillation.generation import load_completed_distilled_records
 from tiny_qwen_coder.distillation.v4_compression import (
@@ -25,8 +28,27 @@ def _parse_args() -> argparse.Namespace:
         type=Path,
         default=Path("configs/distillation/python/qwen38_27b_v3.yaml"),
     )
-    parser.add_argument("--source-input", type=Path, required=True)
-    parser.add_argument("--source-checkpoint-dir", type=Path, required=True)
+    parser.add_argument(
+        "--source-input",
+        type=Path,
+        default=None,
+        help="Original v3 input used with --source-checkpoint-dir.",
+    )
+    parser.add_argument(
+        "--source-records",
+        type=Path,
+        default=None,
+        help="Already reconstructed v3-shaped source JSONL, such as a sanitized salvage output.",
+    )
+    parser.add_argument(
+        "--source-checkpoint-dir",
+        type=Path,
+        required=True,
+        help=(
+            "Source identity directory. For a generation checkpoint this is its checkpoint root; "
+            "for salvaged records this is the salvage identity directory containing run-identity.json."
+        ),
+    )
     parser.add_argument(
         "--compression-config",
         type=Path,
@@ -45,18 +67,72 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _load_salvaged_records(
+    *,
+    source_records_path: Path,
+    source_identity_dir: Path,
+    language: str,
+):  # type: ignore[no-untyped-def]
+    identity_path = source_identity_dir / "run-identity.json"
+    if not identity_path.is_file():
+        raise RuntimeError(f"salvaged source identity is missing: {identity_path}")
+    raw: object = json.loads(identity_path.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        raise RuntimeError("salvaged source identity must be a mapping")
+    expected_sha = raw.get("output_sha256")
+    expected_records = raw.get("total_records")
+    if not isinstance(expected_sha, str) or not expected_sha:
+        raise RuntimeError("salvaged source identity has no output_sha256")
+    if isinstance(expected_records, bool) or not isinstance(expected_records, int):
+        raise RuntimeError("salvaged source identity has no valid total_records")
+    actual_sha = _file_sha256(source_records_path)
+    if actual_sha != expected_sha:
+        raise RuntimeError(
+            "salvaged source JSONL does not match its frozen source identity: "
+            f"expected={expected_sha}, actual={actual_sha}"
+        )
+    records = load_normalized_training_records_jsonl(
+        source_records_path,
+        expected_language=language,
+    )
+    if len(records) != expected_records:
+        raise RuntimeError(
+            "salvaged source record count does not match its frozen source identity"
+        )
+    return records
+
+
 def main() -> None:
     args = _parse_args()
     source_config = load_teacher_distillation_config(args.source_config)
     compression_config = load_teacher_distillation_config(args.compression_config)
     if source_config.language != compression_config.language:
         raise RuntimeError("source and compression configs must use the same language")
+    if (args.source_input is None) == (args.source_records is None):
+        raise RuntimeError("provide exactly one of --source-input or --source-records")
 
-    source_records = load_completed_distilled_records(
-        source_config,
-        checkpoint_dir=args.source_checkpoint_dir,
-        input_path=args.source_input,
-    )
+    if args.source_records is not None:
+        source_records = _load_salvaged_records(
+            source_records_path=args.source_records,
+            source_identity_dir=args.source_checkpoint_dir,
+            language=source_config.language,
+        )
+    else:
+        assert args.source_input is not None
+        source_records = load_completed_distilled_records(
+            source_config,
+            checkpoint_dir=args.source_checkpoint_dir,
+            input_path=args.source_input,
+        )
+
     target = load_inspection_target(args.base_config)
     student_tokenizer = load_canonical_tokenizer(
         target,
