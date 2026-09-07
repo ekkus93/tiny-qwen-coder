@@ -10,6 +10,7 @@ from pathlib import Path
 
 from tiny_qwen_coder.data.length_filtering import load_canonical_tokenizer
 from tiny_qwen_coder.data.loading import load_normalized_training_records_jsonl
+from tiny_qwen_coder.data.records import NormalizedTrainingRecord
 from tiny_qwen_coder.distillation.config import load_teacher_distillation_config
 from tiny_qwen_coder.distillation.generation import load_completed_distilled_records
 from tiny_qwen_coder.distillation.v4_compression import (
@@ -80,7 +81,7 @@ def _load_salvaged_records(
     source_records_path: Path,
     source_identity_dir: Path,
     language: str,
-):  # type: ignore[no-untyped-def]
+) -> tuple[NormalizedTrainingRecord, ...]:
     identity_path = source_identity_dir / "run-identity.json"
     if not identity_path.is_file():
         raise RuntimeError(f"salvaged source identity is missing: {identity_path}")
