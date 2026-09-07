@@ -18,6 +18,7 @@ from tiny_qwen_coder.distillation.finalize import (
     _atomic_write_text,
     _prefilter_candidates,
     _require_clean_contamination,
+    _require_no_reasoning_markers,
     _summary,
     _write_records,
 )
@@ -65,6 +66,7 @@ def finalize_prepared_teacher_records(
             raise TeacherFinalizationError(
                 "prepared teacher corpus still contains an active teacher-only input policy"
             )
+    _require_no_reasoning_markers(records)
 
     prefiltered, finish_rejections, quality_rejections = _prefilter_candidates(records)
     if len(prefiltered) < 2:
