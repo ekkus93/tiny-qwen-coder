@@ -35,6 +35,52 @@ jobs:
       - name: Sync frozen environment
         run: uv sync --frozen
 
+      - name: Repair strict v4 shard-row parsing
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/tiny_qwen_coder/distillation/v4_compression.py")
+          text = path.read_text(encoding="utf-8")
+          marker = '''def _student_with_answer(
+              source: NormalizedTrainingRecord,
+              answer: str,
+          ) -> NormalizedTrainingRecord:
+          '''
+          helper = '''def _row_int(row: dict[str, object], key: str) -> int:
+              value = row.get(key)
+              if isinstance(value, bool) or not isinstance(value, int):
+                  raise TeacherV4CompressionError(
+                      f"compression row field {key!r} must be an integer"
+                  )
+              return value
+
+
+          '''
+          if "def _row_int(" not in text:
+              if marker not in text:
+                  raise SystemExit("could not locate v4 row parser insertion point")
+              text = text.replace(marker, helper + marker, 1)
+
+          replacements = {
+              'budget = int(row["target_answer_budget_tokens"])':
+                  'budget = _row_int(row, "target_answer_budget_tokens")',
+              'compressed_answer_tokens = int(row["compressed_answer_tokens"])':
+                  'compressed_answer_tokens = _row_int(row, "compressed_answer_tokens")',
+              'compressed_full_tokens = int(row["compressed_full_record_tokens"])':
+                  'compressed_full_tokens = _row_int(row, "compressed_full_record_tokens")',
+              'ratio = compressed_answer_tokens / max(1, int(row["original_answer_tokens"]))':
+                  'ratio = compressed_answer_tokens / max(1, _row_int(row, "original_answer_tokens"))',
+          }
+          for old, new in replacements.items():
+              if old in text:
+                  text = text.replace(old, new)
+              elif new not in text:
+                  raise SystemExit(f"could not locate expected v4 expression: {old}")
+
+          path.write_text(text, encoding="utf-8")
+          PY
+
       - name: Build v4 notebook
         run: uv run --frozen python scripts/teacher_distillation/build_v4_colab_notebook.py
 
