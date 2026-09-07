@@ -1,17 +1,21 @@
 # Qwen3.8-27B teacher distillation
 
-**Start here for generating replacement Python training data with Qwen3.8-27B on Google Colab.**
+**Start here for generating or repairing replacement Python training data with Qwen3.8-27B on Google Colab.**
 
-There are now four executable notebooks:
+There are now six executable notebooks:
 
 - [`qwen38_teacher_distillation_colab.ipynb`](qwen38_teacher_distillation_colab.ipynb) — preserved v1 workflow and historical 16/500/2,000 progression.
 - [`qwen38_teacher_distillation_v2_colab.ipynb`](qwen38_teacher_distillation_v2_colab.ipynb) — preserved bounded v2 high-reasoning study.
 - [`qwen38_teacher_distillation_v3_colab.ipynb`](qwen38_teacher_distillation_v3_colab.ipynb) — preserved bounded v3 per-record answer-budget study.
-- [`qwen38_teacher_distillation_v4_colab.ipynb`](qwen38_teacher_distillation_v4_colab.ipynb) — current bounded v4 selective-compression study.
+- [`qwen38_teacher_distillation_v4_colab.ipynb`](qwen38_teacher_distillation_v4_colab.ipynb) — preserved bounded v4 selective-compression study.
+- [`qwen38_teacher_distillation_v4_2000_colab.ipynb`](qwen38_teacher_distillation_v4_2000_colab.ipynb) — preserved first v4-2000 successor runbook; its completed output is affected by the reasoning-leak parser defect and must not be used for training.
+- [`qwen38_teacher_distillation_v4_2000_salvage_colab.ipynb`](qwen38_teacher_distillation_v4_2000_salvage_colab.ipynb) — **current authoritative repair workflow for the completed v4-2000 evidence**.
 
-**Open the current v4 workflow in Colab:** [qwen38_teacher_distillation_v4_colab.ipynb](https://colab.research.google.com/github/ekkus93/tiny-qwen-coder/blob/master/scripts/teacher_distillation/qwen38_teacher_distillation_v4_colab.ipynb)
+**Open the current v4-2000 salvage workflow in Colab:** [qwen38_teacher_distillation_v4_2000_salvage_colab.ipynb](https://colab.research.google.com/github/ekkus93/tiny-qwen-coder/blob/master/scripts/teacher_distillation/qwen38_teacher_distillation_v4_2000_salvage_colab.ipynb)
 
-For new teacher-data work, use the **v4 notebook**. Select an **A100 80 GB** runtime. Colab is only a disposable GPU worker: it does not need GitHub credentials, SSH keys, `git clone`, `git pull`, or `git push`.
+For the already completed `qwen38-27b-v4-2000` run, use the **salvage notebook only**. Do not rerun the ordinary v4-2000 notebook against that affected evidence and do not train from its old `final/` directory. Select an **A100 80 GB** runtime. Colab is only a disposable GPU worker: it does not need GitHub credentials, SSH keys, `git clone`, `git pull`, or `git push`.
+
+For unrelated future bounded teacher-data experiments, the preserved v4 notebook remains the reference selective-compression design, but every new experiment must use a fresh immutable repository ZIP and fresh checkpoint namespace.
 
 ## Directory contents
 
@@ -20,19 +24,24 @@ For new teacher-data work, use the **v4 notebook**. Select an **A100 80 GB** run
 | `qwen38_teacher_distillation_colab.ipynb` | Preserved v1 executable Colab workflow. |
 | `qwen38_teacher_distillation_v2_colab.ipynb` | Preserved bounded v2 high-reasoning study. |
 | `qwen38_teacher_distillation_v3_colab.ipynb` | Preserved bounded v3 per-record answer-budget study. |
-| `qwen38_teacher_distillation_v4_colab.ipynb` | Current bounded v4 selective-compression study. |
-| `build_v4_colab_notebook.py` | Deterministically rebuild the v4 notebook from stdlib-only source. |
+| `qwen38_teacher_distillation_v4_colab.ipynb` | Preserved bounded v4 selective-compression study. |
+| `qwen38_teacher_distillation_v4_2000_colab.ipynb` | Preserved first v4-2000 successor runbook; affected completed output is frozen evidence only. |
+| `qwen38_teacher_distillation_v4_2000_salvage_colab.ipynb` | Current executable repair workflow for the affected completed v4-2000 generation evidence. |
+| `build_v4_colab_notebook.py` | Deterministically rebuild the bounded v4 notebook from stdlib-only source. |
+| `build_v4_2000_colab_notebook.py` | Deterministically rebuild the preserved first v4-2000 successor notebook. |
+| `build_v4_2000_salvage_colab_notebook.py` | Deterministically rebuild the v4-2000 salvage notebook. |
 | `prepare_teacher_input.py` | Build and SHA-256 seal the canonical prompt-only teacher input. |
 | `select_teacher_input.py` | Create deterministic source-stratified subsets. |
 | `prepare_teacher_v2_input.py` | Add and SHA-256 bind the teacher-only concise-answer v2 policy. |
 | `prepare_teacher_v3_input.py` | Compute, inject, and SHA-256 bind the canonical Qwen3.5-4B per-record final-answer budget. |
 | `generate_teacher_data.py` | Run resumable first-pass Qwen3.8 generation with durable Google Drive checkpoints. |
-| `compress_teacher_v4.py` | Select and durably rewrite only v3 normal-stop answers that remain over the student envelope. |
+| `salvage_teacher_reasoning.py` | Validate the affected legacy generation checkpoint and reconstruct reasoning-free first-pass records without regenerating the 2,000 expensive answers. |
+| `compress_teacher_v4.py` | Select and durably rewrite only normal-stop answers that remain over the student envelope and their frozen answer budget. |
 | `diagnose_teacher_data.py` | Diagnose a first-pass generation checkpoint. |
 | `diagnose_prepared_teacher_data.py` | Diagnose an already student-shaped merged v4 corpus. |
 | `finalize_teacher_data.py` | Finalize a first-pass generation checkpoint. |
 | `finalize_prepared_teacher_data.py` | Finalize a merged v4 corpus without reinterpreting teacher-only prompt policies. |
-| `qualify_teacher_study.py` | Mechanically decide whether a bounded teacher study may scale. |
+| `qualify_teacher_study.py` | Mechanically decide whether a bounded teacher study may scale or train. |
 | `README.md` | Architecture, experiment contract, recovery, and scaling rules. |
 
 ## Preserved v1 contract
@@ -53,7 +62,7 @@ For new teacher-data work, use the **v4 notebook**. Select an **A100 80 GB** run
 - Student: unchanged `Qwen/Qwen3.5-4B`
 - Student preparation boundary: 2,048 tokens with reject-on-overlength
 
-The original source assistant response is never sent to the teacher. The teacher's `<think>...</think>` content is not written to checkpoint JSONL or the training corpus; checkpoints retain only a digest and character count for bounded audit evidence.
+The original source assistant response is never sent to the teacher. The corrected runtime strips Qwen thinking content before trainable records are written, and finalization now fails closed if any `<think>` or `</think>` marker survives in an assistant training message. Checkpoints retain only bounded reasoning digest/character-count evidence rather than hidden reasoning text.
 
 ## What the v1 2,000-candidate run taught us
 
@@ -129,13 +138,13 @@ The v4 compression pass is intentionally a different task from first-pass solvin
 - same sampling parameters and deterministic seed base;
 - reasoning effort reduced to **`low`** because the problem has already been solved;
 - the compression model receives the original student conversation, the already-generated v3 final answer, and the frozen target answer budget;
-- it never receives v3 hidden reasoning;
+- it never receives hidden reasoning;
 - it is instructed to preserve correctness, code behavior, required edge cases, and necessary instructions while removing repetition, unrequested alternatives, and nonessential commentary; and
-- compressed outputs live in a new durable shard namespace and never overwrite v3 evidence.
+- compressed outputs live in a new durable shard namespace and never overwrite first-pass evidence.
 
-The v4 run identity binds the exact compression config, compression implementation, v3 source run identity, selected input indices, and source final-answer SHA-256 values. Each compression row records source/target identity, original and compressed answer lengths, original and compressed full-record lengths, prompt/completion counts, finish reason, reasoning digest/character count, and original/compressed response SHA-256 values. Hidden reasoning text is never persisted.
+The v4 run identity binds the exact compression config, compression implementation, first-pass source run identity, selected input indices, and source final-answer SHA-256 values. Each compression row records source/target identity, original and compressed answer lengths, original and compressed full-record lengths, prompt/completion counts, finish reason, reasoning digest/character count, and original/compressed response SHA-256 values. Hidden reasoning text is never persisted.
 
-After all selective compression shards are sealed, v4 writes a deterministic merged 200-record corpus. Teacher-only v3 prompt-policy metadata is removed from its active namespace before that corpus is diagnosed or finalized; historical policy identity and budget provenance remain under v4 metadata keys. The final pipeline still runs Python-quality filtering, the 2,048-token student filter, exact deduplication, deterministic splitting, and fail-closed protected-benchmark contamination checks.
+After all selective compression shards are sealed, v4 writes a deterministic merged corpus. Teacher-only v3 prompt-policy metadata is removed from its active namespace before that corpus is diagnosed or finalized; historical policy identity and budget provenance remain under v4 metadata keys. The final pipeline still runs Python-quality filtering, the 2,048-token student filter, exact deduplication, deterministic splitting, and fail-closed protected-benchmark contamination checks.
 
 The v4 scale gate remains deliberately strict:
 
@@ -144,6 +153,20 @@ The v4 scale gate remains deliberately strict:
 3. protected-benchmark contamination status is **`clean`**.
 
 Do not lower these gates after observing v4.
+
+## Affected first v4-2000 successor and current salvage
+
+The first completed v4-2000 successor is frozen scientific evidence but its old merged/final corpus is not valid student training data. The original parser assumed returned thinking text began with `<think>`, while the Qwen chat template could prefill that opening marker and vLLM could return `reasoning ... </think> final answer`. That allowed hidden reasoning plus the closing marker into the trainable assistant response.
+
+The current salvage workflow does **not** regenerate the expensive 2,000 first-pass answers. It independently validates the sealed legacy generation evidence, strips reasoning using the corrected Qwen boundary parser, preserves only bounded reasoning provenance, recomputes selective-compression targets from the sanitized first-pass answers, and uses a fresh low-reasoning compression namespace for only the records that still require compression.
+
+The original affected namespace remains immutable. The repaired output must live under:
+
+```text
+MyDrive/tiny-qwen-coder/distillation/qwen38-27b-v4-2000-salvage-v1/
+```
+
+See [`docs/V4_2000_REASONING_SALVAGE.md`](../../docs/V4_2000_REASONING_SALVAGE.md) for the frozen evidence and repair contract.
 
 ## Protected benchmark contamination is fail-closed
 
@@ -181,53 +204,32 @@ Do not manually add PyTorch/TorchAudio/TorchVision CUDA pins.
 
 ## Frozen repository ZIPs
 
-Each experimental generation or compression pass must use its own immutable source archive and checkpoint namespace. Keep prior archives untouched. The current v4 notebook expects:
+Each experimental generation, compression, or salvage pass must use its own immutable source archive and checkpoint namespace. Keep prior archives untouched. Historical notebooks use their own frozen ZIP names. The current v4-2000 salvage notebook expects its own salvage ZIP name and seals those exact bytes with an adjacent `.sha256` file on first use.
 
-```text
-MyDrive/
-└── tiny-qwen-coder/
-    └── code/
-        ├── tiny-qwen-coder.zip
-        ├── tiny-qwen-coder.zip.sha256
-        ├── tiny-qwen-coder-v2.zip
-        ├── tiny-qwen-coder-v2.zip.sha256
-        ├── tiny-qwen-coder-v3.zip
-        ├── tiny-qwen-coder-v3.zip.sha256
-        ├── tiny-qwen-coder-v4.zip
-        └── tiny-qwen-coder-v4.zip.sha256
-```
+GitHub source ZIPs contain no `.git` directory. After extraction, the notebooks create a deterministic local Git commit solely so generic dataset-manifest provenance can record an exact source-tree identity. No remote is configured and no GitHub credentials are required.
 
-On first use, the v4 notebook seals the exact `tiny-qwen-coder-v4.zip` bytes with the adjacent `.sha256` file; later runs in that v4 namespace must match that checksum.
+## Why preserved checkpoints require identity-aware readers
 
-GitHub source ZIPs contain no `.git` directory. After extraction, the notebook creates a deterministic local Git commit solely so generic dataset-manifest provenance can record an exact source-tree identity. No remote is configured and no GitHub credentials are required.
+Durable generation and compression shards bind exact implementation/config/input identity in addition to per-record fingerprints and checksum sidecars. Code repairs therefore must not rewrite old run identities or pretend a changed parser is the same implementation.
 
-## Why the preserved v3 checkpoint remains readable from v4 code
-
-First-pass durable generation shards bind the exact source of:
-
-- `generation.py`;
-- `config.py`; and
-- `vllm_backend.py`;
-
-plus the semantic distillation config, input SHA-256, record identity, prompt identity, and shard checksum.
-
-The v4 implementation deliberately adds new compression/finalization code without changing those three generation-identity files. That preserves mechanical readability of the sealed v3 checkpoint while giving v4 its own independent compression implementation hash and run identity.
+The salvage path intentionally uses an independent legacy-evidence validator rather than forcing the affected generation checkpoint through the corrected ordinary loader. It then creates a new sanitized source identity and new compression checkpoint identity.
 
 Never edit `run-identity.json`, shard payloads, or checksum sidecars to force compatibility.
 
 ## Current recommended progression
 
-1. Preserve v1, v2, and v3 checkpoints/diagnostics as immutable evidence.
-2. Start the **v4 notebook** from a fresh A100 80 GB allocation using a frozen v4 repository ZIP.
-3. Verify the exact preserved v3 input and checkpoint before loading Qwen3.8.
-4. Mechanically recompute the selective v4 target set; for the observed v3-200 evidence this should be 40 records.
-5. Generate/resume only the missing low-reasoning compression shards.
-6. Merge compressed targets with untouched student-length-accepted v3 answers.
-7. Diagnose, finalize, run fail-closed contamination checks, and mechanically qualify the merged v4-200 corpus.
-8. Scale only if normal stops are >=90%, student-length acceptance is >=85%, and contamination is `clean`.
-9. If v4 qualifies, design a fresh **2,000-record successor** that preserves the same selective-compression semantics rather than reusing the bounded checkpoint namespace.
-10. Train/evaluate the Qwen3.5-4B student on the qualified 2,000-record corpus.
-11. Generate more than 2,000 records only if that adapter improves the frozen base benchmark.
+1. Preserve v1, v2, v3, bounded-v4, and the affected first v4-2000 directories as immutable evidence.
+2. **Do not train from the old `qwen38-27b-v4-2000/final/` directory.**
+3. Freeze the exact repository ZIP for the current salvage revision under the filename expected by `qwen38_teacher_distillation_v4_2000_salvage_colab.ipynb`.
+4. Start the **v4-2000 salvage notebook** from a fresh A100 80 GB allocation.
+5. Validate every sealed legacy first-pass generation shard and reconstruct the deterministic reasoning-free 2,000-record source without loading Qwen3.8.
+6. Confirm the frozen affected-run accounting before any new GPU generation.
+7. Recompute the selective-compression target set from the sanitized answers; this computed target count is authoritative.
+8. Generate/resume only the missing fresh low-reasoning compression shards in the new salvage namespace.
+9. Diagnose, finalize, run fail-closed protected-benchmark contamination checks, and mechanically qualify the repaired merged corpus.
+10. Require normal stops >=90%, student-length acceptance among normal stops >=85%, contamination `clean`, and zero surviving `<think>`/`</think>` markers.
+11. Train/evaluate the Qwen3.5-4B student only if the repaired v4-2000 corpus qualifies.
+12. Generate more than 2,000 teacher records only if that adapter improves the frozen base benchmark.
 
 Do not jump directly to the full ~40k corpus.
 
@@ -238,10 +240,10 @@ Do not jump directly to the full ~40k corpus.
 - Reuse the exact same sealed archive when resuming a checkpoint namespace.
 - Recreate `/content/tqc-teacher-venv` after a fresh Colab allocation.
 - Always run teacher scripts with the notebook's `$TQC_PYTHON`.
-- Keep v1, v2, v3, v4-200, future 2,000-record runs, and later experiments in separate checkpoint directories.
-- Never replace a code ZIP after generation or compression has started in the namespace it governs.
+- Keep v1, v2, v3, bounded v4, affected v4-2000, repaired v4-2000 salvage, and later experiments in separate checkpoint directories.
+- Never replace a code ZIP after generation, compression, or salvage has started in the namespace it governs.
 - Never edit run identities, generated shard payloads, or checksum sidecars.
-- An incomplete/unsealed shard is regenerated automatically.
+- An incomplete/unsealed shard is regenerated automatically when that workflow owns the shard.
 - A sealed shard with a bad checksum fails closed as corruption.
 
 There is intentionally no GitHub write workflow in Colab. Development, commits, pushes, and pulls happen outside the disposable GPU runtime.
