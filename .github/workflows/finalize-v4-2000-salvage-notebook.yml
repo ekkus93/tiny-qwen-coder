@@ -1,0 +1,63 @@
+name: Finalize v4-2000 salvage notebook
+
+on:
+  push:
+    paths:
+      - ".github/workflows/finalize-v4-2000-salvage-notebook.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    env:
+      HF_HUB_OFFLINE: "1"
+      HF_DATASETS_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      TOKENIZERS_PARALLELISM: "false"
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Sync frozen environment
+        run: uv sync --frozen
+
+      - name: Format salvage implementation
+        run: uv run --frozen ruff format .
+
+      - name: Build salvage notebook
+        run: uv run --frozen python scripts/teacher_distillation/build_v4_2000_salvage_colab_notebook.py
+
+      - name: Format after notebook build
+        run: uv run --frozen ruff format .
+
+      - name: Validate full CPU quality gates
+        run: |
+          uv run --frozen ruff format --check .
+          uv run --frozen ruff check .
+          uv run --frozen mypy src tests
+          uv run --frozen pytest -q
+          git diff --check
+
+      - name: Commit finalized notebook and formatted repair
+        run: |
+          rm .github/workflows/finalize-v4-2000-salvage-notebook.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "fix: finalize v4-2000 reasoning salvage workflow"
+          git push origin HEAD:master
