@@ -284,21 +284,24 @@ def _run_identity_text(
     source_run_identity_sha256: str,
     targets: tuple[V4CompressionTarget, ...],
 ) -> str:
-    return json.dumps(
-        {
-            "schema_version": 1,
-            "policy_id": V4_POLICY_ID,
-            "compression_config_sha256": teacher_distillation_config_sha256(compression_config),
-            "implementation_sha256": _implementation_sha256(),
-            "source_run_identity_sha256": source_run_identity_sha256,
-            "target_input_indices": [target.input_index for target in targets],
-            "target_source_response_sha256": [
-                target.original_final_response_sha256 for target in targets
-            ],
-        },
-        indent=2,
-        sort_keys=True,
-    ) + "\n"
+    return (
+        json.dumps(
+            {
+                "schema_version": 1,
+                "policy_id": V4_POLICY_ID,
+                "compression_config_sha256": teacher_distillation_config_sha256(compression_config),
+                "implementation_sha256": _implementation_sha256(),
+                "source_run_identity_sha256": source_run_identity_sha256,
+                "target_input_indices": [target.input_index for target in targets],
+                "target_source_response_sha256": [
+                    target.original_final_response_sha256 for target in targets
+                ],
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n"
+    )
 
 
 def _atomic_write_text(path: Path, content: str, *, encoding: str = "utf-8") -> None:
@@ -353,6 +356,13 @@ def _parse_shard(path: Path) -> tuple[dict[str, object], ...]:
     return tuple(rows)
 
 
+def _row_int(row: dict[str, object], key: str) -> int:
+    value = row.get(key)
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TeacherV4CompressionError(f"compression row field {key!r} must be an integer")
+    return value
+
+
 def _student_with_answer(
     source: NormalizedTrainingRecord,
     answer: str,
@@ -378,7 +388,9 @@ def _validate_shard(
     sidecar = path.with_suffix(".sha256")
     if not path.exists():
         if sidecar.exists():
-            raise TeacherV4CompressionError(f"compression checksum exists without payload: {sidecar}")
+            raise TeacherV4CompressionError(
+                f"compression checksum exists without payload: {sidecar}"
+            )
         return False
     if not sidecar.exists():
         return False
@@ -408,17 +420,25 @@ def _validate_shard(
                 f"compression shard {path} belongs to another implementation"
             )
         if row.get("source_run_identity_sha256") != source_run_identity_sha256:
-            raise TeacherV4CompressionError(f"compression shard {path} has wrong v3 source identity")
+            raise TeacherV4CompressionError(
+                f"compression shard {path} has wrong v3 source identity"
+            )
         if row.get("source_input_index") != target.input_index:
             raise TeacherV4CompressionError(f"compression shard {path} has wrong source index")
         if row.get("source_record_sha256") != _source_fingerprint(source):
-            raise TeacherV4CompressionError(f"compression shard {path} has wrong source fingerprint")
+            raise TeacherV4CompressionError(
+                f"compression shard {path} has wrong source fingerprint"
+            )
         if row.get("source_final_response_sha256") != target.original_final_response_sha256:
             raise TeacherV4CompressionError(f"compression shard {path} has wrong source answer")
         if row.get("compression_prompt_sha256") != expected_prompt:
-            raise TeacherV4CompressionError(f"compression shard {path} has wrong prompt fingerprint")
+            raise TeacherV4CompressionError(
+                f"compression shard {path} has wrong prompt fingerprint"
+            )
         if row.get("compressed_response_sha256") != _sha256_text(response):
-            raise TeacherV4CompressionError(f"compression shard {path} has wrong response fingerprint")
+            raise TeacherV4CompressionError(
+                f"compression shard {path} has wrong response fingerprint"
+            )
         answer_tokens = _plain_token_count(student_tokenizer, response)
         full_tokens = len(
             tokenize_training_record(student_tokenizer, _student_with_answer(source, response))
@@ -494,7 +514,9 @@ def _build_shard_records(
     student_tokenizer: object,
 ) -> tuple[V4CompressionShardRecord, ...]:
     if len(targets) != len(completions):
-        raise TeacherV4CompressionError("compression backend returned a mismatched completion count")
+        raise TeacherV4CompressionError(
+            "compression backend returned a mismatched completion count"
+        )
     rows: list[V4CompressionShardRecord] = []
     config_sha = teacher_distillation_config_sha256(compression_config)
     implementation_sha = _implementation_sha256()
@@ -582,7 +604,9 @@ def run_v4_compression(
             _compression_conversation(source_records[target.input_index], target)
             for target in selected
         )
-        seeds = tuple(compression_config.generation.seed + target.input_index for target in selected)
+        seeds = tuple(
+            compression_config.generation.seed + target.input_index for target in selected
+        )
         completions = backend.generate(conversations, seeds=seeds)
         rows = _build_shard_records(
             source_records=source_records,
@@ -598,7 +622,9 @@ def run_v4_compression(
             "".join(_canonical_json(asdict(row)) + "\n" for row in rows),
         )
         local_sidecar = local.with_suffix(".sha256")
-        _atomic_write_text(local_sidecar, f"{_file_sha256(local)}  {local.name}\n", encoding="ascii")
+        _atomic_write_text(
+            local_sidecar, f"{_file_sha256(local)}  {local.name}\n", encoding="ascii"
+        )
         _copy_atomic(local, durable)
         _copy_atomic(local_sidecar, durable.with_suffix(".sha256"))
         if not _validate_shard(
@@ -626,17 +652,23 @@ def _load_completed_rows(
     status: V4CompressionStatus,
 ) -> dict[int, dict[str, object]]:
     if not status.complete:
-        raise TeacherV4CompressionError("cannot merge v4 corpus until every compression shard is sealed")
+        raise TeacherV4CompressionError(
+            "cannot merge v4 corpus until every compression shard is sealed"
+        )
     rows: dict[int, dict[str, object]] = {}
     for shard_index in range(status.total_shards):
         path = status.checkpoint_dir / "shards" / _shard_name(shard_index)
         for row in _parse_shard(path):
             index = row.get("source_input_index")
             if not isinstance(index, int) or index in rows:
-                raise TeacherV4CompressionError("compression checkpoint contains invalid source indices")
+                raise TeacherV4CompressionError(
+                    "compression checkpoint contains invalid source indices"
+                )
             rows[index] = row
     if len(rows) != status.compression_targets:
-        raise TeacherV4CompressionError("compression checkpoint reconstructed the wrong target count")
+        raise TeacherV4CompressionError(
+            "compression checkpoint reconstructed the wrong target count"
+        )
     return rows
 
 
@@ -706,12 +738,14 @@ def build_v4_merged_records(
         else:
             compressed = row.get("compressed_response")
             if not isinstance(compressed, str) or not compressed.strip():
-                raise TeacherV4CompressionError("sealed compression row has no usable final response")
+                raise TeacherV4CompressionError(
+                    "sealed compression row has no usable final response"
+                )
             answer = compressed
             final_finish = str(row.get("finish_reason", "unknown"))
-            budget = int(row["target_answer_budget_tokens"])
-            compressed_answer_tokens = int(row["compressed_answer_tokens"])
-            compressed_full_tokens = int(row["compressed_full_record_tokens"])
+            budget = _row_int(row, "target_answer_budget_tokens")
+            compressed_answer_tokens = _row_int(row, "compressed_answer_tokens")
+            compressed_full_tokens = _row_int(row, "compressed_full_record_tokens")
             if final_finish == "stop":
                 compression_stop += 1
             if compressed_answer_tokens <= budget:
@@ -720,7 +754,7 @@ def build_v4_merged_records(
                 compressed_accepted += 1
                 if source_full > V4_STUDENT_MAX_TOKENS:
                     rescued += 1
-            ratio = compressed_answer_tokens / max(1, int(row["original_answer_tokens"]))
+            ratio = compressed_answer_tokens / max(1, _row_int(row, "original_answer_tokens"))
             metadata.update(
                 {
                     "distillation.v4.compressed": "true",
@@ -745,9 +779,7 @@ def build_v4_merged_records(
             metadata["distillation.prompt_tokens"] = str(row["prompt_tokens"])
             metadata["distillation.completion_tokens"] = str(row["completion_tokens"])
             metadata["distillation.reasoning_chars"] = str(row["reasoning_chars"])
-            metadata["distillation.final_response_sha256"] = str(
-                row["compressed_response_sha256"]
-            )
+            metadata["distillation.final_response_sha256"] = str(row["compressed_response_sha256"])
 
         merged = replace(
             student,
@@ -791,9 +823,7 @@ def write_v4_merged_records(
 ) -> None:
     """Write and seal the deterministic merged v4 corpus and compression summary."""
 
-    content = "".join(
-        _canonical_json(asdict(record)) + "\n" for record in records
-    )
+    content = "".join(_canonical_json(asdict(record)) + "\n" for record in records)
     _atomic_write_text(output_path, content)
     _atomic_write_text(
         output_path.with_suffix(output_path.suffix + ".sha256"),

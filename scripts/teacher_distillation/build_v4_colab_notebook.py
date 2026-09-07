@@ -353,9 +353,7 @@ def _notebook() -> dict[str, object]:
             result.check_returncode()
             """
         ),
-        _markdown(
-            "## 7. Define a streaming subprocess helper and verify preserved v3 evidence"
-        ),
+        _markdown("## 7. Define a streaming subprocess helper and verify preserved v3 evidence"),
         _code(
             """
             import shlex
