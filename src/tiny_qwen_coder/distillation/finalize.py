@@ -20,6 +20,7 @@ from tiny_qwen_coder.distillation.config import (
 )
 from tiny_qwen_coder.distillation.generation import load_completed_distilled_records
 from tiny_qwen_coder.distillation.input_policy import strip_teacher_input_policy
+from tiny_qwen_coder.distillation.reasoning import THINK_CLOSE, THINK_OPEN
 from tiny_qwen_coder.evaluation.contamination import ProtectedBenchmarkExample
 from tiny_qwen_coder.evaluation.python_protected_examples import load_python_protected_examples
 from tiny_qwen_coder.languages.python import (
@@ -86,6 +87,22 @@ def _write_records(path: Path, records: tuple[NormalizedTrainingRecord, ...]) ->
         for record in records
     )
     _atomic_write_text(path, content)
+
+
+def _require_no_reasoning_markers(records: tuple[NormalizedTrainingRecord, ...]) -> None:
+    """Fail closed if hidden-thinking markup reached any assistant training message."""
+
+    for record_index, record in enumerate(records):
+        for message_index, message in enumerate(record.messages):
+            if message.role != "assistant":
+                continue
+            if THINK_OPEN not in message.content and THINK_CLOSE not in message.content:
+                continue
+            record_id = record.provenance.record_id or f"index-{record_index}"
+            raise TeacherFinalizationError(
+                "teacher corpus contains hidden-thinking markup in an assistant message; "
+                f"record={record_id!r}, message_index={message_index}"
+            )
 
 
 def _finish_reason(record: NormalizedTrainingRecord) -> str:
@@ -192,6 +209,7 @@ def finalize_teacher_corpus(
         limit=limit,
     )
     student_records = tuple(strip_teacher_input_policy(record) for record in generated)
+    _require_no_reasoning_markers(student_records)
     prefiltered, finish_rejections, quality_rejections = _prefilter_candidates(student_records)
     if len(prefiltered) < 2:
         raise TeacherFinalizationError("fewer than two teacher candidates survived prefiltering")
