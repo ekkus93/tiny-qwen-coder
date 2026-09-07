@@ -105,9 +105,7 @@ def _load_salvaged_records(
         expected_language=language,
     )
     if len(records) != expected_records:
-        raise RuntimeError(
-            "salvaged source record count does not match its frozen source identity"
-        )
+        raise RuntimeError("salvaged source record count does not match its frozen source identity")
     return records
 
 

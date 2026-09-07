@@ -38,10 +38,7 @@ def main() -> None:
     print(f"length_records={summary.length_records}")
     print(f"closing_only_records={summary.closing_only_records}")
     print(f"wrapped_records={summary.wrapped_records}")
-    print(
-        "truncated_reasoning_only_records="
-        f"{summary.truncated_reasoning_only_records}"
-    )
+    print(f"truncated_reasoning_only_records={summary.truncated_reasoning_only_records}")
     print(f"source_run_identity_sha256={summary.source_run_identity_sha256}")
     print(f"source_implementation_sha256={summary.source_implementation_sha256}")
     print(f"salvage_implementation_sha256={summary.salvage_implementation_sha256}")

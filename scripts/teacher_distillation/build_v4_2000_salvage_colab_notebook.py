@@ -547,7 +547,9 @@ def _notebook() -> dict[str, object]:
             )
             """
         ),
-        _markdown("## 15. Finalize with Python quality, 2,048-token, dedup, and contamination gates"),
+        _markdown(
+            "## 15. Finalize with Python quality, 2,048-token, dedup, and contamination gates"
+        ),
         _code(
             """
             run_teacher(
@@ -577,7 +579,9 @@ def _notebook() -> dict[str, object]:
             print("qualification exit code:", qualification.returncode)
             """
         ),
-        _markdown("## 17. Inspect final evidence and prove the train/validation files are reasoning-free"),
+        _markdown(
+            "## 17. Inspect final evidence and prove the train/validation files are reasoning-free"
+        ),
         _code(
             """
             decision = json.loads(
@@ -593,11 +597,14 @@ def _notebook() -> dict[str, object]:
             manifest = json.loads(
                 (final_dir / "dataset-manifest.json").read_text(encoding="utf-8")
             )
-            print("\nFINALIZATION")
+            print()
+            print("FINALIZATION")
             print(json.dumps(summary, indent=2, sort_keys=True))
-            print("\nMANIFEST COUNTS")
+            print()
+            print("MANIFEST COUNTS")
             print(json.dumps(manifest["counts"], indent=2, sort_keys=True))
-            print("\nCONTAMINATION")
+            print()
+            print("CONTAMINATION")
             print(json.dumps(manifest["contamination"], indent=2, sort_keys=True))
 
             for filename in ("accepted.jsonl", "train.jsonl", "validation.jsonl"):

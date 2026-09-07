@@ -268,7 +268,9 @@ def _write_exact_or_verify(path: Path, content: str, *, encoding: str = "utf-8")
         try:
             actual = path.read_text(encoding=encoding)
         except OSError as exc:
-            raise LegacyTeacherSalvageError(f"could not read existing salvage output {path}") from exc
+            raise LegacyTeacherSalvageError(
+                f"could not read existing salvage output {path}"
+            ) from exc
         if actual != content:
             raise LegacyTeacherSalvageError(
                 f"existing salvage output differs from deterministic reconstruction: {path}"
@@ -311,8 +313,13 @@ def write_salvaged_teacher_records(
     if _required_int(identity, "schema_version", context="legacy run identity") != 1:
         raise LegacyTeacherSalvageError("legacy run identity has unsupported schema_version")
     if _required_int(identity, "total_records", context="legacy run identity") != len(records):
-        raise LegacyTeacherSalvageError("legacy run identity record count does not match source input")
-    if _required_str(identity, "input_file_sha256", context="legacy run identity") != source_input_sha:
+        raise LegacyTeacherSalvageError(
+            "legacy run identity record count does not match source input"
+        )
+    if (
+        _required_str(identity, "input_file_sha256", context="legacy run identity")
+        != source_input_sha
+    ):
         raise LegacyTeacherSalvageError("legacy run identity input SHA-256 mismatch")
 
     raw_config = identity.get("config")
@@ -321,13 +328,15 @@ def write_salvaged_teacher_records(
     identity_config = parse_teacher_distillation_config(
         {str(key): value for key, value in raw_config.items()}
     )
-    identity_config_sha = _required_str(
-        identity, "config_sha256", context="legacy run identity"
-    )
+    identity_config_sha = _required_str(identity, "config_sha256", context="legacy run identity")
     if teacher_distillation_config_sha256(identity_config) != identity_config_sha:
-        raise LegacyTeacherSalvageError("legacy run identity config hash is internally inconsistent")
+        raise LegacyTeacherSalvageError(
+            "legacy run identity config hash is internally inconsistent"
+        )
     if identity_config != config:
-        raise LegacyTeacherSalvageError("legacy run identity config does not match requested config")
+        raise LegacyTeacherSalvageError(
+            "legacy run identity config does not match requested config"
+        )
 
     source_implementation_sha = _required_str(
         identity, "implementation_sha256", context="legacy run identity"
@@ -371,14 +380,16 @@ def write_salvaged_teacher_records(
                 != normalized_record_fingerprint(source).record_sha256
             ):
                 raise LegacyTeacherSalvageError(f"{context} source-record fingerprint mismatch")
-            if (
-                _required_str(row, "prompt_sha256", context=context)
-                != _prompt_sha256(_prompt_messages(source))
+            if _required_str(row, "prompt_sha256", context=context) != _prompt_sha256(
+                _prompt_messages(source)
             ):
                 raise LegacyTeacherSalvageError(f"{context} prompt fingerprint mismatch")
             if _required_int(row, "seed", context=context) != config.generation.seed + input_index:
                 raise LegacyTeacherSalvageError(f"{context} seed mismatch")
-            if _required_str(row, "teacher_repository", context=context) != config.teacher.repository:
+            if (
+                _required_str(row, "teacher_repository", context=context)
+                != config.teacher.repository
+            ):
                 raise LegacyTeacherSalvageError(f"{context} teacher repository mismatch")
             if _required_str(row, "teacher_revision", context=context) != config.teacher.revision:
                 raise LegacyTeacherSalvageError(f"{context} teacher revision mismatch")
@@ -392,9 +403,7 @@ def write_salvaged_teacher_records(
             )
             output.append(salvaged)
             modes[mode] += 1
-            finish_reasons[
-                _required_str(row, "finish_reason", context=context)
-            ] += 1
+            finish_reasons[_required_str(row, "finish_reason", context=context)] += 1
 
     if len(output) != len(records):
         raise LegacyTeacherSalvageError("salvage reconstructed the wrong record count")

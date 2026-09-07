@@ -51,19 +51,13 @@ def split_qwen_thinking_completion(text: str) -> tuple[str | None, str]:
         return None, normalized
     closing = normalized.find(THINK_CLOSE, len(THINK_OPEN))
     if closing < 0:
-        raise TeacherReasoningParseError(
-            "Qwen completion opened <think> without closing </think>"
-        )
+        raise TeacherReasoningParseError("Qwen completion opened <think> without closing </think>")
     reasoning = normalized[len(THINK_OPEN) : closing].strip()
     final = normalized[closing + len(THINK_CLOSE) :].strip()
     if not final:
-        raise TeacherReasoningParseError(
-            "Qwen completion contained no final answer after </think>"
-        )
+        raise TeacherReasoningParseError("Qwen completion contained no final answer after </think>")
     if THINK_OPEN in final or THINK_CLOSE in final:
-        raise TeacherReasoningParseError(
-            "Qwen final answer still contains thinking markup"
-        )
+        raise TeacherReasoningParseError("Qwen final answer still contains thinking markup")
     return reasoning or None, final
 
 
