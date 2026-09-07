@@ -48,8 +48,10 @@ jobs:
           path.write_text(text, encoding="utf-8")
           PY
 
-      - name: Format salvage implementation
-        run: uv run --frozen ruff format .
+      - name: Format and safe-fix salvage implementation
+        run: |
+          uv run --frozen ruff format .
+          uv run --frozen ruff check --fix .
 
       - name: Build salvage notebook
         run: uv run --frozen python scripts/teacher_distillation/build_v4_2000_salvage_colab_notebook.py
