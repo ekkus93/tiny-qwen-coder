@@ -58,7 +58,10 @@ def finalize_prepared_teacher_records(
         raise TeacherFinalizationError("prepared teacher corpus is empty")
     for record in records:
         metadata = dict(record.provenance.source_metadata)
-        if "distillation.input_policy" in metadata or "distillation.input_policy_sha256" in metadata:
+        if (
+            "distillation.input_policy" in metadata
+            or "distillation.input_policy_sha256" in metadata
+        ):
             raise TeacherFinalizationError(
                 "prepared teacher corpus still contains an active teacher-only input policy"
             )
