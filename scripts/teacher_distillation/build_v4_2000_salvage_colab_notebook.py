@@ -3,12 +3,57 @@
 
 from __future__ import annotations
 
+import argparse
 import json
+import shutil
+import subprocess
 import textwrap
 from pathlib import Path
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = Path(
     "scripts/teacher_distillation/qwen38_teacher_distillation_v4_2000_salvage_colab.ipynb"
+)
+RUFF_CONFIG = REPO_ROOT / "pyproject.toml"
+CELL_IDS = (
+    "7fb27b941602401d91542211134fc71a",
+    "acae54e37e7d407bbb7b55eff062a284",
+    "9a63283cbaf04dbcab1f6479b197f3a8",
+    "8dd0d8092fe74a7c96281538738b07e2",
+    "72eea5119410473aa328ad9291626812",
+    "8edb47106e1a46a883d545849b8ab81b",
+    "10185d26023b46108eb7d9f57d49d2b3",
+    "8763a12b2bbd4a93a75aff182afb95dc",
+    "7623eae2785240b9bd12b16a66d81610",
+    "7cdc8c89c7104fffa095e18ddfef8986",
+    "b118ea5561624da68c537baed56e602f",
+    "938c804e27f84196a10c8828c723f798",
+    "504fb2a444614c0babb325280ed9130a",
+    "59bbdb311c014d738909a11f9e486628",
+    "b43b363d81ae4b689946ece5c682cd59",
+    "8a65eabff63a45729fe45fb5ade58bdc",
+    "c3933fab20d04ec698c2621248eb3be0",
+    "4dd4641cc4064e0191573fe9c69df29b",
+    "8309879909854d7188b41380fd92a7c3",
+    "3ed186c9a28b402fb0bc4494df01f08d",
+    "cb1e1581032b452c9409d6c6813c49d1",
+    "379cbbc1e968416e875cc15c1202d7eb",
+    "277c27b1587741f2af2001be3712ef0d",
+    "db7b79bc585a40fcaf58bf750017e135",
+    "916684f9a58a4a2aa5f864670399430d",
+    "1671c31a24314836a5b85d7ef7fbf015",
+    "33b0902fd34d4ace834912fa1002cf8e",
+    "f6fa52606d8c4a75a9b52967216f8f3f",
+    "f5a1fa73e5044315a093ec459c9be902",
+    "cdf66aed5cc84ca1b48e60bad68798a8",
+    "28d3efd5258a48a79c179ea5c6759f01",
+    "3f9bc0b9dd2c44919cc8dcca39b469f8",
+    "0e382214b5f147d187d36a2058b9c724",
+    "5b09d5ef5b5e4bb6ab9b829b10b6a29f",
+    "a50416e276a0479cbe66534ed1713a40",
+    "46a27a456b804aa2a380d5edf15a5daf",
+    "1944c39560714e6e80c856f20744a8e5",
+    "d6ca27006b894b04b6fc8b79396e2797",
 )
 
 
@@ -645,6 +690,13 @@ def _notebook() -> dict[str, object]:
             """
         ),
     ]
+    if len(cells) != len(CELL_IDS):
+        raise RuntimeError(
+            f"Notebook cell count changed: expected {len(CELL_IDS)}, found {len(cells)}"
+        )
+    for cell, cell_id in zip(cells, CELL_IDS, strict=True):
+        cell["id"] = cell_id
+
     return {
         "cells": cells,
         "metadata": {
@@ -665,12 +717,31 @@ def _notebook() -> dict[str, object]:
     }
 
 
-def main() -> None:
-    OUTPUT.write_text(
+def build_notebook(output: Path = OUTPUT) -> None:
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(
         json.dumps(_notebook(), indent=1) + "\n",
         encoding="utf-8",
     )
-    print(OUTPUT)
+
+    ruff = shutil.which("ruff")
+    if ruff is None:
+        raise RuntimeError(
+            "Ruff is required to canonicalize the generated notebook; "
+            "run this builder inside the repository's frozen development environment."
+        )
+    subprocess.run(
+        [ruff, "format", "--config", str(RUFF_CONFIG), str(output)],
+        check=True,
+    )
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output", type=Path, default=OUTPUT)
+    args = parser.parse_args()
+    build_notebook(args.output)
+    print(args.output)
 
 
 if __name__ == "__main__":
