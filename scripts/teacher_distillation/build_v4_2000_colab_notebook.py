@@ -146,12 +146,16 @@ def main() -> None:
     ):
         section = pair(base_cells, heading)
         if heading.startswith("## 4."):
-            source = text(section[1]).replace(
-                'Path("/content/tiny-qwen-coder-v4-code")',
-                'Path("/content/tiny-qwen-coder-v4-2000-code")',
-            ).replace(
-                '"v4 repository ZIP checksum changed; use a new experiment namespace."',
-                '"v4-2000 repository ZIP checksum changed; use a new experiment namespace."',
+            source = (
+                text(section[1])
+                .replace(
+                    'Path("/content/tiny-qwen-coder-v4-code")',
+                    'Path("/content/tiny-qwen-coder-v4-2000-code")',
+                )
+                .replace(
+                    '"v4 repository ZIP checksum changed; use a new experiment namespace."',
+                    '"v4-2000 repository ZIP checksum changed; use a new experiment namespace."',
+                )
             )
             section[1]["source"] = lines(source)
         cells.extend(section)
@@ -324,7 +328,9 @@ def main() -> None:
                 )
                 """
             ),
-            md("## 17. Finalize with Python quality, deduplication, split, and contamination checks"),
+            md(
+                "## 17. Finalize with Python quality, deduplication, split, and contamination checks"
+            ),
             code(
                 """
                 run_teacher(
