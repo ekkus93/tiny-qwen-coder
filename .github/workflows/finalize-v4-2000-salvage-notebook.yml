@@ -32,6 +32,22 @@ jobs:
       - name: Sync frozen environment
         run: uv sync --frozen
 
+      - name: Repair notebook-builder literal newlines
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("scripts/teacher_distillation/build_v4_2000_salvage_colab_notebook.py")
+          text = path.read_text(encoding="utf-8")
+          for label in ("FINALIZATION", "MANIFEST COUNTS", "CONTAMINATION"):
+              old = f'            print("\\n{label}")'
+              new = f'            print()\n            print("{label}")'
+              if old not in text:
+                  raise SystemExit(f"expected notebook-builder line is missing: {old!r}")
+              text = text.replace(old, new)
+          path.write_text(text, encoding="utf-8")
+          PY
+
       - name: Format salvage implementation
         run: uv run --frozen ruff format .
 
