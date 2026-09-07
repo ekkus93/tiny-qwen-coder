@@ -11,6 +11,10 @@ from tiny_qwen_coder.distillation.generation import (
     TeacherCompletion,
     TeacherGenerationError,
 )
+from tiny_qwen_coder.distillation.reasoning import (
+    TeacherReasoningParseError,
+    normalize_qwen_thinking_completion,
+)
 
 
 class VllmTeacherBackend:
@@ -121,6 +125,13 @@ class VllmTeacherBackend:
             finish_reason = getattr(choice, "finish_reason", None)
             if not isinstance(text, str):
                 raise TeacherGenerationError("vLLM completion text is not a string")
+            if generation.thinking:
+                try:
+                    text = normalize_qwen_thinking_completion(text)
+                except TeacherReasoningParseError as exc:
+                    raise TeacherGenerationError(
+                        f"could not normalize Qwen thinking completion: {exc}"
+                    ) from exc
             completions.append(
                 TeacherCompletion(
                     text=text,
