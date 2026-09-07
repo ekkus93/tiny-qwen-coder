@@ -1,0 +1,79 @@
+name: Retry salvage notebook builder drift fix
+
+on:
+  push:
+    branches:
+      - fix/salvage-notebook-builder-drift
+    paths:
+      - ".github/workflows/fix-salvage-notebook-builder-drift-v2.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    env:
+      HF_HUB_OFFLINE: "1"
+      HF_DATASETS_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      TOKENIZERS_PARALLELISM: "false"
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: fix/salvage-notebook-builder-drift
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Sync frozen environment
+        run: uv sync --frozen
+
+      - name: Recover and apply reviewed source patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          workflow = Path(".github/workflows/fix-salvage-notebook-builder-drift.yml")
+          text = workflow.read_text(encoding="utf-8")
+          marker = "          cat > /tmp/fix.patch <<'PATCH'\n"
+          start = text.index(marker) + len(marker)
+          end = text.index("          PATCH\n", start)
+          lines = text[start:end].splitlines()
+          patch = "\n".join(line[10:] if line.startswith("          ") else line for line in lines)
+          Path("/tmp/fix.patch").write_text(patch + "\n", encoding="utf-8")
+          PY
+          git apply /tmp/fix.patch
+          uv run --frozen ruff format tests/unit/test_teacher_distillation_notebook_builder.py
+
+      - name: Prove notebook rebuild is byte-identical
+        run: |
+          uv run --frozen python scripts/teacher_distillation/build_v4_2000_salvage_colab_notebook.py \
+            --output /tmp/qwen38_teacher_distillation_v4_2000_salvage_colab.ipynb
+          cmp \
+            /tmp/qwen38_teacher_distillation_v4_2000_salvage_colab.ipynb \
+            scripts/teacher_distillation/qwen38_teacher_distillation_v4_2000_salvage_colab.ipynb
+
+      - name: Validate full CPU quality gates
+        run: |
+          uv run --frozen ruff format --check .
+          uv run --frozen ruff check .
+          uv run --frozen mypy src scripts tests
+          uv run --frozen pytest
+          git diff --check
+
+      - name: Commit finalized hardening
+        run: |
+          rm .github/workflows/fix-salvage-notebook-builder-drift.yml
+          rm .github/workflows/fix-salvage-notebook-builder-drift-v2.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: make salvage notebook rebuild deterministic"
+          git push origin HEAD:fix/salvage-notebook-builder-drift
