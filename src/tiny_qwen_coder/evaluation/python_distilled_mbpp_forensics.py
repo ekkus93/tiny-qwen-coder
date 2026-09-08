@@ -99,10 +99,7 @@ def _generated_tokens(row: Mapping[str, object], *, context: str) -> int:
 
 def _generated_code_sha256(row: Mapping[str, object], *, context: str) -> str:
     value = row.get("generated_code")
-    if value is None:
-        code = ""
-    else:
-        code = _string(value, context=f"{context}.generated_code")
+    code = "" if value is None else _string(value, context=f"{context}.generated_code")
     return hashlib.sha256(code.strip().encode("utf-8")).hexdigest()
 
 
