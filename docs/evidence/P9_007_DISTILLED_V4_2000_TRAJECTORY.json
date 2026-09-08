@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "task_id": "P9-007C",
+  "status": "passed",
+  "study_id": "python-p9-distilled-v4-2000-trajectory-v1",
+  "workflow_run_id": 34230186622,
+  "workflow_job_id": 102074065676,
+  "source_git_sha": "d434ed274f2bcf56ca8e37863076c8937d30c83f",
+  "actions_artifact": {
+    "artifact_id": 10059380380,
+    "artifact_name": "python-p9-distilled-v4-2000-trajectory-d434ed274f2bcf56ca8e37863076c8937d30c83f",
+    "artifact_digest": "sha256:9bc106fa6d334119366b108f4225f71b69c88fb05bbf772467ebb064ebc00e5b",
+    "size_bytes": 101757093,
+    "expired": false
+  },
+  "corpus": {
+    "archive_sha256": "6628a83f2f0ae87d11610d28edd177d6c58520c00ebe1bc987771de10205029b",
+    "dataset_manifest_sha256": "7e299de17cbb62bff3cf5f50c61ad6ad30ca571c9297b9935ff1307cd52e0eb7",
+    "source_output_sha256": "7f07f7253e98bf8ed295b12d72ebdf03c44b2e08a8d9f74aaa02dce5b760d966",
+    "accepted_records": 1557,
+    "train_records": 1479,
+    "validation_records": 78,
+    "contamination_status": "clean",
+    "reasoning_marker_hits": 0
+  },
+  "training": {
+    "run_id": "training-python-20260908T130925939620Z-d434ed27-f7b1e4d0",
+    "adapter_id": "language/python/p9-distilled-v4-2000-r8-lr1e5",
+    "global_steps": 185,
+    "trajectory_max_steps": 185,
+    "checkpoint_steps": [25, 50, 100, 185],
+    "snapshot_count": 4,
+    "training_loss": 0.4845782418508787,
+    "validation_loss": 0.48143240809440613,
+    "total_runtime_seconds": 2688.201515754685,
+    "peak_allocated_vram_bytes": 9022568960,
+    "peak_reserved_vram_bytes": 10745806848,
+    "promotable": false
+  },
+  "snapshots": [
+    {
+      "step": 25,
+      "artifact_set_sha256": "307e4d45c42794e44c1da8f698eb8606cb116d8b83aa1d0930e058e745199c3b",
+      "adapter_config_sha256": "4a7ad9b29cf752a7c93bfd6a67bd3227ee3b0d313436d408611b179d90e91ef1",
+      "adapter_config_size_bytes": 1233,
+      "adapter_model_sha256": "e8f0b0dfba4426859a090dfb4d2477a62634ddfd8b77bf2a8efc0df8f7bdae8a",
+      "adapter_model_size_bytes": 32539280
+    },
+    {
+      "step": 50,
+      "artifact_set_sha256": "6f06e047647955974ce3254468318f1360d7f152bf3da325f537cd97d5e12ada",
+      "adapter_config_sha256": "4a7ad9b29cf752a7c93bfd6a67bd3227ee3b0d313436d408611b179d90e91ef1",
+      "adapter_config_size_bytes": 1233,
+      "adapter_model_sha256": "435643c96445ba16b2e06e7d5078a33631edde6a53a665422be9cc128f5c5b53",
+      "adapter_model_size_bytes": 32539280
+    },
+    {
+      "step": 100,
+      "artifact_set_sha256": "de6aa03a2cf93015f73951e5d066145b501f7b00e185243aaf940643323b98ec",
+      "adapter_config_sha256": "4a7ad9b29cf752a7c93bfd6a67bd3227ee3b0d313436d408611b179d90e91ef1",
+      "adapter_config_size_bytes": 1233,
+      "adapter_model_sha256": "0c000c8c350930cdf42ddf92c2e6d78730b5949d60cdf8439ae710e73f5dc06e",
+      "adapter_model_size_bytes": 32539280
+    },
+    {
+      "step": 185,
+      "artifact_set_sha256": "0462ed5e7dc08df76c1e72c58bf53d153ca9d74cc072a0724c62537307a476da",
+      "adapter_config_sha256": "4a7ad9b29cf752a7c93bfd6a67bd3227ee3b0d313436d408611b179d90e91ef1",
+      "adapter_config_size_bytes": 1233,
+      "adapter_model_sha256": "2ee57b8c6fd10237e6e2faf11a9ff376fe7115f58062a8ed54eb962c3be6478a",
+      "adapter_model_size_bytes": 32539280
+    }
+  ],
+  "development": {
+    "authorized": true,
+    "manifest_path": "configs/eval/python/p9_minimum_intervention_development_v1.json",
+    "manifest_sha256": "260682d773640b28673357c7a441474656bbaffc67f0b5fcbe45eca3a07283de",
+    "membership_sha256": "c8765b7a3a69f134be4066e274a64640a15f2d05858374035432207b3521498b",
+    "humaneval_total": 45,
+    "mbpp_total": 130,
+    "combined_total": 175,
+    "base_humaneval_passed": 33,
+    "base_mbpp_passed": 70,
+    "base_combined_passed": 103,
+    "minimum_humaneval_passed": 33,
+    "minimum_mbpp_passed": 70,
+    "minimum_combined_passed": 104,
+    "selection_primary_metric": "combined_passed",
+    "selection_tie_breaker": "fewer_steps",
+    "repository_holdout_evaluated": false
+  }
+}
