@@ -18,7 +18,7 @@ class _SlowEofStream(io.BytesIO):
         self.read_calls = 0
         self.closed_before_eof = False
 
-    def read(self, size: int = -1) -> bytes:
+    def read(self, size: int | None = -1) -> bytes:
         self.read_calls += 1
         if self.read_calls == 2:
             time.sleep(0.05)
@@ -27,7 +27,7 @@ class _SlowEofStream(io.BytesIO):
 
 
 class _FailingStream(io.BytesIO):
-    def read(self, size: int = -1) -> bytes:
+    def read(self, size: int | None = -1) -> bytes:
         del size
         raise ValueError("synthetic capture failure")
 
