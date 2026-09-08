@@ -116,9 +116,7 @@ def _load_json(path: Path, *, context: str) -> dict[str, object]:
     return _mapping(value, context=context)
 
 
-def _require_keys(
-    mapping: Mapping[str, object], expected: frozenset[str], *, context: str
-) -> None:
+def _require_keys(mapping: Mapping[str, object], expected: frozenset[str], *, context: str) -> None:
     unknown = sorted(set(mapping) - expected)
     missing = sorted(expected - set(mapping))
     if unknown:
@@ -222,13 +220,9 @@ def _validate_training_shape(training: Mapping[str, object]) -> tuple[int, int]:
         "training_mode": "qlora_4bit",
         "compute_dtype": "bfloat16",
         "loss_mode": "assistant_only",
-        "dataset_manifest": (
-            "data/python/qwen38-27b-v4-2000-salvage-v1/dataset-manifest.json"
-        ),
+        "dataset_manifest": ("data/python/qwen38-27b-v4-2000-salvage-v1/dataset-manifest.json"),
         "train_records": "data/python/qwen38-27b-v4-2000-salvage-v1/train.jsonl",
-        "validation_records": (
-            "data/python/qwen38-27b-v4-2000-salvage-v1/validation.jsonl"
-        ),
+        "validation_records": ("data/python/qwen38-27b-v4-2000-salvage-v1/validation.jsonl"),
     }
     for key, expected in required.items():
         if training.get(key) != expected:
