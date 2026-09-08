@@ -1,0 +1,76 @@
+{
+  "development_authorization": {
+    "development_artifact_digest": "sha256:514c6be5de40d881a42c31bf7574ae61730254a036051ddf7e8603a4206ec286",
+    "development_artifact_id": 10070646552,
+    "source_git_sha": "00ef8ad3e2edf2e8e97636026eb66bc2fb7fd8f5",
+    "workflow_job_id": 102160760346,
+    "workflow_run_attempt": 2,
+    "workflow_run_id": 34255423595
+  },
+  "development_score": {
+    "combined_passed": 104,
+    "combined_total": 175,
+    "humaneval_passed": 34,
+    "humaneval_total": 45,
+    "mbpp_passed": 70,
+    "mbpp_total": 130
+  },
+  "frozen_base": {
+    "combined_passed": 424,
+    "combined_total": 675,
+    "humaneval_passed": 128,
+    "humaneval_total": 164,
+    "mbpp_passed": 290,
+    "mbpp_total": 500,
+    "repository_holdout_passed": 6,
+    "repository_holdout_total": 11
+  },
+  "full_score": {
+    "combined_passed": 400,
+    "combined_total": 675,
+    "humaneval_passed": 128,
+    "humaneval_total": 164,
+    "mbpp_passed": 266,
+    "mbpp_total": 500,
+    "repository_holdout_passed": 6,
+    "repository_holdout_total": 11
+  },
+  "generation_contract_sha256": "3895908ab0cde5bafdb4de43c1bcacabebb6b0801aeef529e9da9aa9a71eb084",
+  "next_action": "stop P9-007; do not evaluate any runner-up",
+  "promotion_gate": {
+    "minimum_combined_passed": 438,
+    "policy_id": "python-promotion-v1",
+    "require_no_suite_below_baseline": true,
+    "target_language_gate_passed": false
+  },
+  "qualification_artifact": {
+    "artifact_id": 10077334268,
+    "digest": "sha256:bc2fab6089a67fa246168ca36b54b4cf694bf6dd2ce9e66bcd76b4dce2606783",
+    "expired": false,
+    "expires_at": "2026-10-08T21:23:31Z",
+    "name": "p9-007e-qualification-69fa3ee934cb59e081bee8356322e569ce42c3a9",
+    "size_in_bytes": 267651
+  },
+  "qualification_requests": 500,
+  "qualification_score": {
+    "combined_passed": 296,
+    "combined_total": 500,
+    "humaneval_passed": 94,
+    "humaneval_total": 119,
+    "mbpp_passed": 196,
+    "mbpp_total": 370,
+    "repository_holdout_passed": 6,
+    "repository_holdout_total": 11
+  },
+  "runner_up_evaluated": false,
+  "schema_version": 1,
+  "selected_adapter_model_sha256": "2ee57b8c6fd10237e6e2faf11a9ff376fe7115f58062a8ed54eb962c3be6478a",
+  "selected_artifact_set_sha256": "0462ed5e7dc08df76c1e72c58bf53d153ca9d74cc072a0724c62537307a476da",
+  "selected_step": 185,
+  "source_git_sha": "69fa3ee934cb59e081bee8356322e569ce42c3a9",
+  "status": "completed_failed_qualification",
+  "task_id": "P9-007E",
+  "winner_only": true,
+  "workflow_job_id": 102226070875,
+  "workflow_run_id": 34275104625
+}
