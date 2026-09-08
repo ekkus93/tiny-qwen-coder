@@ -918,6 +918,51 @@ Acceptance criteria:
 
 - Best adapter selected from target-language gain, general/tool preservation, cross-language behavior, VRAM, and speed—not training loss alone.
 
+## P9-007 — Repaired Qwen3.8 V4-2000 distilled-data study
+
+- [x] import and validate the repaired 2,000-answer corpus.
+- [x] run one conservative QLoRA trajectory and development-only checkpoint selection.
+- [x] qualify the sole development winner once.
+- [x] stop after qualification failed the frozen target-language gate.
+
+Outcome: step 185 preserved HumanEval and repository holdout but reduced MBPP from `290/500` to
+`266/500`; full combined score was `400/675` versus base `424/675`. No runner-up was qualified.
+
+## P9-008 — MBPP regression forensics
+
+- [x] compare the frozen base and P9-007E MBPP qualification results task-by-task.
+- [x] classify pass/fail flips and execution failure modes without regenerating responses.
+- [x] freeze the exact forensic reproduction on master.
+
+Outcome: `41` pass-to-fail regressions versus `17` improvements (`-24` net); `40/41` regressions
+were executable test failures. This closes generic rank/LR/epoch search around the same data
+objective.
+
+## P9-009 — Executable semantic filtering of repaired teacher data
+
+- [ ] **P9-009A** freeze candidate-hidden independent semantic-contract tooling and protocol.
+- [ ] **P9-009B** generate exactly one separately seeded contract for each of the 1,557 repaired
+  accepted examples; do not generate new student targets.
+- [ ] **P9-009C** self-test each reference contract, execute it against the frozen candidate, and
+  freeze the split-preserving survivor census before training.
+- [ ] **P9-009D** if the census is usable, run one bounded student trajectory with the existing
+  rank-8 / LR `1e-5` QLoRA control and development-only selection.
+- [ ] If development clears a precommitted gate, define a **new untouched qualification set**; the
+  P9-007 qualification set is diagnostic-only for P9-009 because its outcomes informed the redesign.
+
+Acceptance criteria:
+
+- Candidate text never appears in verifier model messages; only cryptographic bindings are retained.
+- A contract cannot grade a candidate until its independent reference solution passes at least eight
+  deterministic executable assertions.
+- Unverifiable/unsafe/ambiguous contracts fail closed.
+- Original repaired train/validation membership is preserved for survivors.
+- No protected benchmark prompts/tests become contract input or training data.
+- No teacher-data scaling or broad hyperparameter sweep occurs before this objective improves a
+  development-only gate.
+
+See `docs/P9_009_EXECUTABLE_SEMANTIC_FILTERING.md`.
+
 ---
 
 # Phase 10 — Runtime Adapter Manager and Hot Switching
