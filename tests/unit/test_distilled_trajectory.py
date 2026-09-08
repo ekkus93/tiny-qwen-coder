@@ -42,9 +42,7 @@ class _FakeAdapterModel:
         assert safe_serialization is True
         destination = Path(path)
         destination.mkdir(parents=True, exist_ok=False)
-        (destination / "adapter_config.json").write_text(
-            '{"peft_type":"LORA"}\n', encoding="utf-8"
-        )
+        (destination / "adapter_config.json").write_text('{"peft_type":"LORA"}\n', encoding="utf-8")
         (destination / "adapter_model.safetensors").write_bytes(b"adapter")
         self.saved.append(destination)
 
@@ -100,9 +98,7 @@ def test_distilled_snapshot_evidence_fails_closed_on_full_model_weight(tmp_path:
     for step in (25, 50, 100, 185):
         directory = snapshots / f"step-{step:04d}"
         directory.mkdir()
-        (directory / "adapter_config.json").write_text(
-            '{"peft_type":"LORA"}\n', encoding="utf-8"
-        )
+        (directory / "adapter_config.json").write_text('{"peft_type":"LORA"}\n', encoding="utf-8")
         (directory / "adapter_model.safetensors").write_bytes(b"adapter")
     (snapshots / "step-0100" / "model.safetensors").write_bytes(b"forbidden")
 
