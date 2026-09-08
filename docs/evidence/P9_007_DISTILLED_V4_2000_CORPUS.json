@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "task_id": "P9-007A",
+  "corpus_id": "qwen38-27b-v4-2000-salvage-v1",
+  "observed_export_archive_sha256": "6628a83f2f0ae87d11610d28edd177d6c58520c00ebe1bc987771de10205029b",
+  "source_output_sha256": "7f07f7253e98bf8ed295b12d72ebdf03c44b2e08a8d9f74aaa02dce5b760d966",
+  "dataset_manifest_sha256": "7e299de17cbb62bff3cf5f50c61ad6ad30ca571c9297b9935ff1307cd52e0eb7",
+  "qualification_sha256": "6c9ca0737ada462d408d3fb001bc964f37bf7125c78fd504f727d63d2aeeedef",
+  "teacher_finalization_sha256": "004551219fa2b16c503152ee0936bd7aa2da19e3e18ee5a2b30e1353a40b3217",
+  "qualification": {
+    "qualified": true,
+    "contamination_status": "clean",
+    "total_records": 2000,
+    "stop_rate": 0.991,
+    "student_length_accept_rate_given_stop": 0.9767911200807265
+  },
+  "final_counts": {
+    "accepted_records": 1557,
+    "train_records": 1479,
+    "validation_records": 78
+  },
+  "independent_validation": {
+    "all_bundle_sidecars_match": true,
+    "manifest_unique_corpus_sha256_reproduced": true,
+    "manifest_train_records_sha256_reproduced": true,
+    "manifest_validation_records_sha256_reproduced": true,
+    "manifest_split_membership_sha256_reproduced": true,
+    "accepted_record_hashes_unique": true,
+    "train_validation_exact_overlap_records": 0,
+    "accepted_equals_train_union_validation": true,
+    "literal_reasoning_marker_hits": 0
+  }
+}
