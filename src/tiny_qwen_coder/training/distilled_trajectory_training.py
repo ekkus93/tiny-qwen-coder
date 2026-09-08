@@ -48,6 +48,8 @@ _EXPECTED_VALIDATION_RECORDS = 78
 
 @dataclass(frozen=True, slots=True)
 class SnapshotFileDigest:
+    """One adapter-only file persisted for a P9-007C snapshot."""
+
     path: str
     size_bytes: int
     sha256: str
@@ -55,6 +57,8 @@ class SnapshotFileDigest:
 
 @dataclass(frozen=True, slots=True)
 class DistilledSnapshotEvidence:
+    """Integrity evidence for one precommitted P9-007C adapter snapshot."""
+
     step: int
     directory: str
     files: tuple[SnapshotFileDigest, ...]
@@ -63,6 +67,8 @@ class DistilledSnapshotEvidence:
 
 @dataclass(frozen=True, slots=True)
 class DistilledTrajectoryTrainingReport:
+    """Machine-readable completion evidence for one P9-007C trajectory."""
+
     schema_version: int
     task_id: str
     study_id: str
@@ -119,7 +125,7 @@ def _snapshot_directory_name(step: int) -> str:
 
 
 class _DistilledAdapterSnapshotCallback(TrainerCallback):
-    """Persist PEFT adapter-only snapshots at the four frozen optimizer steps."""
+    """Save PEFT adapter-only snapshots at exactly the frozen optimizer steps."""
 
     def __init__(self, *, snapshot_root: Path, steps: tuple[int, ...]) -> None:
         self._snapshot_root = snapshot_root
@@ -155,8 +161,20 @@ class _DistilledAdapterSnapshotCallback(TrainerCallback):
         return tuple(sorted(self._saved))
 
 
-def _verify_local_corpus(plan: AdapterTrainingPlan, validation: DistilledTrajectoryValidation) -> None:
-    manifest = Path(plan.config.dataset_manifest)
+def _require_repo_root_cwd(repo_root: Path) -> None:
+    if repo_root.resolve() != Path.cwd().resolve():
+        raise AdapterTrainingError(
+            "P9-007C training must run with the repository root as the current directory"
+        )
+
+
+def _verify_local_corpus(
+    plan: AdapterTrainingPlan,
+    validation: DistilledTrajectoryValidation,
+    *,
+    repo_root: Path,
+) -> None:
+    manifest = repo_root / plan.config.dataset_manifest
     if _sha256_file(manifest) != validation.dataset_manifest_sha256:
         raise AdapterTrainingError("P9-007C local dataset manifest does not match frozen corpus")
     sidecar = manifest.with_suffix(".sha256")
@@ -170,11 +188,12 @@ def _verify_local_corpus(plan: AdapterTrainingPlan, validation: DistilledTraject
 
     receipt_path = manifest.parent / "import-receipt.json"
     try:
-        receipt: object = json.loads(receipt_path.read_text(encoding="utf-8"))
+        receipt_value: object = json.loads(receipt_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise AdapterTrainingError("P9-007C local import receipt is unavailable") from exc
-    if not isinstance(receipt, dict):
+    if not isinstance(receipt_value, dict):
         raise AdapterTrainingError("P9-007C local import receipt must be an object")
+    receipt = {str(key): value for key, value in receipt_value.items()}
     expected = {
         "dataset_manifest_sha256": _EXPECTED_MANIFEST_SHA256,
         "source_output_sha256": _EXPECTED_SOURCE_OUTPUT_SHA256,
@@ -188,12 +207,22 @@ def _verify_local_corpus(plan: AdapterTrainingPlan, validation: DistilledTraject
         if receipt.get(key) != value:
             raise AdapterTrainingError(f"P9-007C local import receipt {key} drifted")
 
-    for path in (Path(plan.config.train_records), Path(plan.config.validation_records)):
-        if not path.is_file() or path.stat().st_size <= 0:
-            raise AdapterTrainingError(f"P9-007C training data is unavailable: {path}")
-        text = path.read_text(encoding="utf-8")
+    data_paths = (
+        repo_root / plan.config.train_records,
+        repo_root / plan.config.validation_records,
+    )
+    expected_lines = (_EXPECTED_TRAIN_RECORDS, _EXPECTED_VALIDATION_RECORDS)
+    for path, line_count in zip(data_paths, expected_lines, strict=True):
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise AdapterTrainingError(f"P9-007C training data is unavailable: {path}") from exc
         if "<think>" in text or "</think>" in text:
             raise AdapterTrainingError(f"P9-007C reasoning marker reappeared in {path}")
+        if len(text.splitlines()) != line_count:
+            raise AdapterTrainingError(
+                f"P9-007C training-data cardinality drifted for {path}: expected {line_count}"
+            )
 
 
 def _prepare_output(
@@ -224,7 +253,9 @@ def _snapshot_file_inventory(snapshot_dir: Path) -> tuple[SnapshotFileDigest, ..
         snapshot_dir / "adapter_model.bin",
     )
     if not any(path.is_file() and path.stat().st_size > 0 for path in weights):
-        raise AdapterTrainingError(f"P9-007C snapshot lacks non-empty adapter weights: {snapshot_dir}")
+        raise AdapterTrainingError(
+            f"P9-007C snapshot lacks non-empty adapter weights: {snapshot_dir}"
+        )
 
     forbidden = [
         snapshot_dir / "model.safetensors",
@@ -235,7 +266,9 @@ def _snapshot_file_inventory(snapshot_dir: Path) -> tuple[SnapshotFileDigest, ..
     forbidden.extend(snapshot_dir.glob("model-*.safetensors"))
     forbidden.extend(snapshot_dir.glob("pytorch_model-*.bin"))
     if any(path.is_file() for path in forbidden):
-        raise AdapterTrainingError(f"P9-007C snapshot contains merged/full-model weights: {snapshot_dir}")
+        raise AdapterTrainingError(
+            f"P9-007C snapshot contains merged/full-model weights: {snapshot_dir}"
+        )
 
     files = sorted(
         (path for path in snapshot_dir.rglob("*") if path.is_file()),
@@ -255,11 +288,12 @@ def _snapshot_file_inventory(snapshot_dir: Path) -> tuple[SnapshotFileDigest, ..
 
 def _snapshot_evidence(output_dir: Path) -> tuple[DistilledSnapshotEvidence, ...]:
     snapshot_root = output_dir / "snapshots"
-    observed = tuple(sorted(path.name for path in snapshot_root.iterdir() if path.is_dir()))
-    expected = tuple(_snapshot_directory_name(step) for step in _EXPECTED_SNAPSHOT_STEPS)
-    if observed != expected:
+    observed_dirs = tuple(sorted(path.name for path in snapshot_root.iterdir() if path.is_dir()))
+    expected_dirs = tuple(_snapshot_directory_name(step) for step in _EXPECTED_SNAPSHOT_STEPS)
+    if observed_dirs != expected_dirs:
         raise AdapterTrainingError(
-            f"P9-007C snapshot directory set mismatch: expected {expected!r}, got {observed!r}"
+            f"P9-007C snapshot directory set mismatch: expected {expected_dirs!r}, "
+            f"got {observed_dirs!r}"
         )
 
     evidence: list[DistilledSnapshotEvidence] = []
@@ -281,14 +315,18 @@ def _snapshot_evidence(output_dir: Path) -> tuple[DistilledSnapshotEvidence, ...
 
 
 def distilled_trajectory_training_report_json(report: DistilledTrajectoryTrainingReport) -> str:
+    """Serialize one completed P9-007C trajectory deterministically."""
+
     return json.dumps(asdict(report), indent=2, sort_keys=True) + "\n"
 
 
 def run_distilled_trajectory_training(
-    *, repo_root: Path = Path(".")
+    *,
+    repo_root: Path = Path("."),
 ) -> DistilledTrajectoryTrainingReport:
-    """Train one 185-step trajectory and persist the four development candidates."""
+    """Train one epoch and persist the four frozen development candidates."""
 
+    _require_repo_root_cwd(repo_root)
     validation = validate_distilled_trajectory(repo_root=repo_root)
     if validation.trajectory_max_steps != _EXPECTED_MAX_STEPS:
         raise AdapterTrainingError("P9-007C trajectory horizon drifted")
@@ -296,10 +334,14 @@ def run_distilled_trajectory_training(
         raise AdapterTrainingError("P9-007C checkpoint grid drifted")
 
     plan = resolve_adapter_training_plan(repo_root / validation.training_config)
-    _verify_local_corpus(plan, validation)
+    if plan.config.adapter_id != validation.adapter_id:
+        raise AdapterTrainingError("P9-007C resolved adapter identity drifted")
+    if Path(plan.config.output_dir).as_posix() != validation.output_dir:
+        raise AdapterTrainingError("P9-007C resolved output directory drifted")
+    _verify_local_corpus(plan, validation, repo_root=repo_root)
+
     output_dir = repo_root / validation.output_dir
     preflight = run_training_preflight(plan, repo_root=repo_root, output_dir=output_dir)
-
     seed_everything(plan.config.seed)
     snapshot_root = _prepare_output(
         output_dir=output_dir,
@@ -317,7 +359,10 @@ def run_distilled_trajectory_training(
         run_kind="training",
         base_model=base_model,
         language=plan.language,
-        adapter=AdapterIdentity(family=plan.config.adapter_family, adapter_id=plan.config.adapter_id),
+        adapter=AdapterIdentity(
+            family=plan.config.adapter_family,
+            adapter_id=plan.config.adapter_id,
+        ),
         seed=plan.config.seed,
         repo_root=repo_root,
     )
@@ -327,10 +372,7 @@ def run_distilled_trajectory_training(
     torch.cuda.reset_peak_memory_stats(0)
     trainer, _ = _load_training_runtime(
         plan,
-        options=AdapterTrainingRuntimeOptions(
-            output_dir=output_dir,
-            max_steps=validation.trajectory_max_steps,
-        ),
+        options=AdapterTrainingRuntimeOptions(output_dir=output_dir),
     )
     callback = _DistilledAdapterSnapshotCallback(
         snapshot_root=snapshot_root,
@@ -366,7 +408,9 @@ def run_distilled_trajectory_training(
     if not math.isfinite(total_runtime_seconds) or total_runtime_seconds <= 0:
         raise AdapterTrainingError("P9-007C total runtime must be finite and positive")
 
-    _write_metrics(getattr(trainer.state, "log_history", None), output_dir / "training-metrics.jsonl")
+    _write_metrics(
+        getattr(trainer.state, "log_history", None), output_dir / "training-metrics.jsonl"
+    )
     peak_allocated = int(torch.cuda.max_memory_allocated(0))
     peak_reserved = int(torch.cuda.max_memory_reserved(0))
     if peak_allocated <= 0 or peak_reserved <= 0 or peak_allocated > peak_reserved:
@@ -408,6 +452,8 @@ def run_distilled_trajectory_training(
 
 
 def distilled_trajectory_training_main(argv: Sequence[str] | None = None) -> NoReturn:
+    """CLI entry point for the local P9-007C one-epoch trajectory."""
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-root", type=Path, default=Path("."))
     args = parser.parse_args(argv)
