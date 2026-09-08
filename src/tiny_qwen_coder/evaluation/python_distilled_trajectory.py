@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import time
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, replace
@@ -14,6 +15,7 @@ from typing import Any, NoReturn, Protocol, cast
 import torch
 from torch import nn
 
+from tiny_qwen_coder.config import EvaluationConfig
 from tiny_qwen_coder.evaluation._baseline_generation import BaselineGenerator
 from tiny_qwen_coder.evaluation._baseline_runner import _generate_items
 from tiny_qwen_coder.evaluation._baseline_types import BaselineGeneratedResponse
@@ -29,7 +31,7 @@ from tiny_qwen_coder.evaluation.python_minimum_intervention import (
     load_development_manifest,
 )
 from tiny_qwen_coder.evaluation.results import GenerationStats
-from tiny_qwen_coder.evaluation.settings import evaluation_settings_sha256
+from tiny_qwen_coder.evaluation.settings import FrozenEvaluationSettings, evaluation_settings_sha256
 from tiny_qwen_coder.identities import BaseModelIdentity
 from tiny_qwen_coder.reproducibility import seed_everything
 from tiny_qwen_coder.training.distilled_trajectory import validate_distilled_trajectory
@@ -56,6 +58,8 @@ class DistilledTrajectoryEvaluationError(RuntimeError):
 
 @dataclass(frozen=True, slots=True)
 class DistilledDevelopmentScore:
+    """Executable development score for one frozen P9-007C snapshot."""
+
     label: str
     learning_rate: float
     step: int
@@ -107,6 +111,16 @@ def _integer(mapping: Mapping[str, object], key: str, *, context: str) -> int:
     return value
 
 
+def _number(mapping: Mapping[str, object], key: str, *, context: str) -> float:
+    value = mapping.get(key)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise DistilledTrajectoryEvaluationError(f"{context}.{key} must be numeric")
+    resolved = float(value)
+    if not math.isfinite(resolved):
+        raise DistilledTrajectoryEvaluationError(f"{context}.{key} must be finite")
+    return resolved
+
+
 def _string(mapping: Mapping[str, object], key: str, *, context: str) -> str:
     value = mapping.get(key)
     if not isinstance(value, str) or not value:
@@ -123,7 +137,10 @@ def _load_json(path: Path, *, context: str) -> dict[str, object]:
 
 
 def _snapshot_identity(
-    *, training_output: Path, snapshot_row: Mapping[str, object], expected_step: int
+    *,
+    training_output: Path,
+    snapshot_row: Mapping[str, object],
+    expected_step: int,
 ) -> SnapshotIdentity:
     step = _integer(snapshot_row, "step", context="training snapshot")
     if step != expected_step:
@@ -131,7 +148,9 @@ def _snapshot_identity(
     relative = Path(_string(snapshot_row, "directory", context="training snapshot"))
     directory = (training_output / relative).resolve()
     if not directory.is_relative_to(training_output.resolve()) or not directory.is_dir():
-        raise DistilledTrajectoryEvaluationError("P9-007C snapshot directory is missing or escaping")
+        raise DistilledTrajectoryEvaluationError(
+            "P9-007C snapshot directory is missing or escaping"
+        )
 
     files_value = snapshot_row.get("files")
     if isinstance(files_value, str) or not isinstance(files_value, Sequence):
@@ -139,18 +158,24 @@ def _snapshot_identity(
     files = tuple(_mapping(item, context="snapshot file") for item in files_value)
     by_path = {_string(item, "path", context="snapshot file"): item for item in files}
     if len(by_path) != len(files):
-        raise DistilledTrajectoryEvaluationError("P9-007C snapshot file inventory contains duplicates")
+        raise DistilledTrajectoryEvaluationError(
+            "P9-007C snapshot file inventory contains duplicates"
+        )
     config_row = by_path.get("adapter_config.json")
     model_row = by_path.get("adapter_model.safetensors")
     if config_row is None or model_row is None:
-        raise DistilledTrajectoryEvaluationError("P9-007C snapshot lacks canonical adapter artifacts")
+        raise DistilledTrajectoryEvaluationError(
+            "P9-007C snapshot lacks canonical adapter artifacts"
+        )
 
     canonical_files: list[dict[str, object]] = []
     for item in files:
         relative_file = Path(_string(item, "path", context="snapshot file"))
         path = (directory / relative_file).resolve()
         if not path.is_relative_to(directory) or not path.is_file():
-            raise DistilledTrajectoryEvaluationError("P9-007C snapshot file is missing or escaping")
+            raise DistilledTrajectoryEvaluationError(
+                "P9-007C snapshot file is missing or escaping"
+            )
         size = _integer(item, "size_bytes", context="snapshot file")
         digest = _string(item, "sha256", context="snapshot file")
         if path.stat().st_size != size or _sha256_file(path) != digest:
@@ -171,9 +196,11 @@ def _snapshot_identity(
 
 
 def load_local_trajectory(
-    training_output: Path, *, repo_root: Path = Path(".")
+    training_output: Path,
+    *,
+    repo_root: Path = Path("."),
 ) -> tuple[TrajectoryIdentity, dict[int, Path]]:
-    """Validate one completed local P9-007C training output and recover four snapshots."""
+    """Validate completed local P9-007C training evidence and recover four snapshots."""
 
     validation = validate_distilled_trajectory(repo_root=repo_root)
     report = _load_json(training_output / "training-report.json", context="P9-007C training report")
@@ -185,6 +212,12 @@ def load_local_trajectory(
         raise DistilledTrajectoryEvaluationError("P9-007C dataset identity drifted")
     if report.get("source_output_sha256") != validation.source_output_sha256:
         raise DistilledTrajectoryEvaluationError("P9-007C teacher source identity drifted")
+    if report.get("protocol_sha256") != validation.protocol_sha256:
+        raise DistilledTrajectoryEvaluationError("P9-007C protocol identity drifted")
+    if report.get("source_training_config_sha256") != validation.training_config_sha256:
+        raise DistilledTrajectoryEvaluationError("P9-007C training config identity drifted")
+    if report.get("corpus_evidence_sha256") != validation.corpus_evidence_sha256:
+        raise DistilledTrajectoryEvaluationError("P9-007C corpus evidence identity drifted")
     if report.get("trajectory_max_steps") != 185 or report.get("global_steps") != 185:
         raise DistilledTrajectoryEvaluationError("P9-007C trajectory did not complete 185 steps")
     if report.get("checkpoint_steps") != list(_EXPECTED_STEPS) or report.get("snapshot_count") != 4:
@@ -199,7 +232,11 @@ def load_local_trajectory(
     if len(rows) != len(_EXPECTED_STEPS):
         raise DistilledTrajectoryEvaluationError("P9-007C training report snapshot count drifted")
     snapshots = tuple(
-        _snapshot_identity(training_output=training_output, snapshot_row=row, expected_step=step)
+        _snapshot_identity(
+            training_output=training_output,
+            snapshot_row=row,
+            expected_step=step,
+        )
         for row, step in zip(rows, _EXPECTED_STEPS, strict=True)
     )
     snapshot_dirs = {
@@ -207,13 +244,17 @@ def load_local_trajectory(
         for row, step in zip(rows, _EXPECTED_STEPS, strict=True)
     }
 
-    run_manifest = _load_json(training_output / "run-manifest.json", context="P9-007C run manifest")
+    run_manifest = _load_json(
+        training_output / "run-manifest.json", context="P9-007C run manifest"
+    )
     git = _mapping(run_manifest.get("git"), context="run manifest.git")
     source_sha = _string(git, "sha", context="run manifest.git")
-    if len(source_sha) != 40:
+    if len(source_sha) != 40 or any(character not in "0123456789abcdef" for character in source_sha):
         raise DistilledTrajectoryEvaluationError("P9-007C source Git SHA is invalid")
     run_id = _string(report, "run_id", context="P9-007C training report")
-
+    digest = hashlib.sha256(
+        _canonical_json([asdict(item) for item in snapshots]).encode()
+    ).hexdigest()
     trajectory = TrajectoryIdentity(
         label=_LABEL,
         learning_rate=_LEARNING_RATE,
@@ -223,21 +264,21 @@ def load_local_trajectory(
         training_source_git_sha=source_sha,
         training_artifact_id=0,
         training_artifact_name="local-p9-007c-trajectory",
-        training_artifact_digest=f"sha256:{hashlib.sha256(_canonical_json([asdict(item) for item in snapshots]).encode()).hexdigest()}",
+        training_artifact_digest=f"sha256:{digest}",
         snapshots=snapshots,
     )
     return trajectory, snapshot_dirs
 
 
 class DistilledSnapshotGenerator:
-    """Load one BF16 base model and the four frozen P9-007C adapter snapshots."""
+    """Load one base model and four immutable P9-007C adapters for deterministic generation."""
 
     def __init__(
         self,
         *,
         snapshot_dirs: Mapping[int, Path],
         base_model: BaseModelIdentity,
-        settings: Any,
+        settings: FrozenEvaluationSettings,
         device_index: int = 0,
     ) -> None:
         if not torch.cuda.is_available() or not torch.cuda.is_bf16_supported():
@@ -323,9 +364,11 @@ class DistilledSnapshotGenerator:
             raise DistilledTrajectoryEvaluationError("PEFT model lacks status reporting")
         status = status_getter()
         active = tuple(getattr(status, "active_adapters", ()))
-        requires_grad = getattr(status, "requires_grad", None)
         if active != (adapter_name,):
-            raise DistilledTrajectoryEvaluationError("PEFT active adapter does not match step")
+            raise DistilledTrajectoryEvaluationError(
+                "PEFT active adapter does not match requested step"
+            )
+        requires_grad = getattr(status, "requires_grad", None)
         if (
             getattr(status, "trainable_params", None) != 0
             or not isinstance(requires_grad, Mapping)
@@ -390,7 +433,9 @@ class DistilledSnapshotGenerator:
             clean_up_tokenization_spaces=False,
         )
         if not isinstance(decoded, str) or not token_ids:
-            raise DistilledTrajectoryEvaluationError("tokenizer returned invalid completion")
+            raise DistilledTrajectoryEvaluationError(
+                "P9-007C tokenizer returned invalid completion"
+            )
         return BaselineGeneratedResponse(
             generated_text=decoded,
             generation=GenerationStats(
@@ -403,6 +448,8 @@ class DistilledSnapshotGenerator:
 
 
 class _CheckpointOnlyGenerator(BaselineGenerator):
+    """Refuse scoring-stage regeneration if transported GPU responses are missing."""
+
     def generate(self, *, system_prompt: str, user_prompt: str) -> BaselineGeneratedResponse:
         del system_prompt, user_prompt
         raise DistilledTrajectoryEvaluationError(
@@ -411,7 +458,12 @@ class _CheckpointOnlyGenerator(BaselineGenerator):
 
 
 def _generation_contract(
-    *, trajectory: TrajectoryIdentity, snapshot: SnapshotIdentity, base_model: BaseModelIdentity, settings: Any, system_prompt: str
+    *,
+    trajectory: TrajectoryIdentity,
+    snapshot: SnapshotIdentity,
+    base_model: BaseModelIdentity,
+    settings: FrozenEvaluationSettings,
+    system_prompt: str,
 ) -> str:
     payload = {
         "schema_version": 1,
@@ -431,8 +483,16 @@ def _generation_contract(
 
 
 def _evaluation_inputs(
-    trajectory: TrajectoryIdentity, *, repo_root: Path
-) -> tuple[Any, Any, BaseModelIdentity, str, dict[str, object]]:
+    trajectory: TrajectoryIdentity,
+    *,
+    repo_root: Path,
+) -> tuple[
+    EvaluationConfig,
+    FrozenEvaluationSettings,
+    BaseModelIdentity,
+    str,
+    dict[str, object],
+]:
     manifest = load_development_manifest(repo_root)
     evaluation, settings, base_model, system_prompt = _evaluation_context(trajectory)
     evaluation = replace(evaluation, output_dir=_OUTPUT_ROOT.as_posix())
@@ -440,7 +500,10 @@ def _evaluation_inputs(
 
 
 def generate_trajectory(
-    *, training_output: Path, repo_root: Path = Path("."), device_index: int = 0
+    *,
+    training_output: Path,
+    repo_root: Path = Path("."),
+    device_index: int = 0,
 ) -> tuple[Path, ...]:
     """Generate development responses for all four frozen P9-007C snapshots."""
 
@@ -485,7 +548,9 @@ def generate_trajectory(
         )
         mb_responses = _generate_items(
             suite_id="mbpp-development",
-            prompts=tuple((problem.task_id, mbpp.prompt_for(problem).user_content) for problem in mb),
+            prompts=tuple(
+                (problem.task_id, mbpp.prompt_for(problem).user_content) for problem in mb
+            ),
             generator=generator,
             system_prompt=system_prompt,
             generation_contract=contract,
@@ -516,9 +581,12 @@ def generate_trajectory(
 
 
 def score_checkpoint(
-    *, training_output: Path, step: int, repo_root: Path = Path(".")
+    *,
+    training_output: Path,
+    step: int,
+    repo_root: Path = Path("."),
 ) -> DistilledDevelopmentScore:
-    """Score one transported P9-007C snapshot on development HumanEval+MBPP only."""
+    """Score one transported P9-007C snapshot on development HumanEval and MBPP only."""
 
     if step not in _EXPECTED_STEPS:
         raise DistilledTrajectoryEvaluationError(f"non-frozen P9-007C step {step}")
@@ -528,11 +596,20 @@ def score_checkpoint(
         trajectory, repo_root=repo_root
     )
     output_dir = _OUTPUT_ROOT / f"step-{step:04d}"
-    stage = _load_json(output_dir / "generation-stage.json", context="P9-007C generation stage")
+    stage = _load_json(
+        output_dir / "generation-stage.json", context="P9-007C generation stage"
+    )
     if stage.get("task_id") != "P9-007C" or stage.get("stage") != "development-generation":
         raise DistilledTrajectoryEvaluationError("P9-007C generation stage identity drifted")
-    if stage.get("step") != step or stage.get("adapter_model_sha256") != snapshot.adapter_model_sha256:
+    if (
+        stage.get("step") != step
+        or stage.get("adapter_model_sha256") != snapshot.adapter_model_sha256
+    ):
         raise DistilledTrajectoryEvaluationError("P9-007C generation stage snapshot drifted")
+    if stage.get("development_manifest_sha256") != _EXPECTED_DEVELOPMENT_SHA256:
+        raise DistilledTrajectoryEvaluationError("P9-007C generation development manifest drifted")
+    if stage.get("membership_sha256") != _EXPECTED_MEMBERSHIP_SHA256:
+        raise DistilledTrajectoryEvaluationError("P9-007C generation membership drifted")
     if stage.get("repository_holdout_requests") != 0:
         raise DistilledTrajectoryEvaluationError("P9-007C generation touched qualification holdout")
     contract = _generation_contract(
@@ -656,6 +733,14 @@ def select_development_candidate(
         raise DistilledTrajectoryEvaluationError("P9-007C selection requires exactly four scores")
     if any(item.label != _LABEL or item.learning_rate != _LEARNING_RATE for item in items):
         raise DistilledTrajectoryEvaluationError("P9-007C score trajectory identity drifted")
+    for item in items:
+        expected_eligible = (
+            item.combined_passed >= _EXPECTED_MIN_COMBINED
+            and item.humaneval_passed >= _EXPECTED_BASE_HE
+            and item.mbpp_passed >= _EXPECTED_BASE_MBPP
+        )
+        if item.eligible is not expected_eligible:
+            raise DistilledTrajectoryEvaluationError("P9-007C score eligibility flag drifted")
     eligible = tuple(item for item in items if item.eligible)
     if not eligible:
         return None
@@ -666,6 +751,10 @@ def _score_from_payload(value: object, *, context: str) -> DistilledDevelopmentS
     row = _mapping(value, context=context)
     if row.get("task_id") != "P9-007C" or row.get("stage") != "development-score":
         raise DistilledTrajectoryEvaluationError(f"{context} identity drifted")
+    if row.get("development_manifest_sha256") != _EXPECTED_DEVELOPMENT_SHA256:
+        raise DistilledTrajectoryEvaluationError(f"{context} development manifest drifted")
+    if row.get("membership_sha256") != _EXPECTED_MEMBERSHIP_SHA256:
+        raise DistilledTrajectoryEvaluationError(f"{context} development membership drifted")
     if row.get("repository_holdout_evaluated") is not False:
         raise DistilledTrajectoryEvaluationError(f"{context} touched qualification holdout")
     eligible = row.get("eligible")
@@ -673,7 +762,7 @@ def _score_from_payload(value: object, *, context: str) -> DistilledDevelopmentS
         raise DistilledTrajectoryEvaluationError(f"{context}.eligible must be boolean")
     score = DistilledDevelopmentScore(
         label=_string(row, "label", context=context),
-        learning_rate=float(row.get("learning_rate", -1.0)),
+        learning_rate=_number(row, "learning_rate", context=context),
         step=_integer(row, "step", context=context),
         humaneval_passed=_integer(row, "humaneval_passed", context=context),
         humaneval_total=_integer(row, "humaneval_total", context=context),
@@ -695,12 +784,16 @@ def _score_from_payload(value: object, *, context: str) -> DistilledDevelopmentS
         or score.combined_passed != score.humaneval_passed + score.mbpp_passed
         or score.eligible is not expected_eligible
     ):
-        raise DistilledTrajectoryEvaluationError(f"{context} score arithmetic/policy is invalid")
+        raise DistilledTrajectoryEvaluationError(f"{context} score arithmetic or policy is invalid")
     return score
 
 
-def select_from_root(scores_root: Path, *, repo_root: Path = Path(".")) -> dict[str, object]:
-    """Read exactly four development scores and authorize at most one qualification candidate."""
+def select_from_root(
+    scores_root: Path,
+    *,
+    repo_root: Path = Path("."),
+) -> dict[str, object]:
+    """Read four scores and authorize at most one P9-007 qualification candidate."""
 
     validate_distilled_trajectory(repo_root=repo_root)
     load_development_manifest(repo_root)
@@ -710,7 +803,10 @@ def select_from_root(scores_root: Path, *, repo_root: Path = Path(".")) -> dict[
             f"P9-007C selection expected 4 development scores, found {len(files)}"
         )
     scores = tuple(
-        _score_from_payload(_load_json(path, context=f"score[{index}]"), context=f"score[{index}]")
+        _score_from_payload(
+            _load_json(path, context=f"score[{index}]"),
+            context=f"score[{index}]",
+        )
         for index, path in enumerate(files)
     )
     selected = select_development_candidate(scores)
