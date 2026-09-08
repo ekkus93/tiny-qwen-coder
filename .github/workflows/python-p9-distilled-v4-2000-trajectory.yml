@@ -1,0 +1,316 @@
+name: Python P9 Distilled V4-2000 Trajectory
+
+on:
+  workflow_dispatch:
+    inputs:
+      archive_path:
+        description: Optional absolute path to the exact repaired V4-2000 ZIP on the self-hosted runner
+        required: false
+        type: string
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/python-p9-distilled-v4-2000-trajectory.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: python-p9-distilled-v4-2000-trajectory-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  train:
+    name: Train one repaired V4-2000 checkpoint trajectory
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 720
+
+    env:
+      TOKENIZERS_PARALLELISM: "false"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      P9_007_ARCHIVE_NAME: qwen38-27b-v4-2000-salvage-v1-20260908T103445Z-1-001.zip
+      P9_007_ARCHIVE_SHA256: 6628a83f2f0ae87d11610d28edd177d6c58520c00ebe1bc987771de10205029b
+      P9_007_DATA_DIR: data/python/qwen38-27b-v4-2000-salvage-v1
+      P9_007_OUTPUT_DIR: artifacts/train/python/p9-distilled-v4-2000-r8-lr1e5
+
+    steps:
+      - name: Check out canonical master
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          clean: true
+
+      - name: Require exact master execution
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF}" != "refs/heads/master" ]; then
+            echo "P9-007C trajectory may run only from canonical master; got ${GITHUB_REF}" >&2
+            exit 1
+          fi
+          actual="$(git rev-parse HEAD)"
+          if [ "${actual}" != "${GITHUB_SHA}" ]; then
+            echo "checked-out SHA ${actual} does not match workflow SHA ${GITHUB_SHA}" >&2
+            exit 1
+          fi
+          test -z "$(git status --porcelain)"
+          printf 'source_git_sha=%s\n' "${actual}"
+
+      - name: Verify frozen smoke gate
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("docs/evidence/P9_007_GPU_SMOKE.json")
+          evidence = json.loads(path.read_text(encoding="utf-8"))
+          if evidence.get("task_id") != "P9-007B" or evidence.get("status") != "passed":
+              raise SystemExit("P9-007B smoke evidence is not frozen as passed")
+          if evidence.get("workflow_run_id") != 34227476556:
+              raise SystemExit("P9-007B workflow run identity drifted")
+          if evidence.get("workflow_job_id") != 102068095031:
+              raise SystemExit("P9-007B workflow job identity drifted")
+          if evidence.get("source_git_sha") != "e7e8f1656f0abe9add9b8000cf6bb2bf602e7799":
+              raise SystemExit("P9-007B source Git identity drifted")
+          if evidence.get("trajectory_authorized") is not True:
+              raise SystemExit("P9-007C trajectory is not authorized by frozen smoke evidence")
+          smoke = evidence.get("smoke", {})
+          if smoke.get("global_steps") != 1 or smoke.get("smoke_only") is not True:
+              raise SystemExit("P9-007B smoke completion evidence drifted")
+          if smoke.get("promotable") is not False:
+              raise SystemExit("P9-007B smoke promotion flag drifted")
+          if smoke.get("peak_reserved_vram_bytes") != 8170504192:
+              raise SystemExit("P9-007B peak VRAM evidence drifted")
+          corpus = evidence.get("corpus", {})
+          if corpus.get("dataset_manifest_sha256") != "7e299de17cbb62bff3cf5f50c61ad6ad30ca571c9297b9935ff1307cd52e0eb7":
+              raise SystemExit("P9-007B corpus identity drifted")
+          if corpus.get("reasoning_marker_hits") != 0 or corpus.get("contamination_status") != "clean":
+              raise SystemExit("P9-007B corpus cleanliness evidence drifted")
+          print(json.dumps(evidence, indent=2, sort_keys=True))
+          PY
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Inspect NVIDIA GPU
+        run: nvidia-smi
+
+      - name: Sync frozen QLoRA environment
+        run: uv sync --frozen --extra qlora
+
+      - name: Verify CUDA and 4070 Ti-class runtime
+        run: |
+          set -euo pipefail
+          uv run --frozen python - <<'PY' | tee "${RUNNER_TEMP}/p9-007c-gpu-runtime.txt"
+          import bitsandbytes
+          import torch
+
+          if not torch.cuda.is_available():
+              raise SystemExit("PyTorch cannot access CUDA on the self-hosted runner")
+          if not torch.cuda.is_bf16_supported():
+              raise SystemExit("CUDA device 0 does not support BF16")
+          properties = torch.cuda.get_device_properties(0)
+          capability = torch.cuda.get_device_capability(0)
+          if capability < (8, 9):
+              raise SystemExit(f"GPU capability {capability} is below the frozen 4070 Ti-class target")
+          if properties.total_memory < 15 * 1024**3:
+              raise SystemExit(f"GPU has only {properties.total_memory} bytes")
+          print(f"torch={torch.__version__}")
+          print(f"bitsandbytes={bitsandbytes.__version__}")
+          print(f"cuda_runtime={torch.version.cuda}")
+          print(f"gpu={properties.name}")
+          print(f"capability={capability}")
+          print(f"total_memory_bytes={properties.total_memory}")
+          PY
+
+      - name: Locate and verify exact repaired corpus archive
+        env:
+          REQUESTED_ARCHIVE_PATH: ${{ inputs.archive_path || '' }}
+        run: |
+          set -euo pipefail
+          archive=""
+          if [ -n "${REQUESTED_ARCHIVE_PATH}" ]; then
+            archive="${REQUESTED_ARCHIVE_PATH}"
+          else
+            roots=("${HOME}/Downloads" "${HOME}" /home /mnt /data /workspace /workspaces /runner /host /opt /tmp)
+            for root in "${roots[@]}"; do
+              [ -d "${root}" ] || continue
+              found="$(find "${root}" -type f -name "${P9_007_ARCHIVE_NAME}" -print -quit 2>/dev/null || true)"
+              if [ -n "${found}" ]; then
+                archive="${found}"
+                break
+              fi
+            done
+          fi
+          if [ -z "${archive}" ] || [ ! -f "${archive}" ]; then
+            echo "::error::The exact P9-007 repaired corpus archive is not visible to the self-hosted runner."
+            exit 1
+          fi
+          actual_sha="$(sha256sum "${archive}" | awk '{print $1}')"
+          if [ "${actual_sha}" != "${P9_007_ARCHIVE_SHA256}" ]; then
+            echo "archive SHA-256 mismatch: expected ${P9_007_ARCHIVE_SHA256}, got ${actual_sha}" >&2
+            exit 1
+          fi
+          printf 'P9_007_ARCHIVE=%s\n' "${archive}" >> "${GITHUB_ENV}"
+          printf 'archive=%s\narchive_sha256=%s\n' "${archive}" "${actual_sha}" \
+            | tee "${RUNNER_TEMP}/p9-007c-archive-evidence.txt"
+
+      - name: Import frozen repaired corpus
+        run: |
+          set -euo pipefail
+          if [ -e "${P9_007_DATA_DIR}" ]; then
+            echo "refusing pre-existing P9-007 data directory: ${P9_007_DATA_DIR}" >&2
+            exit 1
+          fi
+          uv run --frozen python scripts/import_v4_2000_salvage.py \
+            --archive "${P9_007_ARCHIVE}" \
+            --output-dir "${P9_007_DATA_DIR}" \
+            | tee "${RUNNER_TEMP}/p9-007c-import-receipt.json"
+
+      - name: Validate frozen P9-007C protocol
+        run: |
+          set -euo pipefail
+          uv run --frozen python -m tiny_qwen_coder.training.distilled_trajectory \
+            --repo-root . \
+            | tee "${RUNNER_TEMP}/p9-007c-protocol-validation.json"
+
+      - name: Run mandatory training preflight
+        run: |
+          set -euo pipefail
+          uv run --frozen tiny-qwen-coder-train-preflight \
+            --config configs/train/python/p9_distilled_v4_2000_r8_lr1e5.yaml \
+            --repo-root . \
+            --output "${RUNNER_TEMP}/p9-007c-preflight.json"
+          cat "${RUNNER_TEMP}/p9-007c-preflight.json"
+
+      - name: Train one 185-step checkpoint trajectory
+        run: |
+          set -euo pipefail
+          uv run --frozen python -m tiny_qwen_coder.training.distilled_trajectory_training \
+            --repo-root . \
+            | tee "${RUNNER_TEMP}/p9-007c-training-report.json"
+
+      - name: Verify trajectory evidence
+        env:
+          EXPECTED_GIT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          uv run --frozen python - <<'PY'
+          import hashlib
+          import json
+          import math
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["P9_007_OUTPUT_DIR"])
+          report = json.loads((root / "training-report.json").read_text(encoding="utf-8"))
+          run_manifest = json.loads((root / "run-manifest.json").read_text(encoding="utf-8"))
+
+          expected_steps = [25, 50, 100, 185]
+          if report.get("task_id") != "P9-007C":
+              raise SystemExit("P9-007C task identity mismatch")
+          if report.get("study_id") != "python-p9-distilled-v4-2000-trajectory-v1":
+              raise SystemExit("P9-007C study identity mismatch")
+          if report.get("source_training_config") != "configs/train/python/p9_distilled_v4_2000_r8_lr1e5.yaml":
+              raise SystemExit("P9-007C source training config drifted")
+          if report.get("adapter_id") != "language/python/p9-distilled-v4-2000-r8-lr1e5":
+              raise SystemExit("P9-007C adapter identity drifted")
+          if report.get("dataset_manifest_sha256") != "7e299de17cbb62bff3cf5f50c61ad6ad30ca571c9297b9935ff1307cd52e0eb7":
+              raise SystemExit("P9-007C dataset identity drifted")
+          if report.get("source_output_sha256") != "7f07f7253e98bf8ed295b12d72ebdf03c44b2e08a8d9f74aaa02dce5b760d966":
+              raise SystemExit("P9-007C teacher source identity drifted")
+          if (report.get("accepted_records"), report.get("train_records"), report.get("validation_records")) != (1557, 1479, 78):
+              raise SystemExit("P9-007C corpus cardinality drifted")
+          if report.get("trajectory_max_steps") != 185 or report.get("global_steps") != 185:
+              raise SystemExit("P9-007C did not complete exactly 185 optimizer steps")
+          if report.get("checkpoint_steps") != expected_steps or report.get("snapshot_count") != 4:
+              raise SystemExit("P9-007C checkpoint grid drifted")
+          if report.get("promotable") is not False:
+              raise SystemExit("P9-007C training report must remain non-promotable before development scoring")
+          if run_manifest.get("git", {}).get("sha") != os.environ["EXPECTED_GIT_SHA"]:
+              raise SystemExit("P9-007C run-manifest Git SHA mismatch")
+
+          for key in ("training_loss", "validation_loss", "total_runtime_seconds"):
+              value = report.get(key)
+              if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+                  raise SystemExit(f"P9-007C {key} is not finite numeric evidence")
+          allocated = report.get("peak_allocated_vram_bytes")
+          reserved = report.get("peak_reserved_vram_bytes")
+          if not isinstance(allocated, int) or not isinstance(reserved, int) or allocated <= 0 or reserved <= 0 or allocated > reserved:
+              raise SystemExit("P9-007C CUDA peak-memory evidence is invalid")
+
+          snapshots = report.get("snapshots")
+          if not isinstance(snapshots, list) or [item.get("step") for item in snapshots] != expected_steps:
+              raise SystemExit("P9-007C snapshot ordering mismatch")
+          resolved_root = root.resolve()
+          for snapshot in snapshots:
+              directory = (root / snapshot["directory"]).resolve()
+              if not directory.is_relative_to(resolved_root) or not directory.is_dir():
+                  raise SystemExit("P9-007C snapshot directory is missing or escapes output root")
+              files = snapshot.get("files")
+              if not isinstance(files, list) or not files:
+                  raise SystemExit("P9-007C snapshot inventory is empty")
+              canonical = []
+              for item in files:
+                  path = (directory / item["path"]).resolve()
+                  if not path.is_relative_to(directory) or not path.is_file():
+                      raise SystemExit(f"P9-007C snapshot file missing or escaping: {item['path']}")
+                  if path.stat().st_size != item.get("size_bytes"):
+                      raise SystemExit(f"P9-007C snapshot size mismatch: {item['path']}")
+                  digest = hashlib.sha256(path.read_bytes()).hexdigest()
+                  if digest != item.get("sha256"):
+                      raise SystemExit(f"P9-007C snapshot SHA mismatch: {item['path']}")
+                  canonical.append(item)
+              payload = json.dumps(canonical, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+              if hashlib.sha256(payload.encode()).hexdigest() != snapshot.get("artifact_set_sha256"):
+                  raise SystemExit("P9-007C snapshot artifact-set SHA mismatch")
+          print(json.dumps(report, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload P9-007C trajectory candidates and evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-p9-distilled-v4-2000-trajectory-${{ github.sha }}
+          path: |
+            ${{ env.P9_007_OUTPUT_DIR }}/snapshots/
+            ${{ env.P9_007_OUTPUT_DIR }}/dataset-manifest.json
+            ${{ env.P9_007_OUTPUT_DIR }}/trajectory-validation.json
+            ${{ env.P9_007_OUTPUT_DIR }}/training-preflight.json
+            ${{ env.P9_007_OUTPUT_DIR }}/training-metrics.jsonl
+            ${{ env.P9_007_OUTPUT_DIR }}/training-report.json
+            ${{ env.P9_007_OUTPUT_DIR }}/run-manifest.json
+            ${{ runner.temp }}/p9-007c-gpu-runtime.txt
+            ${{ runner.temp }}/p9-007c-archive-evidence.txt
+            ${{ runner.temp }}/p9-007c-import-receipt.json
+            ${{ runner.temp }}/p9-007c-protocol-validation.json
+            ${{ runner.temp }}/p9-007c-preflight.json
+            ${{ runner.temp }}/p9-007c-training-report.json
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 30
+
+      - name: Upload compact partial trajectory evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-p9-distilled-v4-2000-trajectory-partial-${{ github.sha }}
+          path: |
+            ${{ env.P9_007_OUTPUT_DIR }}/*.json
+            ${{ env.P9_007_OUTPUT_DIR }}/*.jsonl
+            ${{ runner.temp }}/p9-007c-gpu-runtime.txt
+            ${{ runner.temp }}/p9-007c-archive-evidence.txt
+            ${{ runner.temp }}/p9-007c-import-receipt.json
+            ${{ runner.temp }}/p9-007c-protocol-validation.json
+            ${{ runner.temp }}/p9-007c-preflight.json
+            ${{ runner.temp }}/p9-007c-training-report.json
+          if-no-files-found: ignore
+          include-hidden-files: true
+          retention-days: 7
