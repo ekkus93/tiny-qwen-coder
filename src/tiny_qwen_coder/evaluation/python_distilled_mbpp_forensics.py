@@ -173,8 +173,7 @@ def analyze_mbpp_results(
         )
     if len(adapter_rows) != _EXPECTED_QUALIFICATION_ROWS:
         raise MbppForensicsError(
-            "expected "
-            f"{_EXPECTED_QUALIFICATION_ROWS} qualification rows, got {len(adapter_rows)}"
+            f"expected {_EXPECTED_QUALIFICATION_ROWS} qualification rows, got {len(adapter_rows)}"
         )
 
     base_by_id = _rows_by_id(base_rows, label="base", expected_adapter_id=None)
@@ -192,16 +191,13 @@ def analyze_mbpp_results(
         raise MbppForensicsError("qualification MBPP membership drifted")
 
     base_full_passed = sum(
-        _passed(row, context=f"base[{problem_id}]")
-        for problem_id, row in base_by_id.items()
+        _passed(row, context=f"base[{problem_id}]") for problem_id, row in base_by_id.items()
     )
     base_qualification_passed = sum(
-        _passed(base_by_id[problem_id], context=f"base[{problem_id}]")
-        for problem_id in adapter_ids
+        _passed(base_by_id[problem_id], context=f"base[{problem_id}]") for problem_id in adapter_ids
     )
     adapter_qualification_passed = sum(
-        _passed(row, context=f"adapter[{problem_id}]")
-        for problem_id, row in adapter_by_id.items()
+        _passed(row, context=f"adapter[{problem_id}]") for problem_id, row in adapter_by_id.items()
     )
     observed_passes = (
         base_full_passed,
@@ -245,9 +241,7 @@ def analyze_mbpp_results(
 
     code_groups: dict[str, list[str]] = defaultdict(list)
     for problem_id in regressions:
-        digest = _generated_code_sha256(
-            adapter_by_id[problem_id], context=f"adapter[{problem_id}]"
-        )
+        digest = _generated_code_sha256(adapter_by_id[problem_id], context=f"adapter[{problem_id}]")
         code_groups[digest].append(problem_id)
     duplicate_code_groups = [
         {"generated_code_sha256": digest, "problem_ids": problem_ids}
