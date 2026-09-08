@@ -222,21 +222,25 @@ class _BoundedCapture:
     limit: int
     data: bytearray
     truncated: bool = False
+    error: Exception | None = None
 
     @classmethod
     def create(cls, limit: int) -> _BoundedCapture:
         return cls(limit=limit, data=bytearray())
 
     def consume(self, stream: BinaryIO) -> None:
-        while True:
-            chunk = stream.read(64 * 1024)
-            if not chunk:
-                return
-            remaining = self.limit - len(self.data)
-            if remaining > 0:
-                self.data.extend(chunk[:remaining])
-            if len(chunk) > max(remaining, 0):
-                self.truncated = True
+        try:
+            while True:
+                chunk = stream.read(64 * 1024)
+                if not chunk:
+                    return
+                remaining = self.limit - len(self.data)
+                if remaining > 0:
+                    self.data.extend(chunk[:remaining])
+                if len(chunk) > max(remaining, 0):
+                    self.truncated = True
+        except Exception as exc:
+            self.error = exc
 
     def text(self) -> str:
         return bytes(self.data).decode("utf-8", errors="replace")
@@ -387,6 +391,35 @@ def _start_capture_thread(stream: BinaryIO, capture: _BoundedCapture) -> threadi
     return thread
 
 
+def _finalize_capture_threads(
+    *,
+    stdout_stream: BinaryIO,
+    stderr_stream: BinaryIO,
+    stdout_capture: _BoundedCapture,
+    stderr_capture: _BoundedCapture,
+    stdout_thread: threading.Thread,
+    stderr_thread: threading.Thread,
+    timeout_seconds: float,
+    context: str,
+) -> None:
+    """Drain output to EOF before closing streams and surface capture-thread failures."""
+
+    stdout_thread.join(timeout=timeout_seconds)
+    stderr_thread.join(timeout=timeout_seconds)
+    if stdout_thread.is_alive() or stderr_thread.is_alive():
+        stdout_stream.close()
+        stderr_stream.close()
+        stdout_thread.join(timeout=timeout_seconds)
+        stderr_thread.join(timeout=timeout_seconds)
+        raise ExecutionHarnessError(f"{context} output capture threads did not terminate cleanly")
+
+    stdout_stream.close()
+    stderr_stream.close()
+    for label, capture in (("stdout", stdout_capture), ("stderr", stderr_capture)):
+        if capture.error is not None:
+            raise ExecutionHarnessError(f"{context} {label} capture failed") from capture.error
+
+
 def _kill_process_group(process: subprocess.Popen[bytes]) -> None:
     if process.poll() is not None:
         return
@@ -523,14 +556,18 @@ class ConstrainedExecutionHarness:
                 finally:
                     _kill_process_group(process)
             finally:
-                process.stdout.close()
-                process.stderr.close()
-                stdout_thread.join(timeout=resolved_limits.cleanup_timeout_seconds)
-                stderr_thread.join(timeout=resolved_limits.cleanup_timeout_seconds)
+                _finalize_capture_threads(
+                    stdout_stream=stdout_stream,
+                    stderr_stream=stderr_stream,
+                    stdout_capture=stdout_capture,
+                    stderr_capture=stderr_capture,
+                    stdout_thread=stdout_thread,
+                    stderr_thread=stderr_thread,
+                    timeout_seconds=resolved_limits.cleanup_timeout_seconds,
+                    context="OCI",
+                )
 
             duration = time.monotonic() - started
-            if stdout_thread.is_alive() or stderr_thread.is_alive():
-                raise ExecutionHarnessError("output capture threads did not terminate cleanly")
             if cleanup_error is not None:
                 raise cleanup_error
 
@@ -699,17 +736,18 @@ class DirectExecutionHarness(ConstrainedExecutionHarness):
                 timed_out = True
                 _kill_process_group(process)
             finally:
-                process.stdout.close()
-                process.stderr.close()
-                stdout_thread.join(timeout=resolved_limits.cleanup_timeout_seconds)
-                stderr_thread.join(timeout=resolved_limits.cleanup_timeout_seconds)
-
-            duration = time.monotonic() - started
-            if stdout_thread.is_alive() or stderr_thread.is_alive():
-                raise ExecutionHarnessError(
-                    "direct output capture threads did not terminate cleanly"
+                _finalize_capture_threads(
+                    stdout_stream=stdout_stream,
+                    stderr_stream=stderr_stream,
+                    stdout_capture=stdout_capture,
+                    stderr_capture=stderr_capture,
+                    stdout_thread=stdout_thread,
+                    stderr_thread=stderr_thread,
+                    timeout_seconds=resolved_limits.cleanup_timeout_seconds,
+                    context="direct",
                 )
 
+            duration = time.monotonic() - started
             if timed_out:
                 status = ExecutionStatus.TIMED_OUT
                 exit_code: int | None = None

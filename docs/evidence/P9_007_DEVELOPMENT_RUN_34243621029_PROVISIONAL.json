@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "task_id": "P9-007D",
+  "status": "provisional_invalid_for_qualification",
+  "workflow_run_id": 34243621029,
+  "workflow_job_id": 102119829316,
+  "evaluation_source_git_sha": "cb9d8bb06bf82e0fa77bb46ad4025b4cbcd902d1",
+  "training_source_git_sha": "d434ed274f2bcf56ca8e37863076c8937d30c83f",
+  "development_artifact": {
+    "artifact_id": 10066063810,
+    "artifact_name": "p9-007c-development-cb9d8bb06bf82e0fa77bb46ad4025b4cbcd902d1",
+    "artifact_digest": "sha256:02f6fea5245f4c0475ab7962159ab43698b9163815830af5e7ac8a52c124bbbe",
+    "size_bytes": 379848,
+    "expired": false
+  },
+  "frozen_membership": {
+    "development_manifest_sha256": "260682d773640b28673357c7a441474656bbaffc67f0b5fcbe45eca3a07283de",
+    "membership_sha256": "c8765b7a3a69f134be4066e274a64640a15f2d05858374035432207b3521498b",
+    "humaneval_total": 45,
+    "mbpp_total": 130,
+    "combined_total": 175,
+    "repository_holdout_evaluated": false
+  },
+  "base": {
+    "humaneval_passed": 33,
+    "mbpp_passed": 70,
+    "combined_passed": 103
+  },
+  "scores": [
+    {
+      "step": 25,
+      "humaneval_passed": 32,
+      "mbpp_passed": 63,
+      "combined_passed": 95,
+      "eligible": false
+    },
+    {
+      "step": 50,
+      "humaneval_passed": 30,
+      "mbpp_passed": 66,
+      "combined_passed": 96,
+      "eligible": false
+    },
+    {
+      "step": 100,
+      "humaneval_passed": 31,
+      "mbpp_passed": 70,
+      "combined_passed": 101,
+      "eligible": false
+    },
+    {
+      "step": 185,
+      "humaneval_passed": 34,
+      "mbpp_passed": 70,
+      "combined_passed": 104,
+      "eligible": true
+    }
+  ],
+  "mechanical_selection": {
+    "selected_step": 185,
+    "qualification_would_be_authorized_by_score_gate": true
+  },
+  "capture_lifecycle_defect": {
+    "observed": true,
+    "exception_type": "ValueError",
+    "exception_message": "I/O operation on closed file",
+    "thread_target": "_BoundedCapture.consume",
+    "source_path": "src/tiny_qwen_coder/evaluation/execution.py",
+    "cause": "parent closed stdout/stderr pipes before capture threads had reached EOF",
+    "silent_in_main_job": true
+  },
+  "qualification_authorized": false,
+  "required_action": "Preserve this run, harden capture shutdown so thread failures surface fail-closed, then replay the exact four-checkpoint development evaluation without changing checkpoints, prompts, membership, gate, or selection policy before consuming qualification data."
+}
