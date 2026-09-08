@@ -1,0 +1,26 @@
+schema_version: 1
+task_id: P9-007C
+study_id: python-p9-distilled-v4-2000-trajectory-v1
+training_config: configs/train/python/p9_distilled_v4_2000_r8_lr1e5.yaml
+corpus_evidence: docs/evidence/P9_007_DISTILLED_V4_2000_CORPUS.json
+expected_train_records: 1479
+effective_batch_size: 8
+trajectory_max_steps: 185
+checkpoint_steps:
+  - 25
+  - 50
+  - 100
+  - 185
+development_manifest: configs/eval/python/p9_minimum_intervention_development_v1.json
+development_manifest_sha256: 260682d773640b28673357c7a441474656bbaffc67f0b5fcbe45eca3a07283de
+selection:
+  primary_metric: combined_passed
+  minimum_combined_passed: 104
+  minimum_humaneval_passed: 33
+  minimum_mbpp_passed: 70
+  tie_breakers:
+    - fewer_steps
+qualification:
+  one_shot: true
+  evaluate_only_selected_checkpoint: true
+  repository_holdout_qualification_only: true
