@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "task_id": "P9-007D",
+  "status": "passed",
+  "workflow_run_id": 34255423595,
+  "workflow_run_attempt": 2,
+  "workflow_job_id": 102160760346,
+  "source_git_sha": "00ef8ad3e2edf2e8e97636026eb66bc2fb7fd8f5",
+  "capture_hardening_merge_sha": "00ef8ad3e2edf2e8e97636026eb66bc2fb7fd8f5",
+  "trajectory": {
+    "workflow_run_id": 34230186622,
+    "workflow_job_id": 102074065676,
+    "source_git_sha": "d434ed274f2bcf56ca8e37863076c8937d30c83f",
+    "artifact_id": 10059380380,
+    "artifact_name": "python-p9-distilled-v4-2000-trajectory-d434ed274f2bcf56ca8e37863076c8937d30c83f",
+    "artifact_digest": "sha256:9bc106fa6d334119366b108f4225f71b69c88fb05bbf772467ebb064ebc00e5b"
+  },
+  "development_artifact": {
+    "artifact_id": 10070646552,
+    "artifact_name": "p9-007c-development-00ef8ad3e2edf2e8e97636026eb66bc2fb7fd8f5",
+    "artifact_digest": "sha256:514c6be5de40d881a42c31bf7574ae61730254a036051ddf7e8603a4206ec286",
+    "size_bytes": 379655,
+    "expired": false
+  },
+  "development_manifest_sha256": "260682d773640b28673357c7a441474656bbaffc67f0b5fcbe45eca3a07283de",
+  "membership_sha256": "c8765b7a3a69f134be4066e274a64640a15f2d05858374035432207b3521498b",
+  "repository_holdout_evaluated": false,
+  "scores": [
+    {
+      "step": 25,
+      "humaneval_passed": 32,
+      "humaneval_total": 45,
+      "mbpp_passed": 63,
+      "mbpp_total": 130,
+      "combined_passed": 95,
+      "combined_total": 175,
+      "eligible": false
+    },
+    {
+      "step": 50,
+      "humaneval_passed": 30,
+      "humaneval_total": 45,
+      "mbpp_passed": 66,
+      "mbpp_total": 130,
+      "combined_passed": 96,
+      "combined_total": 175,
+      "eligible": false
+    },
+    {
+      "step": 100,
+      "humaneval_passed": 31,
+      "humaneval_total": 45,
+      "mbpp_passed": 70,
+      "mbpp_total": 130,
+      "combined_passed": 101,
+      "combined_total": 175,
+      "eligible": false
+    },
+    {
+      "step": 185,
+      "humaneval_passed": 34,
+      "humaneval_total": 45,
+      "mbpp_passed": 70,
+      "mbpp_total": 130,
+      "combined_passed": 104,
+      "combined_total": 175,
+      "eligible": true
+    }
+  ],
+  "selected": {
+    "step": 185,
+    "humaneval_passed": 34,
+    "humaneval_total": 45,
+    "mbpp_passed": 70,
+    "mbpp_total": 130,
+    "combined_passed": 104,
+    "combined_total": 175,
+    "eligible": true,
+    "artifact_set_sha256": "0462ed5e7dc08df76c1e72c58bf53d153ca9d74cc072a0724c62537307a476da",
+    "adapter_config_sha256": "4a7ad9b29cf752a7c93bfd6a67bd3227ee3b0d313436d408611b179d90e91ef1",
+    "adapter_model_sha256": "2ee57b8c6fd10237e6e2faf11a9ff376fe7115f58062a8ed54eb962c3be6478a"
+  },
+  "qualification_authorized": true,
+  "notes": "Exact replay after execution-capture hardening reproduced the provisional development scores and selected step 185. All workflow verification steps passed and the repository holdout remained untouched."
+}
