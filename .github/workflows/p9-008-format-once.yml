@@ -1,0 +1,57 @@
+name: P9-008 format once
+
+on:
+  push:
+    branches:
+      - p9/mbpp-regression-forensics
+    paths:
+      - ".github/workflows/p9-008-format-once.yml"
+      - "src/tiny_qwen_coder/evaluation/python_distilled_mbpp_forensics.py"
+      - "tests/unit/test_python_distilled_mbpp_forensics.py"
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v5
+        with:
+          ref: p9/mbpp-regression-forensics
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.12.10"
+
+      - name: Sync frozen environment
+        run: uv sync --frozen
+
+      - name: Format P9-008 Python files and commit if needed
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run --frozen ruff format \
+            src/tiny_qwen_coder/evaluation/python_distilled_mbpp_forensics.py \
+            tests/unit/test_python_distilled_mbpp_forensics.py
+          if git diff --quiet -- \
+            src/tiny_qwen_coder/evaluation/python_distilled_mbpp_forensics.py \
+            tests/unit/test_python_distilled_mbpp_forensics.py; then
+            echo "P9-008 Python files already formatted."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            src/tiny_qwen_coder/evaluation/python_distilled_mbpp_forensics.py \
+            tests/unit/test_python_distilled_mbpp_forensics.py
+          git commit -m "style: format P9-008 forensics"
+          git push origin HEAD:p9/mbpp-regression-forensics
