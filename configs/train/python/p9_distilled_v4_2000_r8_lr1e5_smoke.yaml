@@ -1,0 +1,6 @@
+schema_version: 1
+training_config: configs/train/python/p9_distilled_v4_2000_r8_lr1e5.yaml
+output_dir: artifacts/train/python/p9-distilled-v4-2000-r8-lr1e5-smoke
+max_steps: 1
+train_samples: 8
+validation_samples: 4
