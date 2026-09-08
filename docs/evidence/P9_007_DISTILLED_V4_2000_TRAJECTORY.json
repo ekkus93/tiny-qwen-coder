@@ -91,22 +91,8 @@
     "provisional_run_id": 34243621029,
     "provisional_run_evidence": "docs/evidence/P9_007_DEVELOPMENT_RUN_34243621029_PROVISIONAL.json",
     "provisional_selected_step": 185,
-    "replay_run_id": 34255423595,
-    "replay_run_attempt": 2,
-    "replay_job_id": 102160760346,
-    "replay_source_git_sha": "00ef8ad3e2edf2e8e97636026eb66bc2fb7fd8f5",
-    "replay_evidence": "docs/evidence/P9_007_DEVELOPMENT_RUN_34255423595.json",
-    "replay_artifact_id": 10070646552,
-    "replay_artifact_digest": "sha256:514c6be5de40d881a42c31bf7574ae61730254a036051ddf7e8603a4206ec286",
-    "replay_selected_step": 185,
-    "qualification_authorized": true,
-    "exact_replay_required": false,
-    "selected_step": 185,
-    "selected_humaneval_passed": 34,
-    "selected_mbpp_passed": 70,
-    "selected_combined_passed": 104,
-    "selected_artifact_set_sha256": "0462ed5e7dc08df76c1e72c58bf53d153ca9d74cc072a0724c62537307a476da",
-    "selected_adapter_model_sha256": "2ee57b8c6fd10237e6e2faf11a9ff376fe7115f58062a8ed54eb962c3be6478a",
-    "replay_reason": "Exact replay after output-capture hardening completed cleanly and reproduced the provisional scores exactly. Step 185 is the only eligible development candidate and is authorized for one-shot qualification."
+    "qualification_authorized": false,
+    "exact_replay_required": true,
+    "replay_reason": "Run 34243621029 completed the score gate but emitted an uncaught output-capture thread exception. Preserve it as provisional evidence, harden capture shutdown, and replay the exact frozen four-checkpoint development evaluation before qualification."
   }
 }
