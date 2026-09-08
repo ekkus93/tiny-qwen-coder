@@ -1,0 +1,140 @@
+name: Python P9 MBPP Regression Forensics
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - p9/mbpp-regression-forensics
+      - master
+    paths:
+      - ".github/workflows/python-p9-mbpp-forensics.yml"
+      - "src/tiny_qwen_coder/evaluation/python_distilled_mbpp_forensics.py"
+      - "docs/evidence/P9_007_QUALIFICATION_RUN_34275104625.json"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  analyze:
+    name: Compare frozen base and P9-007E MBPP results
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      BASE_RUN_ID: "33301242379"
+      BASE_ARTIFACT_NAME: python-base-baseline-da537443ab80b1380bee0fc3c7d9d01ca0574f35
+      BASE_RESULTS_SHA256: c1598681b431906ba497b71ba4f1d1ce7c1cbba3d1a98db356f310fa6a65ab2e
+      QUALIFICATION_RUN_ID: "34275104625"
+      QUALIFICATION_ARTIFACT_NAME: p9-007e-qualification-69fa3ee934cb59e081bee8356322e569ce42c3a9
+      QUALIFICATION_RESULTS_SHA256: a9e550976a1809ea14b31f1587d9f6e655677f3185d913344dea33ba422c4df2
+      OUTPUT_DIR: artifacts/eval/python/p9-008-mbpp-forensics
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.12.10"
+
+      - name: Sync frozen environment
+        run: uv sync --frozen
+
+      - name: Download frozen unchanged-base evidence
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ env.BASE_ARTIFACT_NAME }}
+          path: ${{ runner.temp }}/p9-008-base
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ env.BASE_RUN_ID }}
+
+      - name: Download frozen P9-007E qualification evidence
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ env.QUALIFICATION_ARTIFACT_NAME }}
+          path: ${{ runner.temp }}/p9-008-qualification
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ env.QUALIFICATION_RUN_ID }}
+
+      - name: Locate and verify exact MBPP result artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t base_results < <(
+            find "${RUNNER_TEMP}/p9-008-base" -type f -path "*/mbpp/mbpp-results.jsonl" -print | sort
+          )
+          mapfile -t qualification_results < <(
+            find "${RUNNER_TEMP}/p9-008-qualification" -type f \
+              -path "*/mbpp-qualification/mbpp-results.jsonl" -print | sort
+          )
+          if [[ "${#base_results[@]}" -ne 1 ]]; then
+            echo "Expected exactly one frozen base MBPP result file; found ${#base_results[@]}" >&2
+            exit 1
+          fi
+          if [[ "${#qualification_results[@]}" -ne 1 ]]; then
+            echo "Expected exactly one P9-007E MBPP result file; found ${#qualification_results[@]}" >&2
+            exit 1
+          fi
+          printf '%s  %s\n' "${BASE_RESULTS_SHA256}" "${base_results[0]}" | sha256sum --check --strict
+          printf '%s  %s\n' "${QUALIFICATION_RESULTS_SHA256}" "${qualification_results[0]}" \
+            | sha256sum --check --strict
+          printf 'BASE_RESULTS=%s\n' "${base_results[0]}" >> "${GITHUB_ENV}"
+          printf 'QUALIFICATION_RESULTS=%s\n' "${qualification_results[0]}" >> "${GITHUB_ENV}"
+
+      - name: Run deterministic P9-008 forensics
+        run: |
+          uv run --frozen python -m tiny_qwen_coder.evaluation.python_distilled_mbpp_forensics \
+            --base-results "${BASE_RESULTS}" \
+            --qualification-results "${QUALIFICATION_RESULTS}" \
+            --output-dir "${OUTPUT_DIR}"
+
+      - name: Verify exact observed regression signature
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run --frozen python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          summary = json.loads((Path(os.environ["OUTPUT_DIR"]) / "summary.json").read_text())
+          expected_flip = {
+              "retained_pass": 179,
+              "retained_fail": 133,
+              "regressions": 41,
+              "improvements": 17,
+              "net_pass_delta": -24,
+          }
+          if summary.get("flip_matrix") != expected_flip:
+              raise SystemExit("P9-008 flip matrix drifted")
+          if summary.get("regression_error_categories") != {"parse": 1, "test": 40}:
+              raise SystemExit("P9-008 regression failure categories drifted")
+          if summary.get("improvement_base_error_categories") != {"parse": 3, "test": 14}:
+              raise SystemExit("P9-008 improvement categories drifted")
+          conclusion = summary.get("conclusion") or {}
+          if conclusion.get("dominant_failure_mode") != "semantic_or_test_failure":
+              raise SystemExit("P9-008 dominant failure mode drifted")
+          if conclusion.get("harness_failure_detected") is not False:
+              raise SystemExit("P9-008 unexpectedly observed harness failures")
+          print(json.dumps(summary["flip_matrix"], indent=2, sort_keys=True))
+          print(json.dumps(summary["regression_error_categories"], indent=2, sort_keys=True))
+          PY
+
+      - name: Upload P9-008 forensics evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: p9-008-mbpp-forensics-${{ github.sha }}
+          path: ${{ env.OUTPUT_DIR }}/
+          if-no-files-found: error
+          retention-days: 90
+          include-hidden-files: false
