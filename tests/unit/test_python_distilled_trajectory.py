@@ -50,8 +50,7 @@ def test_distilled_selection_uses_combined_then_fewer_steps() -> None:
 
 def test_distilled_selection_returns_none_when_no_checkpoint_is_eligible() -> None:
     scores = tuple(
-        _score(step, humaneval=33, mbpp=70, eligible=False)
-        for step in (25, 50, 100, 185)
+        _score(step, humaneval=33, mbpp=70, eligible=False) for step in (25, 50, 100, 185)
     )
 
     assert select_development_candidate(scores) is None
