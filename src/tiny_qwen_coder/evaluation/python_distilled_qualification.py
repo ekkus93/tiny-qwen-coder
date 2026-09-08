@@ -70,9 +70,7 @@ _EXPECTED_SELECTED_ARTIFACT_SET_SHA256 = (
 _EXPECTED_SELECTED_CONFIG_SHA256 = (
     "4a7ad9b29cf752a7c93bfd6a67bd3227ee3b0d313436d408611b179d90e91ef1"
 )
-_EXPECTED_SELECTED_MODEL_SHA256 = (
-    "2ee57b8c6fd10237e6e2faf11a9ff376fe7115f58062a8ed54eb962c3be6478a"
-)
+_EXPECTED_SELECTED_MODEL_SHA256 = "2ee57b8c6fd10237e6e2faf11a9ff376fe7115f58062a8ed54eb962c3be6478a"
 _EXPECTED_QUAL_HE = 119
 _EXPECTED_QUAL_MBPP = 370
 _EXPECTED_QUAL_HOLDOUT = 11
@@ -529,8 +527,7 @@ def generate_qualification(
     he_responses = _generate_items(
         suite_id="humaneval-qualification",
         prompts=tuple(
-            (problem.task_id, humaneval.prompt_for(problem).user_content)
-            for problem in he_problems
+            (problem.task_id, humaneval.prompt_for(problem).user_content) for problem in he_problems
         ),
         generator=generator,
         system_prompt=system_prompt,
@@ -693,8 +690,7 @@ def score_qualification(
     he_responses = _generate_items(
         suite_id="humaneval-qualification",
         prompts=tuple(
-            (problem.task_id, humaneval.prompt_for(problem).user_content)
-            for problem in he_problems
+            (problem.task_id, humaneval.prompt_for(problem).user_content) for problem in he_problems
         ),
         generator=checkpoint_only,
         system_prompt=system_prompt,
@@ -814,7 +810,10 @@ def verify_qualification(
         _OUTPUT_ROOT / "qualification-score.json",
         context="P9-007E score",
     )
-    if stage.get("runner_up_requests") != 0 or score_payload.get("runner_up_evaluated") is not False:
+    if (
+        stage.get("runner_up_requests") != 0
+        or score_payload.get("runner_up_evaluated") is not False
+    ):
         raise DistilledQualificationError("P9-007E evidence indicates runner-up evaluation")
     if stage.get("combined_requests") != _EXPECTED_QUAL_TOTAL:
         raise DistilledQualificationError("P9-007E generation count drifted")
@@ -828,7 +827,10 @@ def verify_qualification(
     )
     if persisted != asdict(recomputed):
         raise DistilledQualificationError("persisted qualification score arithmetic drifted")
-    if score_payload.get("target_language_gate_passed") is not recomputed.target_language_gate_passed:
+    if (
+        score_payload.get("target_language_gate_passed")
+        is not recomputed.target_language_gate_passed
+    ):
         raise DistilledQualificationError("persisted target-language decision drifted")
     return {
         "selected_step": _SELECTED_STEP,
