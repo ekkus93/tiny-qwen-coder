@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "task_id": "P9-007B",
+  "status": "passed",
+  "workflow_run_id": 34227476556,
+  "workflow_job_id": 102068095031,
+  "source_git_sha": "e7e8f1656f0abe9add9b8000cf6bb2bf602e7799",
+  "runner": {
+    "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "total_vram_bytes": 16688218112,
+    "compute_capability": [8, 9],
+    "cuda_runtime": "13.0",
+    "torch": "2.13.0+cu130",
+    "bitsandbytes": "0.50.2"
+  },
+  "corpus": {
+    "archive_sha256": "6628a83f2f0ae87d11610d28edd177d6c58520c00ebe1bc987771de10205029b",
+    "dataset_manifest_sha256": "7e299de17cbb62bff3cf5f50c61ad6ad30ca571c9297b9935ff1307cd52e0eb7",
+    "source_output_sha256": "7f07f7253e98bf8ed295b12d72ebdf03c44b2e08a8d9f74aaa02dce5b760d966",
+    "accepted_records": 1557,
+    "train_records": 1479,
+    "validation_records": 78,
+    "contamination_status": "clean",
+    "reasoning_marker_hits": 0
+  },
+  "smoke": {
+    "adapter_id": "language/python/p9-distilled-v4-2000-r8-lr1e5",
+    "sequence_length": 2048,
+    "micro_batch_size": 1,
+    "gradient_accumulation_steps": 8,
+    "train_samples": 8,
+    "validation_samples": 4,
+    "global_steps": 1,
+    "training_loss": 0.5740649700164795,
+    "validation_loss": 0.5634564757347107,
+    "total_runtime_seconds": 25.80588409025222,
+    "peak_allocated_vram_bytes": 7604673024,
+    "peak_reserved_vram_bytes": 8170504192,
+    "artifact_set_sha256": "b2b74d9cf215fe8077c1bd41138c3e66d75f09dece0e4eaf54892d8eaa035d66",
+    "smoke_only": true,
+    "promotable": false
+  },
+  "actions_artifact": {
+    "artifact_id": 10056731498,
+    "artifact_name": "python-p9-distilled-v4-2000-smoke-e7e8f1656f0abe9add9b8000cf6bb2bf602e7799",
+    "uploaded_zip_sha256": "2911ca8a9e3c6f412f0be24009734315f41cb8c7faf1aaa36109ad745b031c22"
+  },
+  "trajectory_authorized": true
+}
