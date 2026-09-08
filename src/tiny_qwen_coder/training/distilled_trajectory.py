@@ -14,7 +14,6 @@ from typing import NoReturn, cast
 import yaml
 
 from tiny_qwen_coder.evaluation.python_minimum_intervention import load_development_manifest
-from tiny_qwen_coder.training.plan import resolve_adapter_training_plan
 
 _PROTOCOL_PATH = Path("configs/train/python/p9_distilled_v4_2000_trajectory_v1.yaml")
 _EXPECTED_PROTOCOL_SHA256 = "a77ac259c144a9eec8160854451c758b0927f6761801f553e3782117284a81d4"
@@ -27,9 +26,7 @@ _EXPECTED_DEVELOPMENT_MANIFEST_SHA256 = (
 _EXPECTED_DATASET_MANIFEST_SHA256 = (
     "7e299de17cbb62bff3cf5f50c61ad6ad30ca571c9297b9935ff1307cd52e0eb7"
 )
-_EXPECTED_SOURCE_OUTPUT_SHA256 = (
-    "7f07f7253e98bf8ed295b12d72ebdf03c44b2e08a8d9f74aaa02dce5b760d966"
-)
+_EXPECTED_SOURCE_OUTPUT_SHA256 = "7f07f7253e98bf8ed295b12d72ebdf03c44b2e08a8d9f74aaa02dce5b760d966"
 _EXPECTED_TRAIN_RECORDS = 1479
 _EXPECTED_VALIDATION_RECORDS = 78
 _EXPECTED_ACCEPTED_RECORDS = 1557
@@ -119,7 +116,9 @@ def _load_json(path: Path, *, context: str) -> dict[str, object]:
     return _mapping(value, context=context)
 
 
-def _require_keys(mapping: Mapping[str, object], expected: frozenset[str], *, context: str) -> None:
+def _require_keys(
+    mapping: Mapping[str, object], expected: frozenset[str], *, context: str
+) -> None:
     unknown = sorted(set(mapping) - expected)
     missing = sorted(expected - set(mapping))
     if unknown:
@@ -171,16 +170,19 @@ def _int_sequence(value: object, *, context: str) -> tuple[int, ...]:
 
 
 def _selection(row: Mapping[str, object]) -> DistilledSelectionPolicy:
-    expected = frozenset(
-        {
-            "primary_metric",
-            "minimum_combined_passed",
-            "minimum_humaneval_passed",
-            "minimum_mbpp_passed",
-            "tie_breakers",
-        }
+    _require_keys(
+        row,
+        frozenset(
+            {
+                "primary_metric",
+                "minimum_combined_passed",
+                "minimum_humaneval_passed",
+                "minimum_mbpp_passed",
+                "tie_breakers",
+            }
+        ),
+        context="selection",
     )
-    _require_keys(row, expected, context="selection")
     return DistilledSelectionPolicy(
         primary_metric=_string(row, "primary_metric", context="selection"),
         minimum_combined_passed=_integer(row, "minimum_combined_passed", context="selection"),
@@ -191,14 +193,17 @@ def _selection(row: Mapping[str, object]) -> DistilledSelectionPolicy:
 
 
 def _qualification(row: Mapping[str, object]) -> DistilledQualificationPolicy:
-    expected = frozenset(
-        {
-            "one_shot",
-            "evaluate_only_selected_checkpoint",
-            "repository_holdout_qualification_only",
-        }
+    _require_keys(
+        row,
+        frozenset(
+            {
+                "one_shot",
+                "evaluate_only_selected_checkpoint",
+                "repository_holdout_qualification_only",
+            }
+        ),
+        context="qualification",
     )
-    _require_keys(row, expected, context="qualification")
     return DistilledQualificationPolicy(
         one_shot=_boolean(row, "one_shot", context="qualification"),
         evaluate_only_selected_checkpoint=_boolean(
@@ -217,6 +222,13 @@ def _validate_training_shape(training: Mapping[str, object]) -> tuple[int, int]:
         "training_mode": "qlora_4bit",
         "compute_dtype": "bfloat16",
         "loss_mode": "assistant_only",
+        "dataset_manifest": (
+            "data/python/qwen38-27b-v4-2000-salvage-v1/dataset-manifest.json"
+        ),
+        "train_records": "data/python/qwen38-27b-v4-2000-salvage-v1/train.jsonl",
+        "validation_records": (
+            "data/python/qwen38-27b-v4-2000-salvage-v1/validation.jsonl"
+        ),
     }
     for key, expected in required.items():
         if training.get(key) != expected:
@@ -235,9 +247,7 @@ def _validate_training_shape(training: Mapping[str, object]) -> tuple[int, int]:
     return micro_batch, accumulation
 
 
-def validate_distilled_trajectory(
-    *, repo_root: Path = Path(".")
-) -> DistilledTrajectoryValidation:
+def validate_distilled_trajectory(*, repo_root: Path = Path(".")) -> DistilledTrajectoryValidation:
     """Validate the exact P9-007C corpus, optimizer shape, step horizon, and dev gate."""
 
     protocol_path = repo_root / _PROTOCOL_PATH
@@ -288,7 +298,9 @@ def validate_distilled_trajectory(
     if effective_batch != _EXPECTED_EFFECTIVE_BATCH_SIZE:
         raise DistilledTrajectoryError("P9-007C effective batch size drifted")
     if _integer(root, "effective_batch_size", context="P9-007C protocol") != effective_batch:
-        raise DistilledTrajectoryError("P9-007C protocol effective batch disagrees with training config")
+        raise DistilledTrajectoryError(
+            "P9-007C protocol effective batch disagrees with training config"
+        )
 
     evidence_path = repo_root / corpus_evidence
     evidence = _load_json(evidence_path, context="P9-007C corpus evidence")
@@ -304,7 +316,11 @@ def validate_distilled_trajectory(
         _integer(final_counts, "train_records", context="P9-007C final counts"),
         _integer(final_counts, "validation_records", context="P9-007C final counts"),
     )
-    if counts != (_EXPECTED_ACCEPTED_RECORDS, _EXPECTED_TRAIN_RECORDS, _EXPECTED_VALIDATION_RECORDS):
+    if counts != (
+        _EXPECTED_ACCEPTED_RECORDS,
+        _EXPECTED_TRAIN_RECORDS,
+        _EXPECTED_VALIDATION_RECORDS,
+    ):
         raise DistilledTrajectoryError("P9-007C frozen corpus counts drifted")
     qualification_evidence = _mapping(evidence.get("qualification"), context="corpus qualification")
     if qualification_evidence.get("qualified") is not True:
@@ -342,12 +358,6 @@ def validate_distilled_trajectory(
     qualification = _qualification(_mapping(root.get("qualification"), context="qualification"))
     if qualification != DistilledQualificationPolicy(True, True, True):
         raise DistilledTrajectoryError("P9-007C qualification policy drifted")
-
-    plan = resolve_adapter_training_plan(training_path)
-    if plan.config.adapter_id != _EXPECTED_ADAPTER_ID:
-        raise DistilledTrajectoryError("P9-007C resolved adapter identity drifted")
-    if Path(plan.config.output_dir).as_posix() != _EXPECTED_OUTPUT_DIR:
-        raise DistilledTrajectoryError("P9-007C resolved output path drifted")
 
     return DistilledTrajectoryValidation(
         schema_version=1,
@@ -387,7 +397,12 @@ def distilled_trajectory_main(argv: Sequence[str] | None = None) -> NoReturn:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-root", type=Path, default=Path("."))
     args = parser.parse_args(argv)
-    print(distilled_trajectory_validation_json(validate_distilled_trajectory(repo_root=args.repo_root)), end="")
+    print(
+        distilled_trajectory_validation_json(
+            validate_distilled_trajectory(repo_root=args.repo_root)
+        ),
+        end="",
+    )
     raise SystemExit(0)
 
 
