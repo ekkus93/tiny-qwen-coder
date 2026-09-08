@@ -97,9 +97,7 @@ def _require_string(mapping: dict[str, object], key: str, *, context: str) -> st
     return value
 
 
-def _require_mapping(
-    mapping: dict[str, object], key: str, *, context: str
-) -> dict[str, object]:
+def _require_mapping(mapping: dict[str, object], key: str, *, context: str) -> dict[str, object]:
     value = mapping.get(key)
     if not isinstance(value, dict):
         raise DistilledSalvageImportError(f"{context}.{key} must be an object")
@@ -257,8 +255,7 @@ def _verify_manifest_content(
         for index, record in enumerate(accepted)
     )
     train_fingerprints = tuple(
-        _record_fingerprint(record, context=f"train[{index}]")
-        for index, record in enumerate(train)
+        _record_fingerprint(record, context=f"train[{index}]") for index, record in enumerate(train)
     )
     validation_fingerprints = tuple(
         _record_fingerprint(record, context=f"validation[{index}]")
@@ -291,14 +288,11 @@ def _verify_manifest_content(
     memberships_value = manifest.get("memberships")
     if not isinstance(memberships_value, list) or len(memberships_value) != len(accepted):
         raise DistilledSalvageImportError("dataset manifest memberships do not align with accepted")
-    if (
-        _require_string(
-            checksums,
-            "split_membership_sha256",
-            context="dataset manifest.checksums",
-        )
-        != _canonical_sha256(memberships_value)
-    ):
+    if _require_string(
+        checksums,
+        "split_membership_sha256",
+        context="dataset manifest.checksums",
+    ) != _canonical_sha256(memberships_value):
         raise DistilledSalvageImportError("dataset manifest split-membership checksum drifted")
 
     for index, (membership_value, fingerprint) in enumerate(
