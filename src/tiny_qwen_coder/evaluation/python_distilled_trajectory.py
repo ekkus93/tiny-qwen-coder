@@ -173,9 +173,7 @@ def _snapshot_identity(
         relative_file = Path(_string(item, "path", context="snapshot file"))
         path = (directory / relative_file).resolve()
         if not path.is_relative_to(directory) or not path.is_file():
-            raise DistilledTrajectoryEvaluationError(
-                "P9-007C snapshot file is missing or escaping"
-            )
+            raise DistilledTrajectoryEvaluationError("P9-007C snapshot file is missing or escaping")
         size = _integer(item, "size_bytes", context="snapshot file")
         digest = _string(item, "sha256", context="snapshot file")
         if path.stat().st_size != size or _sha256_file(path) != digest:
@@ -244,12 +242,12 @@ def load_local_trajectory(
         for row, step in zip(rows, _EXPECTED_STEPS, strict=True)
     }
 
-    run_manifest = _load_json(
-        training_output / "run-manifest.json", context="P9-007C run manifest"
-    )
+    run_manifest = _load_json(training_output / "run-manifest.json", context="P9-007C run manifest")
     git = _mapping(run_manifest.get("git"), context="run manifest.git")
     source_sha = _string(git, "sha", context="run manifest.git")
-    if len(source_sha) != 40 or any(character not in "0123456789abcdef" for character in source_sha):
+    if len(source_sha) != 40 or any(
+        character not in "0123456789abcdef" for character in source_sha
+    ):
         raise DistilledTrajectoryEvaluationError("P9-007C source Git SHA is invalid")
     run_id = _string(report, "run_id", context="P9-007C training report")
     digest = hashlib.sha256(
@@ -596,9 +594,7 @@ def score_checkpoint(
         trajectory, repo_root=repo_root
     )
     output_dir = _OUTPUT_ROOT / f"step-{step:04d}"
-    stage = _load_json(
-        output_dir / "generation-stage.json", context="P9-007C generation stage"
-    )
+    stage = _load_json(output_dir / "generation-stage.json", context="P9-007C generation stage")
     if stage.get("task_id") != "P9-007C" or stage.get("stage") != "development-generation":
         raise DistilledTrajectoryEvaluationError("P9-007C generation stage identity drifted")
     if (
