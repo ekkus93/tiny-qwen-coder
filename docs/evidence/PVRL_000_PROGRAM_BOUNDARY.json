@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "task_id": "PVRL-000",
+  "recorded_at_utc": "2026-09-09T17:45:00Z",
+  "track": "python-verifiable-reinforcement-learning",
+  "starting_master_sha": "6fb599f3528387d77f8293a2a8a2260326aa20ae",
+  "policy_model": {
+    "repository": "Qwen/Qwen3.5-4B",
+    "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+    "role": "student/current policy"
+  },
+  "environment_author_model": {
+    "repository": "Qwen/Qwen3.8-27B",
+    "revision": "72a217afab8029b39e4af1c7273a829995a3dbaf",
+    "role": "candidate environment author",
+    "automatic_correctness_oracle": false,
+    "automatic_student_target_authorization": false
+  },
+  "frozen_base_reference": {
+    "humaneval": {"passed": 128, "total": 164},
+    "mbpp": {"passed": 290, "total": 500},
+    "repository_holdout": {"passed": 6, "total": 11},
+    "combined": {"passed": 424, "total": 675},
+    "historical_baseline_workflow_run_id": 33301242379,
+    "ftr_101_exact_reproduction_run_id": 34336465327
+  },
+  "ftr_dependency_at_track_creation": {
+    "ftr_101": "complete",
+    "ftr_102": "in_progress",
+    "ftr_102_pull_request": 63,
+    "ftr_102_head_sha": "0bc81414bcefaec4c69e5daadd399b7a1ea0fc70",
+    "ftr_102_cpu_ci_run_id": 34379857723,
+    "ftr_102_cpu_ci_conclusion": "success",
+    "ftr_102_gpu_control_run_id": 34379852161,
+    "ftr_102_gpu_control_status_at_recording": "in_progress",
+    "ftr_g1": "not_satisfied",
+    "model_training_authorized": false
+  },
+  "protected_data_policy": {
+    "protected_sets": [
+      "HumanEval",
+      "MBPP",
+      "repository holdout",
+      "future qualification sets"
+    ],
+    "forbidden_uses": [
+      "PVRL training curriculum",
+      "PVRL calibration",
+      "environment-author few-shot examples",
+      "task-generation derivatives",
+      "reward shaping targets"
+    ]
+  },
+  "scientific_question": "Can a small curriculum of independently verifiable Python tasks, selected near the current Qwen3.5-4B policy's learnability frontier and optimized with group-relative executable reward, produce a reproducible behavioral improvement over the exact unchanged base?",
+  "hypotheses": {
+    "H0": "A bounded executable-reward RL intervention does not produce a meaningful paired improvement over the exact unchanged Qwen3.5-4B base on a frozen disjoint development set.",
+    "H1": "A bounded executable-reward RL intervention on frontier-selected independently verified tasks produces a meaningful paired improvement over the exact unchanged base without unacceptable regressions."
+  },
+  "v0_scope": {
+    "task_type": "self-contained executable Python",
+    "repository_scale_swe": false,
+    "training_mode": "synchronous on-policy",
+    "hardware_target": "single RTX 4070 Ti SUPER-class 16 GiB GPU",
+    "primary_reward": "binary executable correctness",
+    "larger_model_student_answer_distillation": false
+  },
+  "non_goals": [
+    "exact FrogNano distributed-system reproduction",
+    "65k/131k-context training in v0",
+    "direct SWE-bench training in v0",
+    "unrestricted solver networking",
+    "broad Cartesian hyperparameter sweeps",
+    "treating Qwen3.8-27B answers as gold student targets",
+    "using protected benchmarks for RL reward training",
+    "asynchronous rollout complexity before synchronous causality is established"
+  ],
+  "hard_stop_rules": [
+    "No PVRL model-training conclusion before FTR-G1 is satisfied.",
+    "Stop if hidden grader state is readable or writable by the solver.",
+    "Stop if harness failures are converted into candidate failures.",
+    "Stop if Qwen3.5 multi-turn token-prefix continuity is violated.",
+    "Stop if rollout/log-prob/loss-mask alignment is ambiguous.",
+    "Stop if protected benchmark contamination is detected.",
+    "Stop if checkpoint/resume identity is ambiguous."
+  ],
+  "reference_architecture": {
+    "paper": "FrogNano: Training a 4B Coding Agent via Online Task Synthesis",
+    "arxiv": "2609.07925",
+    "url": "https://arxiv.org/abs/2609.07925",
+    "adaptation_note": "PVRL adopts executable environments, frontier calibration, and behavioral RL while deliberately simplifying to synchronous short-context QLoRA experiments on local hardware."
+  },
+  "qwen35_token_history_reference": {
+    "issue": "THUDM/slime#2288",
+    "url": "https://github.com/THUDM/slime/issues/2288",
+    "required_uncompacted_prefix_invariant": "next_prompt_ids[:len(previous_prompt_ids + previous_output_ids)] == previous_prompt_ids + previous_output_ids"
+  }
+}
