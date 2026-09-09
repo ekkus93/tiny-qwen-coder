@@ -175,9 +175,7 @@ def _write_fixture(root: Path, *, source_sha: str, suffix: str = "") -> None:
         suite_dir = root / subdir
         suite_dir.mkdir()
         row = _result(problem_id, generated_text=f"code{suffix}", passed=True)
-        (suite_dir / f"{subdir}-results.jsonl").write_text(
-            json.dumps(row) + "\n", encoding="utf-8"
-        )
+        (suite_dir / f"{subdir}-results.jsonl").write_text(json.dumps(row) + "\n", encoding="utf-8")
         (suite_dir / f"{subdir}-aggregate.json").write_text(
             json.dumps(_aggregate(suite_id)) + "\n", encoding="utf-8"
         )
@@ -192,9 +190,7 @@ def _protocol_config(path: Path, *, frozen_source_sha: str) -> str:
             "workflow_run_id": 33301242379,
             "source_git_sha": frozen_source_sha,
             "artifact_id": 9729636096,
-            "artifact_name": (
-                "python-base-baseline-da537443ab80b1380bee0fc3c7d9d01ca0574f35"
-            ),
+            "artifact_name": ("python-base-baseline-da537443ab80b1380bee0fc3c7d9d01ca0574f35"),
             "artifact_digest": (
                 "sha256:bcc08b94e0204e19d38fe28d0771a597687cbe44ad08af4759233a3c824e2e21"
             ),
