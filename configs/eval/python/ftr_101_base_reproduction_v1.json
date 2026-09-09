@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "id": "python-ftr-101-base-reproduction-v1",
+  "task_id": "FTR-101",
+  "frozen_baseline": {
+    "workflow_run_id": 33301242379,
+    "source_git_sha": "da537443ab80b1380bee0fc3c7d9d01ca0574f35",
+    "artifact_id": 9729636096,
+    "artifact_name": "python-base-baseline-da537443ab80b1380bee0fc3c7d9d01ca0574f35",
+    "artifact_digest": "sha256:bcc08b94e0204e19d38fe28d0771a597687cbe44ad08af4759233a3c824e2e21",
+    "artifact_set_sha256": "4bf616c3e84bdd74f8cf6467fc2d9d760f04d3b1b44660a81e365ff6f99a72fc",
+    "chat_template_sha256": "a4aee8afcf2e0711942cf848899be66016f8d14a889ff9ede07bca099c28f715",
+    "scores": {
+      "humaneval": [128, 164],
+      "mbpp": [290, 500],
+      "repository-holdout": [6, 11],
+      "combined": [424, 675]
+    }
+  },
+  "comparison": {
+    "suites": [
+      "humaneval",
+      "mbpp",
+      "repository-holdout"
+    ],
+    "require_exact_task_membership": true,
+    "require_exact_canonical_task_records": true,
+    "require_exact_manifest_generation_identity": true,
+    "require_exact_harness_identity": true,
+    "require_exact_runtime_dependency_identity": true,
+    "allow_score_tolerance": 0
+  }
+}
