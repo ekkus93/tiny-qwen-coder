@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "task_id": "FTR-000",
+  "track": "python-fine-tuning-root-cause-remediation",
+  "track_start_master_sha": "c1205176e3f2d79ee7778b3febee6d92bba5fb78",
+  "models": {
+    "student_base": {
+      "repository": "Qwen/Qwen3.5-4B",
+      "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+      "config_path": "configs/base/qwen35-4b.yaml",
+      "config_blob_sha": "f71b50a50ab3fcbc5d5e59c1baced941645b58e7"
+    },
+    "teacher": {
+      "repository": "Qwen/Qwen3.8-27B",
+      "revision": "72a217afab8029b39e4af1c7273a829995a3dbaf",
+      "reference_config_path": "configs/distillation/python/qwen38_27b_v3.yaml",
+      "reference_config_blob_sha": "a7ace8588437596733a2895cf22f041ddf9b672f"
+    }
+  },
+  "frozen_base_benchmark": {
+    "workflow_run_id": 33301242379,
+    "source_git_sha": "da537443ab80b1380bee0fc3c7d9d01ca0574f35",
+    "baseline_artifact": {
+      "artifact_id": 9729636096,
+      "name": "python-base-baseline-da537443ab80b1380bee0fc3c7d9d01ca0574f35",
+      "archive_digest": "sha256:bcc08b94e0204e19d38fe28d0771a597687cbe44ad08af4759233a3c824e2e21",
+      "artifact_set_sha256": "4bf616c3e84bdd74f8cf6467fc2d9d760f04d3b1b44660a81e365ff6f99a72fc"
+    },
+    "generation_artifact": {
+      "artifact_id": 9729582109,
+      "name": "python-base-generation-da537443ab80b1380bee0fc3c7d9d01ca0574f35",
+      "archive_digest": "sha256:39209d71ea055dc58cec217aeeb3897fb68d888dcd0d32d3269a1551710fdc27"
+    },
+    "scores": {
+      "humaneval": {"passed": 128, "total": 164},
+      "mbpp": {"passed": 290, "total": 500},
+      "repository_holdout": {"passed": 6, "total": 11},
+      "combined": {"passed": 424, "total": 675}
+    },
+    "promotion_policy": {
+      "path": "configs/eval/python/promotion_v1.yaml",
+      "policy_id": "python-promotion-v1",
+      "sha256": "2c884ca66b3b09071971e89777c9877eddd730c9d4cc59e7475b1cbce963b22e"
+    }
+  },
+  "p9_007_failed_qualification": {
+    "status": "completed_failed_qualification",
+    "workflow_run_id": 34275104625,
+    "workflow_job_id": 102226070875,
+    "source_git_sha": "69fa3ee934cb59e081bee8356322e569ce42c3a9",
+    "selected_step": 185,
+    "selected_adapter_model_sha256": "2ee57b8c6fd10237e6e2faf11a9ff376fe7115f58062a8ed54eb962c3be6478a",
+    "selected_artifact_set_sha256": "0462ed5e7dc08df76c1e72c58bf53d153ca9d74cc072a0724c62537307a476da",
+    "generation_contract_sha256": "3895908ab0cde5bafdb4de43c1bcacabebb6b0801aeef529e9da9aa9a71eb084",
+    "qualification_artifact": {
+      "artifact_id": 10077334268,
+      "name": "p9-007e-qualification-69fa3ee934cb59e081bee8356322e569ce42c3a9",
+      "digest": "sha256:bc2fab6089a67fa246168ca36b54b4cf694bf6dd2ce9e66bcd76b4dce2606783"
+    },
+    "scores": {
+      "humaneval": {"base": 128, "fine_tuned": 128, "total": 164},
+      "mbpp": {"base": 290, "fine_tuned": 266, "total": 500},
+      "repository_holdout": {"base": 6, "fine_tuned": 6, "total": 11},
+      "combined": {"base": 424, "fine_tuned": 400, "total": 675}
+    },
+    "target_language_gate_passed": false,
+    "operational_workflow_completed_successfully": true,
+    "scientific_disposition": "failed model qualification; do not evaluate any P9-007 runner-up"
+  },
+  "p9_008_forensics": {
+    "workflow_run_id": 34285685184,
+    "source_git_sha": "3d24327b2b5ec8471b0ac1512a14d6b13199b371",
+    "artifact": {
+      "artifact_id": 10079361990,
+      "name": "p9-008-mbpp-forensics-3d24327b2b5ec8471b0ac1512a14d6b13199b371",
+      "digest": "sha256:953be9bd9ce5bde3b92e270498f3d3542f73b8f5855982b41b16776c31eb1e4e"
+    },
+    "inputs": {
+      "base_mbpp_results_sha256": "c1598681b431906ba497b71ba4f1d1ce7c1cbba3d1a98db356f310fa6a65ab2e",
+      "adapter_mbpp_results_sha256": "a9e550976a1809ea14b31f1587d9f6e655677f3185d913344dea33ba422c4df2"
+    },
+    "flip_matrix": {
+      "base_pass_adapter_pass": 179,
+      "base_fail_adapter_fail": 133,
+      "base_pass_adapter_fail": 41,
+      "base_fail_adapter_pass": 17,
+      "net_change": -24
+    },
+    "regression_failure_modes": {
+      "test_failures": 40,
+      "parse_failures": 1,
+      "harness_errors": 0
+    }
+  },
+  "repaired_v4_2000_corpus": {
+    "corpus_id": "qwen38-27b-v4-2000-salvage-v1",
+    "observed_export_archive_sha256": "6628a83f2f0ae87d11610d28edd177d6c58520c00ebe1bc987771de10205029b",
+    "source_output_sha256": "7f07f7253e98bf8ed295b12d72ebdf03c44b2e08a8d9f74aaa02dce5b760d966",
+    "dataset_manifest_sha256": "7e299de17cbb62bff3cf5f50c61ad6ad30ca571c9297b9935ff1307cd52e0eb7",
+    "qualification_sha256": "6c9ca0737ada462d408d3fb001bc964f37bf7125c78fd504f727d63d2aeeedef",
+    "teacher_finalization_sha256": "004551219fa2b16c503152ee0936bd7aa2da19e3e18ee5a2b30e1353a40b3217",
+    "accepted_records": 1557,
+    "train_records": 1479,
+    "validation_records": 78,
+    "contamination_status": "clean",
+    "literal_reasoning_marker_hits": 0
+  },
+  "scientific_boundaries": {
+    "p9_007_is_failed_model_qualification_despite_green_workflow": true,
+    "p9_007_qualification_set_is_fresh_for_future_redesigns": false,
+    "qualification_freshness_reason": "Observed P9-007 qualification outcomes directly influenced P9-008 and the FTR/P9-009 redesign; the set may be used only as historical/diagnostic evidence for those successor experiments.",
+    "frozen_evidence_must_not_be_mutated": true,
+    "later_experiments_must_use_successor_namespaces": true
+  }
+}
