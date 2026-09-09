@@ -173,9 +173,15 @@ jobs:
       - name: Prepare constrained execution image
         run: |
           set -euo pipefail
-          docker --version
-          docker pull "${EXECUTION_IMAGE}"
-          docker image inspect "${EXECUTION_IMAGE}" >/dev/null
+          runtime="$(uv run --frozen python - <<'PY'
+          from tiny_qwen_coder.evaluation.execution import discover_oci_runtime
+
+          print(discover_oci_runtime().executable)
+          PY
+          )"
+          "${runtime}" --version
+          "${runtime}" pull "${EXECUTION_IMAGE}"
+          "${runtime}" image inspect "${EXECUTION_IMAGE}" >/dev/null
 
       - name: Confirm clean exact source
         run: |
