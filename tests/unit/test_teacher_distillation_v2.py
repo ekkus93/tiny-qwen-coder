@@ -225,6 +225,13 @@ def test_python_protected_example_loader_covers_every_registered_benchmark() -> 
         for example in examples
         if example.benchmark_id == "repository-holdout"
     )
+    assert all(example.test_texts for example in examples)
+    assert all(
+        len(example.test_texts) == 1 for example in examples if example.benchmark_id == "humaneval"
+    )
+    assert all(
+        len(example.test_texts) == 3 for example in examples if example.benchmark_id == "mbpp"
+    )
 
 
 def test_bounded_teacher_study_requires_rates_and_clean_contamination() -> None:

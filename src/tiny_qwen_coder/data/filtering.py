@@ -8,6 +8,7 @@ from dataclasses import dataclass, replace
 from enum import StrEnum
 
 from tiny_qwen_coder.data.records import NormalizedTrainingRecord, TrainingMessage
+from tiny_qwen_coder.text_normalization import normalize_training_text
 
 
 class ContentRejectionReason(StrEnum):
@@ -79,19 +80,6 @@ class RequiredContentFilterReport:
         """Return the number of rejected records."""
 
         return len(self.rejected_records)
-
-
-def normalize_training_text(text: str) -> str:
-    """Apply only semantics-preserving text normalization used by P3-004.
-
-    The input must be strictly UTF-8 encodable. A leading Unicode BOM is
-    removed and CRLF/CR line endings are converted to LF. No whitespace
-    trimming or Unicode normalization is performed because either could change
-    source-code semantics.
-    """
-
-    text.encode("utf-8", errors="strict")
-    return text.removeprefix("\ufeff").replace("\r\n", "\n").replace("\r", "\n")
 
 
 def normalize_record_text(record: NormalizedTrainingRecord) -> NormalizedTrainingRecord:

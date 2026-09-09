@@ -9,6 +9,7 @@ without treating it as an exact match.
 
 from __future__ import annotations
 
+import hashlib
 import re
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
@@ -16,6 +17,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from tiny_qwen_coder.evaluation.protected_benchmarks import ProtectedBenchmarkRegistry
+from tiny_qwen_coder.text_normalization import normalize_training_text
 
 if TYPE_CHECKING:
     from tiny_qwen_coder.data.records import NormalizedTrainingRecord, TrainingMessage
@@ -78,6 +80,7 @@ class ProtectedBenchmarkExample:
     record_id: str
     prompt_messages: tuple[TrainingMessage, ...]
     solution: str | None = None
+    test_texts: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not _LANGUAGE_ID_PATTERN.fullmatch(self.language):
@@ -97,6 +100,13 @@ class ProtectedBenchmarkExample:
             raise ValueError("protected example prompt_messages must end with a user message")
         if self.solution is not None and not self.solution.strip():
             raise ValueError("protected example solution must not be empty when provided")
+        if len(self.test_texts) != len(set(self.test_texts)):
+            raise ValueError("protected example test_texts must not contain duplicates")
+        for index, test_text in enumerate(self.test_texts):
+            if not test_text or not test_text.strip():
+                raise ValueError(
+                    f"protected example test_texts[{index}] must be non-empty when provided"
+                )
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,8 +119,6 @@ class _PreparedProtectedExample:
 
 
 def _normalize_text(text: str) -> str:
-    from tiny_qwen_coder.data.filtering import normalize_training_text
-
     return normalize_training_text(text)
 
 
@@ -139,6 +147,30 @@ def _overlap_score(left: frozenset[_Shingle], right: frozenset[_Shingle]) -> flo
     if not left or not right:
         return 0.0
     return len(left & right) / min(len(left), len(right))
+
+
+def normalized_contamination_text(text: str) -> str:
+    """Return the canonical text normalization shared by contamination checks."""
+
+    return _normalize_text(text)
+
+
+def normalized_contamination_sha256(text: str) -> str:
+    """Hash contamination text after the canonical conservative normalization."""
+
+    return hashlib.sha256(normalized_contamination_text(text).encode("utf-8")).hexdigest()
+
+
+def contamination_text_overlap_score(
+    left: str,
+    right: str,
+    *,
+    overlap: HighOverlapConfig | None = None,
+) -> float:
+    """Return the stable lexical overlap coefficient used by contamination policy."""
+
+    selected = overlap or HighOverlapConfig()
+    return _overlap_score(_shingles(left, selected), _shingles(right, selected))
 
 
 def _prepare_protected_examples(
