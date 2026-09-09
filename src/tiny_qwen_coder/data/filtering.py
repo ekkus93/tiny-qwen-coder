@@ -8,7 +8,7 @@ from dataclasses import dataclass, replace
 from enum import StrEnum
 
 from tiny_qwen_coder.data.records import NormalizedTrainingRecord, TrainingMessage
-from tiny_qwen_coder.text_normalization import normalize_training_text
+from tiny_qwen_coder.text_normalization import normalize_training_text as normalize_training_text
 
 
 class ContentRejectionReason(StrEnum):
