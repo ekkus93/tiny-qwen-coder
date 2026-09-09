@@ -59,7 +59,7 @@ def test_protocol_freezes_expected_noop_loader_and_ftr101_reference() -> None:
     assert adapter["require_all_saved_adapter_tensors_zero"] is True
     assert isinstance(reference, dict)
     assert reference["run_id"] == 34336465327
-    assert reference["scores"]["combined"] == [424, 675]  # type: ignore[index]
+    assert reference["scores"]["combined"] == [424, 675]
 
 
 def test_zero_adapter_inspection_accepts_only_exact_zero_tensors(tmp_path: Path) -> None:
