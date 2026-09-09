@@ -14,7 +14,6 @@ import argparse
 import hashlib
 import importlib.metadata
 import json
-import shutil
 import time
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, replace
@@ -43,15 +42,13 @@ from tiny_qwen_coder.evaluation._baseline_runner import (
     _preflight_source_tree,
     _regression_aggregate,
     _regression_results,
-    _suite_performance,
     _validate_baseline_contract,
 )
-from tiny_qwen_coder.evaluation._baseline_stages import _suite_performance_from_responses
-from tiny_qwen_coder.evaluation._baseline_types import (
-    BaselineGeneratedResponse,
-    BaselineSuitePerformance,
-    PythonBaselineError,
+from tiny_qwen_coder.evaluation._baseline_stages import (
+    _generate_all_suites,
+    _suite_performance_from_responses,
 )
+from tiny_qwen_coder.evaluation._baseline_types import BaselineGeneratedResponse
 from tiny_qwen_coder.evaluation.execution import (
     ConstrainedExecutionHarness,
     OciRuntime,
@@ -71,7 +68,6 @@ from tiny_qwen_coder.evaluation.settings import (
     load_frozen_evaluation_settings,
 )
 from tiny_qwen_coder.identities import AdapterIdentity, BaseModelIdentity
-from tiny_qwen_coder.languages.python import load_python_plugin
 from tiny_qwen_coder.reproducibility import seed_everything
 
 _PROTOCOL_CONFIG = Path("configs/eval/python/ftr_102_noop_adapter_equivalence_v1.json")
@@ -557,9 +553,7 @@ def _write_generation_manifest(
         "source_git_sha": source_git_sha,
         "protocol_config_sha256": file_sha256(protocol_path),
         "generation_contract_sha256": generation_contract,
-        "evaluation_settings_sha256": evaluation_settings_sha256(
-            load_frozen_evaluation_settings()
-        ),
+        "evaluation_settings_sha256": evaluation_settings_sha256(load_frozen_evaluation_settings()),
         "artifacts": artifacts,
     }
     _write_json(output_dir / _GENERATION_MANIFEST_FILE, manifest)
@@ -583,9 +577,7 @@ def _validate_generation_manifest(
         "source_git_sha": source_git_sha,
         "protocol_config_sha256": file_sha256(protocol_path),
         "generation_contract_sha256": generation_contract,
-        "evaluation_settings_sha256": evaluation_settings_sha256(
-            load_frozen_evaluation_settings()
-        ),
+        "evaluation_settings_sha256": evaluation_settings_sha256(load_frozen_evaluation_settings()),
     }
     for key, value in expected.items():
         if manifest.get(key) != value:
@@ -947,10 +939,14 @@ def _aggregate_comparison(frozen: Path, current: Path, *, context: str) -> dict[
     frozen_payload = _read_json(frozen, context=f"frozen {context} aggregate")
     current_payload = _read_json(current, context=f"current {context} aggregate")
     frozen_stable = {
-        key: value for key, value in frozen_payload.items() if key not in _AGGREGATE_ALLOWED_DIFFERENCES
+        key: value
+        for key, value in frozen_payload.items()
+        if key not in _AGGREGATE_ALLOWED_DIFFERENCES
     }
     current_stable = {
-        key: value for key, value in current_payload.items() if key not in _AGGREGATE_ALLOWED_DIFFERENCES
+        key: value
+        for key, value in current_payload.items()
+        if key not in _AGGREGATE_ALLOWED_DIFFERENCES
     }
     changed = sorted(
         key
@@ -1027,10 +1023,9 @@ def _identity_comparison(
     frozen_manifest = _read_json(
         frozen_dir / "baseline-manifest.json", context="FTR-101 baseline manifest"
     )
-    generation_contract_exact = (
-        current_identity.get("generation_contract_sha256")
-        == frozen_manifest.get("generation_contract_sha256")
-    )
+    generation_contract_exact = current_identity.get(
+        "generation_contract_sha256"
+    ) == frozen_manifest.get("generation_contract_sha256")
     after = _strict_mapping(
         current_identity.get("model_after_adapter"), context="FTR-102 model_after_adapter"
     )
@@ -1098,10 +1093,8 @@ def compare_control_to_frozen(
         suites.append(result)
 
     regression = _result_comparison(
-        frozen_path=frozen_dir
-        / "general-tool-regression/general-tool-regression-results.jsonl",
-        current_path=current_dir
-        / "general-tool-regression/general-tool-regression-results.jsonl",
+        frozen_path=frozen_dir / "general-tool-regression/general-tool-regression-results.jsonl",
+        current_path=current_dir / "general-tool-regression/general-tool-regression-results.jsonl",
         suite_id="general-tool-regression",
         regression=True,
     )
