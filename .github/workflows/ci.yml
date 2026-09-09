@@ -17,16 +17,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  quality:
-    name: CPU quality gates
+  preflight:
+    name: Fast static preflight
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    env:
-      HF_HUB_OFFLINE: "1"
-      HF_DATASETS_OFFLINE: "1"
-      TRANSFORMERS_OFFLINE: "1"
-      TOKENIZERS_PARALLELISM: "false"
+    timeout-minutes: 3
 
     steps:
       - name: Check out repository
@@ -42,22 +36,89 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
         with:
-          enable-cache: true
-
-      - name: Sync frozen environment
-        run: uv sync --frozen
+          enable-cache: false
 
       - name: Check formatting
-        run: uv run --frozen ruff format --check .
+        run: uvx --from ruff==0.16.5 ruff format --check .
 
       - name: Lint
-        run: uv run --frozen ruff check .
+        run: uvx --from ruff==0.16.5 ruff check .
+
+      - name: Compile Python sources
+        run: python -m compileall -q src scripts tests
+
+      - name: Check changed Python annotations
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "${BASE_SHA}"
+          mapfile -t changed_python < <(
+            git diff --name-only --diff-filter=ACMRT "${BASE_SHA}" HEAD -- '*.py'
+          )
+          if (( ${#changed_python[@]} == 0 )); then
+            echo "No changed Python files."
+            exit 0
+          fi
+          printf 'Fast annotation check: %s\n' "${changed_python[@]}"
+          uvx --from ruff==0.16.5 ruff check --select ANN "${changed_python[@]}"
+
+      - name: Check Git whitespace
+        run: git diff --check
+
+  quality:
+    name: Full CPU quality gates
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      HF_HUB_OFFLINE: "1"
+      HF_DATASETS_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      TOKENIZERS_PARALLELISM: "false"
+      UV_CACHE_DIR: .uv-cache
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: false
+
+      - name: Restore full dependency cache
+        id: full-uv-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .uv-cache
+          key: uv-full-${{ runner.os }}-py311-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            uv-full-${{ runner.os }}-py311-
+
+      - name: Sync frozen environment
+        id: sync
+        run: uv sync --frozen
 
       - name: Type check
+        id: typecheck
         run: uv run --frozen mypy src scripts tests
 
       - name: Test
         run: uv run --frozen pytest
 
-      - name: Check Git whitespace
-        run: git diff --check
+      - name: Save populated dependency cache
+        if: always() && steps.sync.outcome == 'success' && steps.full-uv-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .uv-cache
+          key: uv-full-${{ runner.os }}-py311-${{ hashFiles('uv.lock') }}
