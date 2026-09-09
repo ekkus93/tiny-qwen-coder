@@ -41,6 +41,8 @@ For unrelated future bounded teacher-data experiments, the preserved v4 notebook
 | `diagnose_prepared_teacher_data.py` | Diagnose an already student-shaped merged v4 corpus. |
 | `finalize_teacher_data.py` | Finalize a first-pass generation checkpoint. |
 | `finalize_prepared_teacher_data.py` | Finalize a merged v4 corpus without reinterpreting teacher-only prompt policies. |
+| `prepare_semantic_contract_input.py` | Build candidate-hidden P9-009 verifier input from the frozen repaired accepted corpus. |
+| `verify_semantic_contracts.py` | Self-test independent executable contracts and freeze the split-preserving P9-009 survivor census. |
 | `qualify_teacher_study.py` | Mechanically decide whether a bounded teacher study may scale or train. |
 | `README.md` | Architecture, experiment contract, recovery, and scaling rules. |
 
