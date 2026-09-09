@@ -31,12 +31,8 @@ from tiny_qwen_coder.evaluation.execution import (
 SEMANTIC_CONTRACT_POLICY_ID = "python-semantic-contract-v1"
 SEMANTIC_CONTRACT_SEED = 2718
 MIN_ASSERTIONS = 8
-EXPECTED_SOURCE_MANIFEST_SHA256 = (
-    "7e299de17cbb62bff3cf5f50c61ad6ad30ca571c9297b9935ff1307cd52e0eb7"
-)
-EXPECTED_SOURCE_OUTPUT_SHA256 = (
-    "7f07f7253e98bf8ed295b12d72ebdf03c44b2e08a8d9f74aaa02dce5b760d966"
-)
+EXPECTED_SOURCE_MANIFEST_SHA256 = "7e299de17cbb62bff3cf5f50c61ad6ad30ca571c9297b9935ff1307cd52e0eb7"
+EXPECTED_SOURCE_OUTPUT_SHA256 = "7f07f7253e98bf8ed295b12d72ebdf03c44b2e08a8d9f74aaa02dce5b760d966"
 EXPECTED_ACCEPTED_RECORDS = 1557
 EXPECTED_TRAIN_RECORDS = 1479
 EXPECTED_VALIDATION_RECORDS = 78
@@ -612,9 +608,7 @@ def build_semantically_filtered_corpus(
     train_hashes, validation_hashes = _source_partition_hashes(source_dir)
     if train_hashes & validation_hashes:
         raise SemanticContractError("source train/validation partitions overlap")
-    accepted_hashes = {
-        normalized_record_fingerprint(record).record_sha256 for record in accepted
-    }
+    accepted_hashes = {normalized_record_fingerprint(record).record_sha256 for record in accepted}
     if accepted_hashes != train_hashes | validation_hashes:
         raise SemanticContractError("source accepted corpus is not train plus validation")
 
