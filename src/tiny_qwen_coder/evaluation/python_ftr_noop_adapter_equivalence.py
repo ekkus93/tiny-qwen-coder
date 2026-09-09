@@ -273,7 +273,7 @@ def inspect_zero_adapter(adapter_dir: Path) -> dict[str, object]:
     tensor_dtypes: set[str] = set()
     try:
         with safe_open(str(model_path), framework="pt", device="cpu") as handle:
-            for key in handle.keys():
+            for key in handle:
                 tensor = handle.get_tensor(key)
                 tensor_count += 1
                 total_elements += tensor.numel()
