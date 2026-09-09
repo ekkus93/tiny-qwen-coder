@@ -183,8 +183,8 @@ class HardenedEnvironmentMaterial:
             raise HardenedSandboxError(
                 "initial candidate workspace exceeds the manifest disk limit"
             )
-        for path, content in self.reference_replacements():
-            initial_workspace[path] = content
+        for path, replacement_bytes in self.reference_replacements():
+            initial_workspace[path] = replacement_bytes
         if (
             sum(len(content) for content in initial_workspace.values())
             > self.manifest.resources.disk_bytes
