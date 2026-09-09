@@ -81,6 +81,28 @@ def _required_row_string(row: DatasetRow, key: str, *, context: str) -> str:
     return value
 
 
+def _row_string_tuple(
+    row: DatasetRow,
+    key: str,
+    *,
+    context: str,
+    required: bool = False,
+) -> tuple[str, ...]:
+    value = row.get(key)
+    if value is None and not required:
+        return ()
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(f"{context}.{key} must be a sequence of strings")
+    output: list[str] = []
+    for index, item in enumerate(value):
+        if not isinstance(item, str) or not item.strip():
+            raise ValueError(f"{context}.{key}[{index}] must be a non-empty string")
+        output.append(item)
+    if required and not output:
+        raise ValueError(f"{context}.{key} must contain at least one test")
+    return tuple(output)
+
+
 def _human_eval_examples(
     benchmark: ProtectedBenchmark,
     *,
@@ -108,11 +130,13 @@ def _human_eval_examples(
 
     problems = load_humaneval_problems(benchmark, runner, dataset_loader=cached_loader)
     solutions: dict[str, str] = {}
+    tests: dict[str, tuple[str, ...]] = {}
     for index, row in enumerate(rows):
         context = f"HumanEval protected row {index}"
         task_id = _required_row_string(row, "task_id", context=context)
         solution = _required_row_string(row, "canonical_solution", context=context)
         solutions[task_id] = solution
+        tests[task_id] = (_required_row_string(row, "test", context=context),)
 
     return tuple(
         ProtectedBenchmarkExample(
@@ -128,6 +152,7 @@ def _human_eval_examples(
                 ),
             ),
             solution=solutions[problem.task_id],
+            test_texts=tests[problem.task_id],
         )
         for problem in problems
     )
@@ -162,12 +187,18 @@ def _mbpp_examples(
 
     problems = load_mbpp_problems(benchmark, runner, dataset_loader=cached_loader)
     solutions: dict[str, str] = {}
+    tests: dict[str, tuple[str, ...]] = {}
     for index, row in enumerate(rows):
         context = f"MBPP protected row {index}"
         task_id = row.get("task_id")
         if isinstance(task_id, bool) or not isinstance(task_id, int):
             raise ValueError(f"{context}.task_id must be an integer")
-        solutions[f"MBPP/{task_id}"] = _required_row_string(row, "code", context=context)
+        problem_id = f"MBPP/{task_id}"
+        solutions[problem_id] = _required_row_string(row, "code", context=context)
+        tests[problem_id] = (
+            *_row_string_tuple(row, "test_list", context=context, required=True),
+            *_row_string_tuple(row, "challenge_test_list", context=context),
+        )
 
     return tuple(
         ProtectedBenchmarkExample(
@@ -183,6 +214,7 @@ def _mbpp_examples(
                 ),
             ),
             solution=solutions[problem.task_id],
+            test_texts=tests[problem.task_id],
         )
         for problem in problems
     )
@@ -211,6 +243,7 @@ def _repository_holdout_examples(
                 ),
             ),
             solution=None,
+            test_texts=tuple(text for text in (task.test_source, task.setup_source) if text),
         )
         for task in suite.tasks
     )
