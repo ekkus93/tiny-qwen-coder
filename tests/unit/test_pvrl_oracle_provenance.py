@@ -37,6 +37,11 @@ D = "d" * 64
 E = "e" * 64
 F = "f" * 64
 
+SAME_FAMILY_REFERENCE_CAVEAT = (
+    "Environment author and generated reference share the Qwen model family; "
+    "the independent grader remains authoritative but reference errors may correlate."
+)
+
 
 def _manifest(
     *,
@@ -107,10 +112,14 @@ def _manifest(
     )
 
 
-def _reference(*, family: str = "qwen") -> ReferenceProvenanceIdentity:
+def _reference(
+    *,
+    family: str = "qwen",
+    producer_id: str = "Qwen/Qwen3.8-27B",
+) -> ReferenceProvenanceIdentity:
     return ReferenceProvenanceIdentity(
         producer_type="model",
-        producer_id="Qwen/Qwen3.8-27B",
+        producer_id=producer_id,
         revision="72a217afab8029b39e4af1c7273a829995a3dbaf",
         config_sha256=E,
         output_sha256=F,
@@ -125,12 +134,24 @@ def test_programmatic_oracle_assessment_round_trip() -> None:
         author_family="qwen",
         oracle_family=None,
         independence_grade=OracleIndependenceGrade.DETERMINISTIC_PROGRAMMATIC_CONTRACT,
+        correlation_caveat=SAME_FAMILY_REFERENCE_CAVEAT,
     )
 
     payload = oracle_provenance_assessment_json(assessment)
     assert oracle_provenance_assessment_from_json(payload) == assessment
     assert len(assessment.assessment_sha256) == 64
     assert assessment.reference_provenance.producer_id == "Qwen/Qwen3.8-27B"
+
+
+def test_same_family_generated_reference_requires_explicit_caveat() -> None:
+    with pytest.raises(OracleProvenanceError, match="same-family generated reference"):
+        create_oracle_provenance_assessment(
+            manifest=_manifest(),
+            reference_provenance=_reference(),
+            author_family="qwen",
+            oracle_family=None,
+            independence_grade=OracleIndependenceGrade.DETERMINISTIC_PROGRAMMATIC_CONTRACT,
+        )
 
 
 def test_same_family_generated_oracle_requires_explicit_caveat() -> None:
@@ -159,6 +180,20 @@ def test_same_family_generated_oracle_cannot_claim_independent() -> None:
         )
 
 
+def test_same_family_generated_reference_cannot_claim_independent() -> None:
+    manifest = _manifest(oracle_type="model", oracle_id="Other/Verifier-Model")
+
+    with pytest.raises(OracleProvenanceError, match="reference cannot be labeled independently"):
+        create_oracle_provenance_assessment(
+            manifest=manifest,
+            reference_provenance=_reference(),
+            author_family="qwen",
+            oracle_family="other",
+            independence_grade=OracleIndependenceGrade.INDEPENDENTLY_GENERATED_CONTRACT_REFERENCE,
+            correlation_caveat=SAME_FAMILY_REFERENCE_CAVEAT,
+        )
+
+
 def test_same_family_generated_oracle_is_explicitly_downgraded() -> None:
     assessment = create_oracle_provenance_assessment(
         manifest=_manifest(oracle_type="model", oracle_id="Qwen/Qwen3.8-27B"),
@@ -167,8 +202,8 @@ def test_same_family_generated_oracle_is_explicitly_downgraded() -> None:
         oracle_family="qwen",
         independence_grade=OracleIndependenceGrade.SAME_FAMILY_GENERATED_CONTRACT_REFERENCE,
         correlation_caveat=(
-            "Environment author and generated oracle share the Qwen model family; "
-            "behavioral execution remains authoritative but semantic errors may correlate."
+            "Environment author, generated oracle, and generated reference share the Qwen model "
+            "family; behavioral execution remains authoritative but semantic errors may correlate."
         ),
     )
 
@@ -182,7 +217,10 @@ def test_same_family_generated_oracle_is_explicitly_downgraded() -> None:
 def test_different_model_family_can_claim_independent_generation() -> None:
     assessment = create_oracle_provenance_assessment(
         manifest=_manifest(oracle_type="model", oracle_id="Other/Verifier-Model"),
-        reference_provenance=_reference(),
+        reference_provenance=_reference(
+            family="other",
+            producer_id="Other/Verifier-Model",
+        ),
         author_family="qwen",
         oracle_family="other",
         independence_grade=OracleIndependenceGrade.INDEPENDENTLY_GENERATED_CONTRACT_REFERENCE,
@@ -245,6 +283,7 @@ def test_assessment_hash_detects_posthoc_provenance_mutation() -> None:
         author_family="qwen",
         oracle_family=None,
         independence_grade=OracleIndependenceGrade.DETERMINISTIC_PROGRAMMATIC_CONTRACT,
+        correlation_caveat=SAME_FAMILY_REFERENCE_CAVEAT,
     )
 
     with pytest.raises(OracleProvenanceError, match="stale assessment_sha256"):
@@ -258,6 +297,7 @@ def test_parser_rejects_role_confusion() -> None:
         author_family="qwen",
         oracle_family=None,
         independence_grade=OracleIndependenceGrade.DETERMINISTIC_PROGRAMMATIC_CONTRACT,
+        correlation_caveat=SAME_FAMILY_REFERENCE_CAVEAT,
     )
     payload = oracle_provenance_assessment_json(assessment).replace(
         '"role": "author"',
