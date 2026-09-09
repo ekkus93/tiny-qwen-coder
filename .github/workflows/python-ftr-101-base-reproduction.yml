@@ -1,0 +1,252 @@
+name: Python FTR-101 Base Reproduction
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - ftr/ftr-101-base-reproduction
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: python-ftr-101-base-reproduction-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    name: Reproduce unchanged-base generation on GPU
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+    timeout-minutes: 240
+
+    env:
+      TOKENIZERS_PARALLELISM: "false"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+
+    steps:
+      - name: Check out exact reproduction source
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          clean: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Inspect NVIDIA GPU
+        run: |
+          set -euo pipefail
+          nvidia-smi
+
+      - name: Sync frozen environment
+        run: uv sync --frozen
+
+      - name: Verify PyTorch CUDA access
+        run: |
+          set -euo pipefail
+          uv run --frozen python - <<'PY'
+          import torch
+
+          if not torch.cuda.is_available():
+              raise SystemExit("PyTorch cannot access CUDA on the self-hosted runner")
+          print(f"torch={torch.__version__}")
+          print(f"cuda_runtime={torch.version.cuda}")
+          print(f"gpu={torch.cuda.get_device_name(0)}")
+          print(f"capability={torch.cuda.get_device_capability(0)}")
+          print(f"total_memory_bytes={torch.cuda.get_device_properties(0).total_memory}")
+          PY
+
+      - name: Confirm clean exact source
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain)"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+
+      - name: Capture tokenizer and generation identity
+        run: |
+          set -euo pipefail
+          uv run --frozen python -m tiny_qwen_coder.evaluation.python_ftr_base_reproduction \
+            capture-identity \
+            --output "${RUNNER_TEMP}/ftr-101-generation-identity.json" \
+            | tee "${RUNNER_TEMP}/ftr-101-generation-identity.stdout.json"
+
+      - name: Generate canonical unchanged-base responses
+        run: |
+          set -euo pipefail
+          uv run --frozen python -m tiny_qwen_coder.evaluation._baseline_stages generate
+          find artifacts/eval/python/base-baseline-v1 -type f -print | sort
+
+      - name: Upload FTR-101 GPU evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: ftr-101-base-generation-${{ github.sha }}
+          path: |
+            artifacts/eval/python/base-baseline-v1/
+            ${{ runner.temp }}/ftr-101-generation-identity.json
+            ${{ runner.temp }}/ftr-101-generation-identity.stdout.json
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 30
+
+      - name: Upload partial FTR-101 GPU evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ftr-101-base-generation-partial-${{ github.sha }}
+          path: |
+            artifacts/eval/python/base-baseline-v1/
+            ${{ runner.temp }}/ftr-101-generation-identity.json
+          if-no-files-found: ignore
+          include-hidden-files: true
+          retention-days: 14
+
+  score-and-compare:
+    name: Score and compare exact frozen baseline
+    needs: generate
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    env:
+      TOKENIZERS_PARALLELISM: "false"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      EXECUTION_IMAGE: python:3.11.14-slim@sha256:c8271b1f627d0068857dce5b53e14a9558603b527e46f1f901722f935b786a39
+      FROZEN_BASE_RUN_ID: "33301242379"
+      FROZEN_BASE_ARTIFACT_NAME: python-base-baseline-da537443ab80b1380bee0fc3c7d9d01ca0574f35
+
+    steps:
+      - name: Check out exact reproduction source
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          clean: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Sync frozen environment
+        run: uv sync --frozen
+
+      - name: Download current GPU generation evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: ftr-101-base-generation-${{ github.sha }}
+          path: ${{ runner.temp }}/ftr-101-current
+
+      - name: Restore current baseline work directory
+        run: |
+          set -euo pipefail
+          rm -rf artifacts/eval/python/base-baseline-v1
+          mkdir -p artifacts/eval/python
+          current_root="${RUNNER_TEMP}/ftr-101-current"
+          work_dir="$(find "${current_root}" -type d -path '*/artifacts/eval/python/base-baseline-v1' -print -quit)"
+          if [[ -z "${work_dir}" ]]; then
+            echo "Could not locate current base-baseline-v1 directory" >&2
+            find "${current_root}" -maxdepth 8 -print >&2
+            exit 1
+          fi
+          cp -a "${work_dir}" artifacts/eval/python/base-baseline-v1
+          identity="$(find "${current_root}" -type f -name 'ftr-101-generation-identity.json' -print -quit)"
+          if [[ -z "${identity}" ]]; then
+            echo "Could not locate FTR-101 generation identity" >&2
+            exit 1
+          fi
+          cp "${identity}" "${RUNNER_TEMP}/ftr-101-generation-identity.json"
+
+      - name: Prepare constrained execution image
+        run: |
+          set -euo pipefail
+          docker --version
+          docker pull "${EXECUTION_IMAGE}"
+          docker image inspect "${EXECUTION_IMAGE}" >/dev/null
+
+      - name: Confirm clean exact source
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain)"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+
+      - name: Score reproduced responses
+        run: |
+          set -euo pipefail
+          uv run --frozen python -m tiny_qwen_coder.evaluation._baseline_stages score \
+            | tee "${RUNNER_TEMP}/ftr-101-current-baseline-manifest.json"
+          uv run --frozen tiny-qwen-coder-python-baseline --verify-only \
+            | tee "${RUNNER_TEMP}/ftr-101-current-baseline-verified.json"
+
+      - name: Download exact frozen unchanged-base artifact
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ env.FROZEN_BASE_RUN_ID }}
+          name: ${{ env.FROZEN_BASE_ARTIFACT_NAME }}
+          path: ${{ runner.temp }}/ftr-101-frozen-download
+
+      - name: Locate exact frozen baseline directory
+        run: |
+          set -euo pipefail
+          frozen_root="$(find "${RUNNER_TEMP}/ftr-101-frozen-download" -type d -path '*/artifacts/eval/python/base-baseline-v1' -print -quit)"
+          if [[ -z "${frozen_root}" ]]; then
+            echo "Could not locate frozen base-baseline-v1 directory" >&2
+            find "${RUNNER_TEMP}/ftr-101-frozen-download" -maxdepth 8 -print >&2
+            exit 1
+          fi
+          printf '%s\n' "${frozen_root}" > "${RUNNER_TEMP}/ftr-101-frozen-root.txt"
+
+      - name: Compare current reproduction task-by-task
+        run: |
+          set -euo pipefail
+          frozen_root="$(cat "${RUNNER_TEMP}/ftr-101-frozen-root.txt")"
+          uv run --frozen python -m tiny_qwen_coder.evaluation.python_ftr_base_reproduction \
+            compare \
+            --frozen-dir "${frozen_root}" \
+            --current-dir artifacts/eval/python/base-baseline-v1 \
+            --identity "${RUNNER_TEMP}/ftr-101-generation-identity.json" \
+            --expected-current-source-sha "${GITHUB_SHA}" \
+            --output "${RUNNER_TEMP}/ftr-101-base-reproduction.json" \
+            | tee "${RUNNER_TEMP}/ftr-101-base-reproduction.stdout.json"
+
+      - name: Upload FTR-101 reproduction evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: ftr-101-base-reproduction-${{ github.sha }}
+          path: |
+            artifacts/eval/python/base-baseline-v1/
+            ${{ runner.temp }}/ftr-101-generation-identity.json
+            ${{ runner.temp }}/ftr-101-current-baseline-manifest.json
+            ${{ runner.temp }}/ftr-101-current-baseline-verified.json
+            ${{ runner.temp }}/ftr-101-base-reproduction.json
+            ${{ runner.temp }}/ftr-101-base-reproduction.stdout.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload FTR-101 drift evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ftr-101-base-reproduction-failure-${{ github.sha }}
+          path: |
+            artifacts/eval/python/base-baseline-v1/
+            ${{ runner.temp }}/ftr-101-generation-identity.json
+            ${{ runner.temp }}/ftr-101-base-reproduction.json
+          if-no-files-found: ignore
+          include-hidden-files: true
+          retention-days: 30
