@@ -2,7 +2,7 @@
 
 **Start here for generating or repairing replacement Python training data with Qwen3.8-27B on Google Colab.**
 
-There are now six executable notebooks:
+There are now seven executable notebooks:
 
 - [`qwen38_teacher_distillation_colab.ipynb`](qwen38_teacher_distillation_colab.ipynb) — preserved v1 workflow and historical 16/500/2,000 progression.
 - [`qwen38_teacher_distillation_v2_colab.ipynb`](qwen38_teacher_distillation_v2_colab.ipynb) — preserved bounded v2 high-reasoning study.
@@ -10,8 +10,11 @@ There are now six executable notebooks:
 - [`qwen38_teacher_distillation_v4_colab.ipynb`](qwen38_teacher_distillation_v4_colab.ipynb) — preserved bounded v4 selective-compression study.
 - [`qwen38_teacher_distillation_v4_2000_colab.ipynb`](qwen38_teacher_distillation_v4_2000_colab.ipynb) — preserved first v4-2000 successor runbook; its completed output is affected by the reasoning-leak parser defect and must not be used for training.
 - [`qwen38_teacher_distillation_v4_2000_salvage_colab.ipynb`](qwen38_teacher_distillation_v4_2000_salvage_colab.ipynb) — **current authoritative repair workflow for the completed v4-2000 evidence**.
+- [`qwen38_p9_009_semantic_contract_generation_colab.ipynb`](qwen38_p9_009_semantic_contract_generation_colab.ipynb) — P9-009B candidate-hidden semantic-contract generation workflow over the frozen repaired 1,557-example corpus.
 
 **Open the current v4-2000 salvage workflow in Colab:** [qwen38_teacher_distillation_v4_2000_salvage_colab.ipynb](https://colab.research.google.com/github/ekkus93/tiny-qwen-coder/blob/master/scripts/teacher_distillation/qwen38_teacher_distillation_v4_2000_salvage_colab.ipynb)
+
+**Open P9-009B semantic-contract generation in Colab:** [qwen38_p9_009_semantic_contract_generation_colab.ipynb](https://colab.research.google.com/github/ekkus93/tiny-qwen-coder/blob/master/scripts/teacher_distillation/qwen38_p9_009_semantic_contract_generation_colab.ipynb)
 
 For the already completed `qwen38-27b-v4-2000` run, use the **salvage notebook only**. Do not rerun the ordinary v4-2000 notebook against that affected evidence and do not train from its old `final/` directory. Select an **A100 80 GB** runtime. Colab is only a disposable GPU worker: it does not need GitHub credentials, SSH keys, `git clone`, `git pull`, or `git push`.
 
@@ -27,9 +30,11 @@ For unrelated future bounded teacher-data experiments, the preserved v4 notebook
 | `qwen38_teacher_distillation_v4_colab.ipynb` | Preserved bounded v4 selective-compression study. |
 | `qwen38_teacher_distillation_v4_2000_colab.ipynb` | Preserved first v4-2000 successor runbook; affected completed output is frozen evidence only. |
 | `qwen38_teacher_distillation_v4_2000_salvage_colab.ipynb` | Current executable repair workflow for the affected completed v4-2000 generation evidence. |
+| `qwen38_p9_009_semantic_contract_generation_colab.ipynb` | P9-009B A100 workflow for resumable candidate-hidden semantic-contract generation. |
 | `build_v4_colab_notebook.py` | Deterministically rebuild the bounded v4 notebook from stdlib-only source. |
 | `build_v4_2000_colab_notebook.py` | Deterministically rebuild the preserved first v4-2000 successor notebook. |
 | `build_v4_2000_salvage_colab_notebook.py` | Deterministically rebuild and repository-Ruff-canonicalize the v4-2000 salvage notebook. |
+| `build_p9_009_semantic_contract_colab_notebook.py` | Deterministically rebuild and repository-Ruff-canonicalize the P9-009B semantic-contract notebook. |
 | `prepare_teacher_input.py` | Build and SHA-256 seal the canonical prompt-only teacher input. |
 | `select_teacher_input.py` | Create deterministic source-stratified subsets. |
 | `prepare_teacher_v2_input.py` | Add and SHA-256 bind the teacher-only concise-answer v2 policy. |
