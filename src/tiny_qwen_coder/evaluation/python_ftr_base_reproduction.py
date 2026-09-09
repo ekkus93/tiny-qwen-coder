@@ -284,9 +284,7 @@ def _index_results(path: Path, *, suite_id: str) -> dict[str, dict[str, object]]
 
 def _stable_aggregate(path: Path, *, context: str) -> dict[str, object]:
     aggregate = _read_json(path, context=context)
-    return {
-        key: value for key, value in aggregate.items() if key not in _AGGREGATE_DYNAMIC_FIELDS
-    }
+    return {key: value for key, value in aggregate.items() if key not in _AGGREGATE_DYNAMIC_FIELDS}
 
 
 def _suite_comparison(
@@ -570,9 +568,7 @@ def compare_reproduction(
         if identity_mismatches:
             details.append(f"identity drift: {', '.join(identity_mismatches)}")
         if protocol_identity_mismatches:
-            details.append(
-                "protocol identity drift: " + ", ".join(protocol_identity_mismatches)
-            )
+            details.append("protocol identity drift: " + ", ".join(protocol_identity_mismatches))
         if score_mismatches:
             details.append("score drift: " + ", ".join(score_mismatches))
         if not runtime_identity_exact:
