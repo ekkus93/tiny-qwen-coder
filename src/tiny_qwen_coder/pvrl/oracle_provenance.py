@@ -106,6 +106,7 @@ class OracleProvenanceAssessment:
         _validate_independence_claim(
             author=self.author_provenance,
             oracle=self.oracle_provenance,
+            reference=self.reference_provenance,
             author_family=self.author_family,
             oracle_family=self.oracle_family,
             grade=self.independence_grade,
@@ -179,6 +180,7 @@ def _validate_independence_claim(
     *,
     author: ProvenanceIdentity,
     oracle: ProvenanceIdentity,
+    reference: ReferenceProvenanceIdentity,
     author_family: str | None,
     oracle_family: str | None,
     grade: OracleIndependenceGrade,
@@ -186,6 +188,13 @@ def _validate_independence_claim(
 ) -> None:
     if correlation_caveat is not None and not correlation_caveat.strip():
         raise OracleProvenanceError("correlation_caveat must not be blank when provided")
+
+    same_family_reference = (
+        author.producer_type == "model"
+        and author_family is not None
+        and reference.producer_type == "model"
+        and reference.producer_family == author_family
+    )
 
     if grade is OracleIndependenceGrade.EXISTING_HUMAN_SOURCE_TESTS:
         if oracle.producer_type not in {"human", "source"}:
@@ -215,6 +224,10 @@ def _validate_independence_claim(
             raise OracleProvenanceError(
                 "same-family generated oracle cannot be labeled independently generated"
             )
+        if same_family_reference:
+            raise OracleProvenanceError(
+                "same-family generated reference cannot be labeled independently generated"
+            )
     elif grade is OracleIndependenceGrade.SAME_FAMILY_GENERATED_CONTRACT_REFERENCE:
         if author.producer_type != "model" or oracle.producer_type != "model":
             raise OracleProvenanceError(
@@ -228,6 +241,11 @@ def _validate_independence_claim(
             raise OracleProvenanceError(
                 "same-family generated oracle requires an explicit correlation_caveat"
             )
+
+    if same_family_reference and correlation_caveat is None:
+        raise OracleProvenanceError(
+            "same-family generated reference requires an explicit correlation_caveat"
+        )
 
 
 def _canonical_json_bytes(value: object) -> bytes:
