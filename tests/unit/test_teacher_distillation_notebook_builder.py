@@ -25,9 +25,7 @@ def test_v4_2000_salvage_notebook_builder_matches_checked_in_artifact(
 def test_p9_009_semantic_contract_notebook_builder_matches_checked_in_artifact(
     tmp_path: Path,
 ) -> None:
-    builder = Path(
-        "scripts/teacher_distillation/build_p9_009_semantic_contract_colab_notebook.py"
-    )
+    builder = Path("scripts/teacher_distillation/build_p9_009_semantic_contract_colab_notebook.py")
     committed = Path(
         "scripts/teacher_distillation/qwen38_p9_009_semantic_contract_generation_colab.ipynb"
     )

@@ -6,8 +6,9 @@ P9-009 begins after P9-007 failed winner-only qualification and P9-008 localized
 semantic MBPP regressions. P9-009 changes the **training-data acceptance objective**, not the
 student rank/learning-rate/epoch search space.
 
-No P9-009 training is authorized by this implementation alone. The first live result is a survivor
-census over the already-repaired 1,557 examples.
+P9-009A is complete and merged. No P9-009 training is authorized yet. P9-009B now generates
+the independent candidate-hidden contracts; the first model-changing decision remains gated on the
+P9-009C survivor census over the already-repaired 1,557 examples.
 
 ## Why this experiment exists
 
@@ -93,7 +94,10 @@ This stage does not generate contracts or train a model.
 
 Run the separately seeded verifier over the fixed repaired accepted corpus. Generation is durable
 and resumable. This does not increase the 2,000 candidate-answer ceiling because the outputs are
-verification evidence, not new student targets.
+verification evidence, not new student targets. The canonical A100 workflow is
+[`scripts/teacher_distillation/qwen38_p9_009_semantic_contract_generation_colab.ipynb`](../scripts/teacher_distillation/qwen38_p9_009_semantic_contract_generation_colab.ipynb). It writes sealed shards to
+`MyDrive/tiny-qwen-coder/distillation/qwen38-27b-v4-2000-semantic-v1/` and creates a deterministic
+transfer ZIP for P9-009C only after all 1,557 records verify complete.
 
 ### P9-009C — Execute contracts and freeze survivor census
 

@@ -12,9 +12,7 @@ import textwrap
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-OUTPUT = Path(
-    "scripts/teacher_distillation/qwen38_p9_009_semantic_contract_generation_colab.ipynb"
-)
+OUTPUT = Path("scripts/teacher_distillation/qwen38_p9_009_semantic_contract_generation_colab.ipynb")
 RUFF_CONFIG = REPO_ROOT / "pyproject.toml"
 
 

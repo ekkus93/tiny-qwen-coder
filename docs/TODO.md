@@ -940,7 +940,7 @@ objective.
 
 ## P9-009 — Executable semantic filtering of repaired teacher data
 
-- [ ] **P9-009A** freeze candidate-hidden independent semantic-contract tooling and protocol.
+- [x] **P9-009A** freeze candidate-hidden independent semantic-contract tooling and protocol.
 - [ ] **P9-009B** generate exactly one separately seeded contract for each of the 1,557 repaired
   accepted examples; do not generate new student targets.
 - [ ] **P9-009C** self-test each reference contract, execute it against the frozen candidate, and
