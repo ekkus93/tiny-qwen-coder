@@ -170,18 +170,17 @@ jobs:
           fi
           cp "${identity}" "${RUNNER_TEMP}/ftr-101-generation-identity.json"
 
-      - name: Prepare constrained execution image
+      - name: Prepare historical Docker execution runtime
         run: |
           set -euo pipefail
-          runtime="$(uv run --frozen python - <<'PY'
-          from tiny_qwen_coder.evaluation.execution import discover_oci_runtime
-
-          print(discover_oci_runtime().executable)
-          PY
-          )"
-          "${runtime}" --version
-          "${runtime}" pull "${EXECUTION_IMAGE}"
-          "${runtime}" image inspect "${EXECUTION_IMAGE}" >/dev/null
+          # The frozen baseline run 33301242379 explicitly pulled this image with Docker
+          # and then scored successfully. Newer ubuntu-24.04 runner images also expose
+          # Podman, while the harness prefers Podman when both are present. That host-image
+          # drift changes the OCI runtime and produces exit-code-125 harness failures.
+          # FTR-101 must reproduce the historical scoring runtime, so pin Docker here.
+          docker --version
+          docker pull "${EXECUTION_IMAGE}"
+          docker image inspect "${EXECUTION_IMAGE}" >/dev/null
 
       - name: Confirm clean exact source
         run: |
@@ -189,11 +188,27 @@ jobs:
           test -z "$(git status --porcelain)"
           test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
 
-      - name: Score reproduced responses
+      - name: Score reproduced responses with historical Docker runtime
         run: |
           set -euo pipefail
-          uv run --frozen python -m tiny_qwen_coder.evaluation._baseline_stages score \
+          uv run --frozen python - score <<'PY' \
             | tee "${RUNNER_TEMP}/ftr-101-current-baseline-manifest.json"
+          from pathlib import Path
+          import shutil
+
+          import tiny_qwen_coder.evaluation._baseline_stages as baseline_stages
+          from tiny_qwen_coder.evaluation.execution import OciRuntime, OciRuntimeSpec
+
+          docker = shutil.which("docker")
+          if docker is None:
+              raise SystemExit("FTR-101 requires Docker to reproduce frozen baseline scoring")
+          runtime = OciRuntimeSpec(
+              kind=OciRuntime.DOCKER,
+              executable=Path(docker).resolve(),
+          )
+          baseline_stages.discover_oci_runtime = lambda: runtime
+          baseline_stages.main()
+          PY
           uv run --frozen tiny-qwen-coder-python-baseline --verify-only \
             | tee "${RUNNER_TEMP}/ftr-101-current-baseline-verified.json"
 
