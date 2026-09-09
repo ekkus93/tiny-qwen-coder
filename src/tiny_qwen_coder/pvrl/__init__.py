@@ -23,6 +23,15 @@ from tiny_qwen_coder.pvrl.environment_manifest import (
     read_environment_manifest,
     write_environment_manifest,
 )
+from tiny_qwen_coder.pvrl.oracle_provenance import (
+    OracleIndependenceGrade,
+    OracleProvenanceAssessment,
+    OracleProvenanceError,
+    ReferenceProvenanceIdentity,
+    create_oracle_provenance_assessment,
+    oracle_provenance_assessment_from_json,
+    oracle_provenance_assessment_json,
+)
 
 __all__ = [
     "ArtifactKind",
@@ -35,15 +44,22 @@ __all__ = [
     "EvidenceStatus",
     "NetworkMode",
     "NetworkPolicy",
+    "OracleIndependenceGrade",
+    "OracleProvenanceAssessment",
+    "OracleProvenanceError",
     "ProvenanceIdentity",
     "ProvenanceRole",
+    "ReferenceProvenanceIdentity",
     "ReferenceValidationEvidence",
     "ResourcePolicy",
     "RuntimeIdentity",
     "create_environment_manifest",
+    "create_oracle_provenance_assessment",
     "environment_manifest_from_json",
     "environment_manifest_json",
     "environment_manifest_sha256",
+    "oracle_provenance_assessment_from_json",
+    "oracle_provenance_assessment_json",
     "read_environment_manifest",
     "write_environment_manifest",
 ]
