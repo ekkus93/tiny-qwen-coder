@@ -25,26 +25,7 @@ jobs:
       - name: Fix P9-009 lint issue
         shell: bash
         run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path('src/tiny_qwen_coder/distillation/semantic_contracts.py')
-          text = path.read_text(encoding='utf-8')
-          old = '''        elif isinstance(node, ast.Call):
-            if isinstance(node.func, ast.Name) and node.func.id in _FORBIDDEN_CALL_NAMES:
-                return f"forbidden_call:{node.func.id}"
-'''
-          new = '''        elif (
-            isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Name)
-            and node.func.id in _FORBIDDEN_CALL_NAMES
-        ):
-            return f"forbidden_call:{node.func.id}"
-'''
-          if old not in text:
-              raise SystemExit('expected SIM102 block not found')
-          path.write_text(text.replace(old, new, 1), encoding='utf-8')
-          PY
+          python -c "from pathlib import Path; p=Path('src/tiny_qwen_coder/distillation/semantic_contracts.py'); s=p.read_text(encoding='utf-8'); old='        elif isinstance(node, ast.Call):\n            if isinstance(node.func, ast.Name) and node.func.id in _FORBIDDEN_CALL_NAMES:\n                return f\"forbidden_call:{node.func.id}\"\n'; new='        elif (\n            isinstance(node, ast.Call)\n            and isinstance(node.func, ast.Name)\n            and node.func.id in _FORBIDDEN_CALL_NAMES\n        ):\n            return f\"forbidden_call:{node.func.id}\"\n'; assert old in s; p.write_text(s.replace(old, new, 1), encoding='utf-8')"
           uv run --frozen ruff format src/tiny_qwen_coder/distillation/semantic_contracts.py
           uv run --frozen ruff check src/tiny_qwen_coder/distillation/semantic_contracts.py
       - name: Commit lint fix
