@@ -34,12 +34,8 @@ class OracleIndependenceGrade(StrEnum):
     EXISTING_HUMAN_SOURCE_TESTS = "existing_human_source_tests"
     DETERMINISTIC_PROGRAMMATIC_CONTRACT = "deterministic_programmatic_contract"
     REPOSITORY_NATIVE_TESTS = "repository_native_tests"
-    INDEPENDENTLY_GENERATED_CONTRACT_REFERENCE = (
-        "independently_generated_contract_reference"
-    )
-    SAME_FAMILY_GENERATED_CONTRACT_REFERENCE = (
-        "same_family_generated_contract_reference"
-    )
+    INDEPENDENTLY_GENERATED_CONTRACT_REFERENCE = "independently_generated_contract_reference"
+    SAME_FAMILY_GENERATED_CONTRACT_REFERENCE = "same_family_generated_contract_reference"
 
 
 @dataclass(frozen=True, slots=True)
@@ -130,9 +126,7 @@ def _require_sha256(value: str, *, field_name: str) -> None:
 
 def _validate_component_id(value: str, *, field_name: str) -> None:
     if not _COMPONENT_ID_PATTERN.fullmatch(value):
-        raise OracleProvenanceError(
-            f"{field_name} must be a stable lowercase component identifier"
-        )
+        raise OracleProvenanceError(f"{field_name} must be a stable lowercase component identifier")
 
 
 def _validate_producer_identity(
@@ -175,14 +169,10 @@ def _validate_family_binding(
 ) -> None:
     if provenance.producer_type == "model":
         if family is None:
-            raise OracleProvenanceError(
-                f"{context} family is required for model-produced material"
-            )
+            raise OracleProvenanceError(f"{context} family is required for model-produced material")
         _validate_component_id(family, field_name=f"{context}.family")
     elif family is not None:
-        raise OracleProvenanceError(
-            f"{context} family is only valid for model-produced material"
-        )
+        raise OracleProvenanceError(f"{context} family is only valid for model-produced material")
 
 
 def _validate_independence_claim(

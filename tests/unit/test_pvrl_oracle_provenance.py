@@ -142,9 +142,7 @@ def test_same_family_generated_oracle_requires_explicit_caveat() -> None:
             reference_provenance=_reference(),
             author_family="qwen",
             oracle_family="qwen",
-            independence_grade=(
-                OracleIndependenceGrade.SAME_FAMILY_GENERATED_CONTRACT_REFERENCE
-            ),
+            independence_grade=(OracleIndependenceGrade.SAME_FAMILY_GENERATED_CONTRACT_REFERENCE),
         )
 
 
@@ -157,9 +155,7 @@ def test_same_family_generated_oracle_cannot_claim_independent() -> None:
             reference_provenance=_reference(),
             author_family="qwen",
             oracle_family="qwen",
-            independence_grade=(
-                OracleIndependenceGrade.INDEPENDENTLY_GENERATED_CONTRACT_REFERENCE
-            ),
+            independence_grade=(OracleIndependenceGrade.INDEPENDENTLY_GENERATED_CONTRACT_REFERENCE),
         )
 
 
