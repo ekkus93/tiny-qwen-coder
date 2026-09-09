@@ -42,11 +42,11 @@ def _settings() -> FrozenEvaluationSettings:
 
 
 class _FakeTokenizer:
-    chat_template = "template"
-    eos_token = "<eos>"
-    eos_token_id = 151645
-    pad_token = "<pad>"
-    pad_token_id = 151643
+    chat_template: str | None = "template"
+    eos_token: str | None = "<eos>"
+    eos_token_id: int | list[int] | None = 151645
+    pad_token: str | None = "<pad>"
+    pad_token_id: int | None = 151643
 
 
 def test_tokenizer_identity_records_template_and_stop_contract() -> None:
