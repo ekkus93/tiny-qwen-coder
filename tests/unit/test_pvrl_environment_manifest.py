@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, replace
+from pathlib import Path
 
 import pytest
 
@@ -102,7 +103,7 @@ def _manifest() -> EnvironmentManifest:
     )
 
 
-def test_manifest_round_trip_is_deterministic_and_content_addressed(tmp_path) -> None:
+def test_manifest_round_trip_is_deterministic_and_content_addressed(tmp_path: Path) -> None:
     manifest = _manifest()
     payload = environment_manifest_json(manifest)
 
