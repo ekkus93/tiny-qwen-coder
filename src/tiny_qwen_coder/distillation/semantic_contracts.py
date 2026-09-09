@@ -314,9 +314,12 @@ def _forbidden_ast_reason(tree: ast.AST) -> str | None:
             root = (node.module or "").split(".", maxsplit=1)[0]
             if root in _FORBIDDEN_IMPORT_ROOTS:
                 return f"forbidden_import:{node.module}"
-        elif isinstance(node, ast.Call):
-            if isinstance(node.func, ast.Name) and node.func.id in _FORBIDDEN_CALL_NAMES:
-                return f"forbidden_call:{node.func.id}"
+        elif (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id in _FORBIDDEN_CALL_NAMES
+        ):
+            return f"forbidden_call:{node.func.id}"
     return None
 
 
