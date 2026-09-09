@@ -76,9 +76,7 @@ class EnvironmentIntegrityEvidence:
                 f"expected {_SCHEMA_VERSION}"
             )
         if self.status is not EnvironmentIntegrityStatus.PASSED:
-            raise EnvironmentIntegrityError(
-                "PVRL-G1 evidence may only represent a passed gate"
-            )
+            raise EnvironmentIntegrityError("PVRL-G1 evidence may only represent a passed gate")
         if not self.environment_id.strip():
             raise EnvironmentIntegrityError("environment_id must not be empty")
         for field_name, value in (
@@ -106,15 +104,13 @@ class EnvironmentIntegrityEvidence:
 
 def _require_sha256(value: str, *, field_name: str) -> None:
     if not _SHA256_PATTERN.fullmatch(value):
-        raise EnvironmentIntegrityError(
-            f"{field_name} must be a lowercase SHA-256 digest"
-        )
+        raise EnvironmentIntegrityError(f"{field_name} must be a lowercase SHA-256 digest")
 
 
 def _canonical_json_bytes(value: object) -> bytes:
-    return json.dumps(
-        value, ensure_ascii=True, separators=(",", ":"), sort_keys=True
-    ).encode("ascii")
+    return json.dumps(value, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode(
+        "ascii"
+    )
 
 
 def _sha256(value: object) -> str:
@@ -204,33 +200,22 @@ def admit_environment_integrity(
         )
 
     if reference_report.environment_id != manifest.environment_id:
-        raise EnvironmentIntegrityError(
-            "reference validation targets another environment_id"
-        )
+        raise EnvironmentIntegrityError("reference validation targets another environment_id")
     if reference_report.environment_material_sha256 != manifest.material_sha256:
-        raise EnvironmentIntegrityError(
-            "reference validation targets stale environment material"
-        )
+        raise EnvironmentIntegrityError("reference validation targets stale environment material")
     if reference_report.validator_id != manifest.reference_validation.validator_id:
         raise EnvironmentIntegrityError(
             "manifest reference validator does not match reference-validation report"
         )
-    if (
-        reference_report.evidence_sha256
-        != manifest.reference_validation.evidence_sha256
-    ):
+    if reference_report.evidence_sha256 != manifest.reference_validation.evidence_sha256:
         raise EnvironmentIntegrityError(
             "manifest reference-validation evidence does not match the validation report"
         )
 
     if contamination_report.environment_id != manifest.environment_id:
-        raise EnvironmentIntegrityError(
-            "contamination report targets another environment_id"
-        )
+        raise EnvironmentIntegrityError("contamination report targets another environment_id")
     if contamination_report.environment_material_sha256 != manifest.material_sha256:
-        raise EnvironmentIntegrityError(
-            "contamination report targets stale environment material"
-        )
+        raise EnvironmentIntegrityError("contamination report targets stale environment material")
     if contamination_report.status is not ContaminationStatus.CLEAN:
         raise EnvironmentIntegrityError("PVRL-G1 cannot admit contamination findings")
     if contamination_report.checker_ids != manifest.contamination.checker_ids:
@@ -244,9 +229,7 @@ def admit_environment_integrity(
 
     final_manifest_sha256 = environment_manifest_sha256(manifest)
     if oracle_assessment.environment_id != manifest.environment_id:
-        raise EnvironmentIntegrityError(
-            "oracle assessment targets another environment_id"
-        )
+        raise EnvironmentIntegrityError("oracle assessment targets another environment_id")
     if oracle_assessment.environment_manifest_sha256 != final_manifest_sha256:
         raise EnvironmentIntegrityError(
             "oracle assessment must bind to the exact final admitted environment manifest"

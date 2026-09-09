@@ -217,9 +217,7 @@ class _Grader:
         protected: TrustedGraderArtifacts,
         phase: ValidationPhase,
     ) -> ValidationExecutionEvidence:
-        assert protected.read_text("grader/hidden_tests.py").startswith(
-            "assert count_vowels"
-        )
+        assert protected.read_text("grader/hidden_tests.py").startswith("assert count_vowels")
         assert "grader/hidden_tests.py" not in candidate.visible_paths
         classification = (
             ValidationExecutionClass.BEHAVIORAL_FAILURE
@@ -234,9 +232,7 @@ class _Grader:
         protected: TrustedGraderArtifacts,
     ) -> ValidationExecutionEvidence:
         assert "grader/hidden_tests.py" not in candidate.visible_paths
-        assert protected.read_text("grader/hidden_tests.py").startswith(
-            "assert count_vowels"
-        )
+        assert protected.read_text("grader/hidden_tests.py").startswith("assert count_vowels")
         return _validation_evidence(
             ValidationPhase.PRESERVATION_PUBLIC,
             ValidationExecutionClass.PASSED,
@@ -313,9 +309,7 @@ class _IntegratedFixture:
 def _integrated_fixture() -> _IntegratedFixture:
     contents = _artifact_contents()
     base_manifest = _manifest(contents)
-    initial_material = HardenedEnvironmentMaterial(
-        manifest=base_manifest, artifacts=contents
-    )
+    initial_material = HardenedEnvironmentMaterial(manifest=base_manifest, artifacts=contents)
     reference_report = run_reference_first_validation(
         base_manifest,
         HardenedReferenceValidationSandboxFactory(initial_material, _Grader()),
@@ -339,9 +333,7 @@ def _integrated_fixture() -> _IntegratedFixture:
         author_few_shots=(),
         partition_entries=(),
     )
-    final_manifest = admit_environment_contamination(
-        reference_manifest, contamination_report
-    )
+    final_manifest = admit_environment_contamination(reference_manifest, contamination_report)
     material = HardenedEnvironmentMaterial(manifest=final_manifest, artifacts=contents)
     oracle_assessment = create_oracle_provenance_assessment(
         manifest=final_manifest,
@@ -388,14 +380,8 @@ def test_g1_admission_composes_all_environment_integrity_subsystems() -> None:
     assert evidence.oracle_independence_grade is (
         OracleIndependenceGrade.DETERMINISTIC_PROGRAMMATIC_CONTRACT
     )
-    assert (
-        evidence.reference_validation_evidence_sha256
-        == fixture.reference_report.evidence_sha256
-    )
-    assert (
-        evidence.contamination_evidence_sha256
-        == fixture.contamination_report.evidence_sha256
-    )
+    assert evidence.reference_validation_evidence_sha256 == fixture.reference_report.evidence_sha256
+    assert evidence.contamination_evidence_sha256 == fixture.contamination_report.evidence_sha256
     serialized = environment_integrity_evidence_json(evidence)
     assert _SPECIFICATION not in serialized
     assert _PROTECTED_PROMPT not in serialized
@@ -449,9 +435,7 @@ def test_g1_rejects_hardened_material_bound_before_final_evidence() -> None:
         artifacts=fixture.material.artifacts,
     )
 
-    with pytest.raises(
-        EnvironmentIntegrityError, match="exact final environment manifest"
-    ):
+    with pytest.raises(EnvironmentIntegrityError, match="exact final environment manifest"):
         admit_environment_integrity(
             manifest=fixture.final_manifest,
             material=stale_material,
@@ -491,9 +475,7 @@ def test_g1_rejects_report_from_another_environment() -> None:
         for item in _artifact_contents()
     )
     other_base = _manifest(altered_contents)
-    other_material = HardenedEnvironmentMaterial(
-        manifest=other_base, artifacts=altered_contents
-    )
+    other_material = HardenedEnvironmentMaterial(manifest=other_base, artifacts=altered_contents)
     other_report = run_reference_first_validation(
         other_base,
         HardenedReferenceValidationSandboxFactory(other_material, _Grader()),
