@@ -18,7 +18,7 @@ import time
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, replace
 from pathlib import Path
-from typing import Any, Protocol, cast
+from typing import Any, Literal, Protocol, cast
 
 import torch
 from torch import nn
@@ -328,6 +328,9 @@ def prepare_noop_adapter(
     if isinstance(dropout, bool) or not isinstance(dropout, int | float):
         raise FTRNoopAdapterError("FTR-102 noop_adapter.dropout must be numeric")
     bias = _expect_str(adapter, "bias", context="FTR-102 noop_adapter")
+    if bias not in {"none", "all", "lora_only"}:
+        raise FTRNoopAdapterError("FTR-102 noop_adapter.bias is invalid")
+    lora_bias = cast(Literal["none", "all", "lora_only"], bias)
     task_type = _expect_str(adapter, "task_type", context="FTR-102 noop_adapter")
 
     if adapter_dir.exists():
@@ -337,7 +340,7 @@ def prepare_noop_adapter(
         adapter_dir.mkdir(parents=True)
 
     from peft import LoraConfig, get_peft_model
-    from transformers import AutoModelForMultimodalLM
+    from transformers import AutoModelForMultimodalLM, PreTrainedModel
 
     torch.cuda.set_device(device_index)
     seed_everything(1729)
@@ -348,7 +351,7 @@ def prepare_noop_adapter(
         device_map={"": device_index},
         low_cpu_mem_usage=True,
     )
-    if not isinstance(loaded, nn.Module):
+    if not isinstance(loaded, PreTrainedModel):
         raise FTRNoopAdapterError("Transformers returned an unexpected model object")
     if _resolved_revision(loaded) != base_model.revision:
         raise FTRNoopAdapterError("FTR-102 preparation loaded the wrong base revision")
@@ -356,7 +359,7 @@ def prepare_noop_adapter(
         r=rank,
         lora_alpha=alpha,
         lora_dropout=float(dropout),
-        bias=bias,
+        bias=lora_bias,
         target_modules=targets,
         task_type=task_type,
     )
@@ -369,7 +372,7 @@ def prepare_noop_adapter(
                 adapter_parameters += parameter.numel()
     if adapter_parameters <= 0:
         raise FTRNoopAdapterError("PEFT created no LoRA parameters for FTR-102")
-    adapted.save_pretrained(str(adapter_dir), safe_serialization=True)
+    cast(Any, adapted).save_pretrained(str(adapter_dir), safe_serialization=True)
     artifact_identity = inspect_zero_adapter(adapter_dir)
     payload: dict[str, object] = {
         "schema_version": 1,
@@ -473,7 +476,7 @@ class NoopAdapterGenerator(HuggingFaceBaselineGenerator):
         if after_revision != before_revision or after_revision != base_model.revision:
             raise FTRNoopAdapterError("base-model revision changed across adapter activation")
         self._load_seconds += time.perf_counter() - started
-        self._parameter_dtypes = _floating_dtypes(self._model)
+        after_dtypes = _floating_dtypes(self._model)
         self._resolved_model_revision = after_revision
         self.control_identity: dict[str, object] = {
             "schema_version": 1,
@@ -487,7 +490,7 @@ class NoopAdapterGenerator(HuggingFaceBaselineGenerator):
             },
             "model_after_adapter": {
                 "class": _qualified_class_name(self._model),
-                "parameter_dtypes": list(self._parameter_dtypes),
+                "parameter_dtypes": list(after_dtypes),
                 "base_resolved_revision": after_revision,
             },
             "adapter_load": {
