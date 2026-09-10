@@ -116,6 +116,8 @@ def test_repository_protocol_and_gate_are_precommitted() -> None:
     checks = report["checks"]
     assert isinstance(checks, dict)
     assert checks["repository_holdout_one_shot_status_frozen"] is True
+    assert checks["historical_docker_runtime_pinned"] is True
+    assert checks["execution_image_digest_pinned"] is True
     assert checks["ftr_203_gate_precommitted"] is True
     assert checks["eight_point_public_coding_margin_frozen"] is True
 
