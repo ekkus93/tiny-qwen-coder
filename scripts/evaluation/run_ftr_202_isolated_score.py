@@ -12,8 +12,7 @@ from pathlib import Path
 
 _OUTPUT_RELATIVE = Path("artifacts/eval/python/ftr-201-teacher-direct-v1")
 _EXECUTION_IMAGE = (
-    "python:3.11.14-slim@sha256:"
-    "c8271b1f627d0068857dce5b53e14a9558603b527e46f1f901722f935b786a39"
+    "python:3.11.14-slim@sha256:c8271b1f627d0068857dce5b53e14a9558603b527e46f1f901722f935b786a39"
 )
 _FORBIDDEN_ENV = (
     "GOOGLE_APPLICATION_CREDENTIALS",

@@ -22,8 +22,7 @@ _FTR201_EVIDENCE = Path("docs/evidence/FTR_201_DIRECT_TEACHER_EVALUATION_SUPPORT
 _FTR201_EVAL = Path("configs/eval/python/ftr_201_teacher_direct_v1.yaml")
 _EXPECTED_TEACHER = ("Qwen/Qwen3.8-27B", "72a217afab8029b39e4af1c7273a829995a3dbaf")
 _EXPECTED_EXECUTION_IMAGE = (
-    "python:3.11.14-slim@sha256:"
-    "c8271b1f627d0068857dce5b53e14a9558603b527e46f1f901722f935b786a39"
+    "python:3.11.14-slim@sha256:c8271b1f627d0068857dce5b53e14a9558603b527e46f1f901722f935b786a39"
 )
 _EXPECTED_BASE_SCORES = {
     "humaneval": (128, 164),
