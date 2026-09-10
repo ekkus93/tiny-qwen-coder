@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "id": "python-ftr-102-noop-adapter-equivalence-v1",
+  "task_id": "FTR-102",
+  "base_evaluation_config": "configs/eval/python/base_baseline_v1.yaml",
+  "base_model": {
+    "repository": "Qwen/Qwen3.5-4B",
+    "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+    "tokenizer_repository": "Qwen/Qwen3.5-4B",
+    "tokenizer_revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
+  },
+  "ftr_101_reference": {
+    "run_id": 34336465327,
+    "head_sha": "74dc5993f5740b5cf5876550671296fab278663c",
+    "artifact_name": "ftr-101-base-reproduction-74dc5993f5740b5cf5876550671296fab278663c",
+    "scores": {
+      "humaneval": [128, 164],
+      "mbpp": [290, 500],
+      "repository_holdout": [6, 11],
+      "combined": [424, 675],
+      "general_tool_regression": [2, 12]
+    }
+  },
+  "noop_adapter": {
+    "family": "control",
+    "adapter_id": "control/python/ftr-102-noop",
+    "loader": "peft.PeftModel.from_pretrained",
+    "rank": 8,
+    "alpha": 32,
+    "dropout": 0.05,
+    "bias": "none",
+    "task_type": "CAUSAL_LM",
+    "target_modules": [
+      "down_proj",
+      "gate_proj",
+      "in_proj_a",
+      "in_proj_b",
+      "in_proj_qkv",
+      "in_proj_z",
+      "k_proj",
+      "o_proj",
+      "out_proj",
+      "q_proj",
+      "up_proj",
+      "v_proj"
+    ],
+    "require_all_saved_adapter_tensors_zero": true,
+    "require_active_adapter": "default",
+    "require_trainable_params": 0,
+    "require_unmerged": true
+  },
+  "equivalence_gate": {
+    "require_exact_tokenizer_identity": true,
+    "require_exact_chat_template": true,
+    "require_exact_generation_settings": true,
+    "require_exact_generation_contract": true,
+    "require_exact_task_membership": true,
+    "require_exact_generated_text": true,
+    "require_exact_generated_token_counts": true,
+    "require_exact_prompt_token_counts": true,
+    "require_exact_task_outcomes": true,
+    "require_exact_suite_scores": true,
+    "allow_adapter_identity_difference_only": true
+  }
+}

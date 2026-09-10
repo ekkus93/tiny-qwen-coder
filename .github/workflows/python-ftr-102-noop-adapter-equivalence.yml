@@ -1,0 +1,264 @@
+name: Python FTR-102 No-op Adapter Equivalence
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - ftr/ftr-102-noop-adapter-equivalence
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: python-ftr-102-noop-adapter-equivalence-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    name: Generate with exactly-zero adapter on GPU
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+    timeout-minutes: 300
+
+    env:
+      TOKENIZERS_PARALLELISM: "false"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      CONTROL_OUTPUT: artifacts/eval/python/ftr-102-noop-adapter-v1
+
+    steps:
+      - name: Check out exact FTR-102 source
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          clean: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Inspect NVIDIA GPU
+        run: |
+          set -euo pipefail
+          nvidia-smi
+
+      - name: Sync frozen environment
+        run: uv sync --frozen
+
+      - name: Verify PyTorch CUDA access
+        run: |
+          set -euo pipefail
+          uv run --frozen python - <<'PY'
+          import torch
+
+          if not torch.cuda.is_available():
+              raise SystemExit("PyTorch cannot access CUDA on the self-hosted runner")
+          print(f"torch={torch.__version__}")
+          print(f"cuda_runtime={torch.version.cuda}")
+          print(f"gpu={torch.cuda.get_device_name(0)}")
+          print(f"capability={torch.cuda.get_device_capability(0)}")
+          print(f"total_memory_bytes={torch.cuda.get_device_properties(0).total_memory}")
+          PY
+
+      - name: Confirm clean exact source
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain)"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+
+      - name: Prepare persisted exactly-zero LoRA adapter
+        run: |
+          set -euo pipefail
+          rm -rf "${RUNNER_TEMP}/ftr-102-noop-adapter"
+          mkdir -p "${RUNNER_TEMP}/ftr-102-noop-adapter"
+          uv run --frozen python -m tiny_qwen_coder.evaluation.python_ftr_noop_adapter_equivalence \
+            prepare-adapter \
+            --adapter-dir "${RUNNER_TEMP}/ftr-102-noop-adapter" \
+            --manifest "${RUNNER_TEMP}/ftr-102-noop-adapter-manifest.json" \
+            | tee "${RUNNER_TEMP}/ftr-102-prepare-adapter.stdout.json"
+
+      - name: Generate canonical suites through PEFT adapter-loading path
+        run: |
+          set -euo pipefail
+          rm -rf "${CONTROL_OUTPUT}"
+          uv run --frozen python -m tiny_qwen_coder.evaluation.python_ftr_noop_adapter_equivalence \
+            generate \
+            --adapter-dir "${RUNNER_TEMP}/ftr-102-noop-adapter" \
+            --adapter-manifest "${RUNNER_TEMP}/ftr-102-noop-adapter-manifest.json" \
+            --output-dir "${CONTROL_OUTPUT}" \
+            | tee "${RUNNER_TEMP}/ftr-102-generate.stdout.json"
+          find "${CONTROL_OUTPUT}" -type f -print | sort
+
+      - name: Upload FTR-102 GPU evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: ftr-102-noop-generation-${{ github.sha }}
+          path: |
+            ${{ env.CONTROL_OUTPUT }}/
+            ${{ runner.temp }}/ftr-102-noop-adapter/
+            ${{ runner.temp }}/ftr-102-noop-adapter-manifest.json
+            ${{ runner.temp }}/ftr-102-prepare-adapter.stdout.json
+            ${{ runner.temp }}/ftr-102-generate.stdout.json
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 30
+
+      - name: Upload partial FTR-102 evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ftr-102-noop-generation-partial-${{ github.sha }}
+          path: |
+            ${{ env.CONTROL_OUTPUT }}/
+            ${{ runner.temp }}/ftr-102-noop-adapter/
+            ${{ runner.temp }}/ftr-102-noop-adapter-manifest.json
+          if-no-files-found: ignore
+          include-hidden-files: true
+          retention-days: 14
+
+  score-and-compare:
+    name: Score no-op control and compare to FTR-101
+    needs: generate
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    env:
+      TOKENIZERS_PARALLELISM: "false"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      EXECUTION_IMAGE: python:3.11.14-slim@sha256:c8271b1f627d0068857dce5b53e14a9558603b527e46f1f901722f935b786a39
+      CONTROL_OUTPUT: artifacts/eval/python/ftr-102-noop-adapter-v1
+      FTR_101_RUN_ID: "34336465327"
+      FTR_101_ARTIFACT_NAME: ftr-101-base-reproduction-74dc5993f5740b5cf5876550671296fab278663c
+
+    steps:
+      - name: Check out exact FTR-102 source
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          clean: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Sync frozen environment
+        run: uv sync --frozen
+
+      - name: Download current FTR-102 GPU evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: ftr-102-noop-generation-${{ github.sha }}
+          path: ${{ runner.temp }}/ftr-102-current-download
+
+      - name: Restore current FTR-102 evidence
+        run: |
+          set -euo pipefail
+          current_root="${RUNNER_TEMP}/ftr-102-current-download"
+          work_dir="$(find "${current_root}" -type d -path '*/artifacts/eval/python/ftr-102-noop-adapter-v1' -print -quit)"
+          if [[ -z "${work_dir}" ]]; then
+            echo "Could not locate FTR-102 control output directory" >&2
+            find "${current_root}" -maxdepth 10 -print >&2
+            exit 1
+          fi
+          rm -rf "${CONTROL_OUTPUT}"
+          mkdir -p "$(dirname "${CONTROL_OUTPUT}")"
+          cp -a "${work_dir}" "${CONTROL_OUTPUT}"
+
+          adapter_dir="$(find "${current_root}" -type d -name 'ftr-102-noop-adapter' -print -quit)"
+          manifest="$(find "${current_root}" -type f -name 'ftr-102-noop-adapter-manifest.json' -print -quit)"
+          if [[ -z "${adapter_dir}" || -z "${manifest}" ]]; then
+            echo "Could not locate transported FTR-102 adapter evidence" >&2
+            exit 1
+          fi
+          rm -rf "${RUNNER_TEMP}/ftr-102-noop-adapter"
+          cp -a "${adapter_dir}" "${RUNNER_TEMP}/ftr-102-noop-adapter"
+          cp "${manifest}" "${RUNNER_TEMP}/ftr-102-noop-adapter-manifest.json"
+
+      - name: Prepare historical Docker execution runtime
+        run: |
+          set -euo pipefail
+          docker --version
+          docker pull "${EXECUTION_IMAGE}"
+          docker image inspect "${EXECUTION_IMAGE}" >/dev/null
+
+      - name: Download exact FTR-101 reproduction artifact
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ env.FTR_101_RUN_ID }}
+          name: ${{ env.FTR_101_ARTIFACT_NAME }}
+          path: ${{ runner.temp }}/ftr-101-frozen-download
+
+      - name: Locate exact FTR-101 reference
+        run: |
+          set -euo pipefail
+          frozen_root="$(find "${RUNNER_TEMP}/ftr-101-frozen-download" -type d -path '*/artifacts/eval/python/base-baseline-v1' -print -quit)"
+          frozen_identity="$(find "${RUNNER_TEMP}/ftr-101-frozen-download" -type f -name 'ftr-101-generation-identity.json' -print -quit)"
+          if [[ -z "${frozen_root}" || -z "${frozen_identity}" ]]; then
+            echo "Could not locate exact FTR-101 baseline or generation identity" >&2
+            find "${RUNNER_TEMP}/ftr-101-frozen-download" -maxdepth 10 -print >&2
+            exit 1
+          fi
+          printf '%s\n' "${frozen_root}" > "${RUNNER_TEMP}/ftr-101-frozen-root.txt"
+          printf '%s\n' "${frozen_identity}" > "${RUNNER_TEMP}/ftr-101-frozen-identity.txt"
+
+      - name: Confirm clean exact source
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain)"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+
+      - name: Score and require exact no-op equivalence
+        run: |
+          set -euo pipefail
+          frozen_root="$(cat "${RUNNER_TEMP}/ftr-101-frozen-root.txt")"
+          frozen_identity="$(cat "${RUNNER_TEMP}/ftr-101-frozen-identity.txt")"
+          uv run --frozen python -m tiny_qwen_coder.evaluation.python_ftr_noop_adapter_scoring \
+            --frozen-dir "${frozen_root}" \
+            --frozen-identity "${frozen_identity}" \
+            --adapter-manifest "${RUNNER_TEMP}/ftr-102-noop-adapter-manifest.json" \
+            --output-dir "${CONTROL_OUTPUT}" \
+            --oci-runtime /usr/bin/docker \
+            --report "${RUNNER_TEMP}/ftr-102-noop-adapter-equivalence.json" \
+            | tee "${RUNNER_TEMP}/ftr-102-noop-adapter-equivalence.stdout.json"
+
+      - name: Upload FTR-102 equivalence evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: ftr-102-noop-equivalence-${{ github.sha }}
+          path: |
+            ${{ env.CONTROL_OUTPUT }}/
+            ${{ runner.temp }}/ftr-102-noop-adapter-manifest.json
+            ${{ runner.temp }}/ftr-102-noop-adapter-equivalence.json
+            ${{ runner.temp }}/ftr-102-noop-adapter-equivalence.stdout.json
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 90
+
+      - name: Upload FTR-102 failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ftr-102-noop-equivalence-failure-${{ github.sha }}
+          path: |
+            ${{ env.CONTROL_OUTPUT }}/
+            ${{ runner.temp }}/ftr-102-noop-adapter-manifest.json
+            ${{ runner.temp }}/ftr-102-noop-adapter-equivalence.json
+          if-no-files-found: ignore
+          include-hidden-files: true
+          retention-days: 30
