@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "id": "python-ftr-203-teacher-superiority-gate-v1",
+  "task_id": "FTR-203",
+  "precommitted_before_teacher_results": true,
+  "fixed_teacher_comparisons": 1,
+  "primary_capability": {
+    "suites": ["humaneval", "mbpp"],
+    "base_passed": 418,
+    "total_tasks": 664,
+    "minimum_absolute_pass_rate_gain": 0.08,
+    "minimum_net_improvement_tasks": 54,
+    "minimum_teacher_passed": 472,
+    "maximum_one_sided_p_value": 0.05,
+    "paired_test": "exact one-sided discordant-task sign/McNemar test"
+  },
+  "suite_constraints": {
+    "humaneval": {
+      "base_passed": 128,
+      "total_tasks": 164,
+      "minimum_delta_tasks": 0
+    },
+    "mbpp": {
+      "base_passed": 290,
+      "total_tasks": 500,
+      "minimum_delta_tasks": 0
+    },
+    "repository_holdout": {
+      "base_passed": 6,
+      "total_tasks": 11,
+      "maximum_pass_drop_tasks": 1,
+      "role": "secondary protected diagnostic; not part of the primary superiority margin"
+    },
+    "general_tool_regression": {
+      "maximum_pass_drop_cases": 1,
+      "role": "non-catastrophic-regression guard"
+    }
+  },
+  "rationale": {
+    "statistical_floor": "FTR-104 established a five-net-task optimistic single-candidate significance floor. The 54-task primary margin is more than ten times that floor and is additionally subjected to the paired exact test.",
+    "distillation_buffer": "An 8 percentage-point absolute public-coding margin deliberately reserves roughly 3 points for teacher-label/distillation approximation loss while still leaving a 5-point target improvement over the 4B base. This is an engineering authorization margin, not an estimate of guaranteed student gain.",
+    "selection_control": "The gate is frozen before observing the exact teacher result and covers one fixed teacher/configuration comparison, preventing threshold selection after seeing the outcome."
+  },
+  "decision": {
+    "pass": "authorize_next_distillation_stage",
+    "fail": "stop_teacher_distillation_for_this_teacher_configuration"
+  }
+}
