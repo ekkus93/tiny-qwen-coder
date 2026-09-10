@@ -1,0 +1,26 @@
+schema_version: 1
+id: qwen38-27b-teacher
+role: diagnostic_teacher
+
+model:
+  repository: Qwen/Qwen3.8-27B
+  revision: 72a217afab8029b39e4af1c7273a829995a3dbaf
+  revision_policy: immutable_commit
+  checkpoint_type: post_trained
+
+tokenizer:
+  repository: Qwen/Qwen3.8-27B
+  revision: 72a217afab8029b39e4af1c7273a829995a3dbaf
+  revision_policy: match_model_revision
+  chat_template_source: pinned_checkpoint
+
+specialization:
+  scope: text_code_only
+  freeze_vision_components: true
+
+precision:
+  model_load_dtype: bfloat16
+
+policy:
+  allow_floating_revision: false
+  training_input_eligible: false
