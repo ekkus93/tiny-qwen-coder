@@ -103,9 +103,7 @@ def _fixture_pair(tmp_path: Path, *, teacher_mbpp: list[bool]) -> tuple[Path, Pa
     _write_coding_suite(base, "mbpp", ["MBPP/0", "MBPP/1", "MBPP/2"], [True, False, False])
     _write_coding_suite(teacher, "mbpp", ["MBPP/0", "MBPP/1", "MBPP/2"], teacher_mbpp)
     _write_coding_suite(base, "repository_holdout", ["holdout/0", "holdout/1"], [True, False])
-    _write_coding_suite(
-        teacher, "repository_holdout", ["holdout/0", "holdout/1"], [False, True]
-    )
+    _write_coding_suite(teacher, "repository_holdout", ["holdout/0", "holdout/1"], [False, True])
     _write_regression(base, {"a": True, "b": True})
     _write_regression(teacher, {"a": True, "b": False})
     return base, teacher, gate

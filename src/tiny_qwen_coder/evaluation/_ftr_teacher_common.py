@@ -7,6 +7,7 @@ import json
 import math
 from collections.abc import Mapping
 from pathlib import Path
+from typing import cast
 
 import yaml
 
@@ -80,4 +81,5 @@ def score_pair(value: object, *, context: str) -> tuple[int, int]:
         or any(isinstance(item, bool) or not isinstance(item, int) for item in value)
     ):
         raise FTRTeacherSuperiorityError(f"{context} must be [passed, total]")
-    return value[0], value[1]
+    pair = cast(list[int], value)
+    return pair[0], pair[1]
