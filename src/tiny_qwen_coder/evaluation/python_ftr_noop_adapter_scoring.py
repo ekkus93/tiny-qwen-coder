@@ -4,8 +4,11 @@ The shared HumanEval, MBPP, and repository-holdout evaluators intentionally
 accept only the normal base-only or language-adapter evaluation contracts.
 FTR-102 uses a synthetic ``family='control'`` adapter, so its already-generated
 completions are scored under the unchanged-base scoring contract and then the
-persisted result provenance is rebound to the exact control adapter identity.
-Result hashes are recomputed after rebinding before exact comparison to FTR-101.
+persisted coding-benchmark result provenance is rebound to the exact control
+adapter identity. Result hashes are recomputed after rebinding before exact
+comparison to FTR-101. The general/tool regression aggregate remains base-only
+because that frozen schema explicitly forbids adapter provenance; FTR-102's
+control identity and generation manifest carry the adapter-path provenance.
 """
 
 from __future__ import annotations
@@ -219,16 +222,13 @@ def _score_control(*, output_dir: Path, runtime: OciRuntimeSpec) -> None:
     holdout.write_artifacts(_rebind_holdout(holdout_result), output_dir / "repository-holdout")
 
     regression_results = _regression_results(regression_suite, regression_responses)
-    regression_aggregate = replace(
-        _regression_aggregate(
-            suite=regression_suite,
-            results=regression_results,
-            settings=settings,
-            system_prompt_version=system_prompt_version,
-            system_prompt=system_prompt,
-            base_model=base_model,
-        ),
-        adapter=ftr._CONTROL_ADAPTER,
+    regression_aggregate = _regression_aggregate(
+        suite=regression_suite,
+        results=regression_results,
+        settings=settings,
+        system_prompt_version=system_prompt_version,
+        system_prompt=system_prompt,
+        base_model=base_model,
     )
     write_regression_baseline_artifacts(
         results=regression_results,
