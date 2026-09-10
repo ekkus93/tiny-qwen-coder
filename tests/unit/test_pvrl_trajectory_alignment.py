@@ -271,17 +271,22 @@ def test_foreign_reward_attribution_is_rejected() -> None:
         AlignedTrainingTrajectory(aligned, reward)
 
 
-@pytest.mark.parametrize("field", ["input_ids", "action_token_ids", "action_mask"])
-def test_training_array_tampering_is_rejected(field: str) -> None:
+def test_input_id_tampering_is_rejected() -> None:
     aligned = _aligned()
-    if field == "input_ids":
-        value = aligned.input_ids[:-1] + (999,)
-    elif field == "action_token_ids":
-        value = aligned.action_token_ids[:-1] + (999,)
-    else:
-        value = aligned.action_mask[:-1] + (False,)
     with pytest.raises(TrajectoryAlignmentMismatchError):
-        replace(aligned, **{field: value})
+        replace(aligned, input_ids=aligned.input_ids[:-1] + (999,))
+
+
+def test_action_id_tampering_is_rejected() -> None:
+    aligned = _aligned()
+    with pytest.raises(TrajectoryAlignmentMismatchError):
+        replace(aligned, action_token_ids=aligned.action_token_ids[:-1] + (999,))
+
+
+def test_action_mask_tampering_is_rejected() -> None:
+    aligned = _aligned()
+    with pytest.raises(TrajectoryAlignmentMismatchError):
+        replace(aligned, action_mask=aligned.action_mask[:-1] + (False,))
 
 
 def test_turn_boundary_tampering_is_rejected() -> None:
