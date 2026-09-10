@@ -204,8 +204,7 @@ def audit_teacher_direct_support(
             "generate_canonical_python_base_baseline_stage"
         ),
         "shared_scoring_stage": (
-            "tiny_qwen_coder.evaluation._baseline_stages."
-            "score_canonical_python_base_baseline_stage"
+            "tiny_qwen_coder.evaluation._baseline_stages.score_canonical_python_base_baseline_stage"
         ),
         "training_input_references": list(training_references),
         "checks": checks,
