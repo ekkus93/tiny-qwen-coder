@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "gate_id": "PVRL-G1",
+  "gate_name": "Environment integrity",
+  "status": "passed",
+  "recorded_at_utc": "2026-09-09T22:57:06Z",
+  "audited_master_sha": "fe73c38da027c4fa4a384f5c3239ee3c2db6e045",
+  "closure_branch": "pvrl/pvrl-g1-environment-integrity",
+  "closure_pull_request": 70,
+  "component_evidence": [
+    {
+      "task_id": "PVRL-101",
+      "claim": "immutable environment schema proven",
+      "pull_request": 65,
+      "implementation_head_sha": "b80d81f72feeaf832bbd0bb022e372d387e7b9a4",
+      "merge_commit_sha": "ed8b841ef50c5b97609a8cc166fe2a4dba248ae6",
+      "ci_run_id": 34387785484,
+      "ci_conclusion": "success"
+    },
+    {
+      "task_id": "PVRL-102",
+      "claim": "oracle/reference provenance and independence grading proven",
+      "pull_request": 66,
+      "implementation_head_sha": "e19dfcb2c1f1e98954714495e166770dc04b9af7",
+      "merge_commit_sha": "194877f33c1117eb17b06d934e4d189599aa6f6d",
+      "ci_run_id": 34391045923,
+      "ci_conclusion": "success"
+    },
+    {
+      "task_id": "PVRL-103",
+      "claim": "reference-first validation proven",
+      "pull_request": 67,
+      "implementation_head_sha": "f4ed93c2ba414987306db1f9b6e30a797e63231a",
+      "merge_commit_sha": "96dccab1e718aa8425e062fac5bbd789c4ae00c7",
+      "ci_run_id": 34393664208,
+      "ci_conclusion": "success"
+    },
+    {
+      "task_id": "PVRL-104",
+      "claim": "sandbox and grader isolation proven",
+      "pull_request": 68,
+      "implementation_head_sha": "72bf480527680a584650e5c8bda17ff6d7a79971",
+      "merge_commit_sha": "ee15ead30089f8798060b887113ac4fce08c13ca",
+      "ci_run_id": 34398358972,
+      "ci_conclusion": "success"
+    },
+    {
+      "task_id": "PVRL-105",
+      "claim": "protected-data contamination controls proven",
+      "pull_request": 69,
+      "implementation_head_sha": "7f04fe0fbf04a6d14d9407cd5d94a97829cc3a25",
+      "merge_commit_sha": "fe73c38da027c4fa4a384f5c3239ee3c2db6e045",
+      "ci_run_id": 34411799714,
+      "ci_conclusion": "success"
+    }
+  ],
+  "cross_cutting_admission": {
+    "implementation_head_sha": "7c72c44084158be2dc4373a5dc9dbe1e9ddba121",
+    "ci_run_id": 34414512064,
+    "ci_conclusion": "success",
+    "fast_static_preflight_job_id": 102676263891,
+    "full_cpu_quality_gates_job_id": 102676321665,
+    "requirements": [
+      "exact final immutable environment manifest",
+      "exact hardened sandbox artifact bytes",
+      "successful reference-first validation report matching manifest evidence",
+      "clean contamination report matching manifest evidence",
+      "oracle provenance assessment bound to the final evidence-bearing manifest"
+    ],
+    "fail_closed_cases": [
+      "reference validation not run",
+      "contamination checks not run",
+      "stale hardened sandbox material",
+      "oracle assessment created before final evidence attachment",
+      "reference report from another environment",
+      "post-admission evidence tampering"
+    ]
+  },
+  "gate_checks": {
+    "immutable_environment_schema_proven": true,
+    "reference_first_validation_proven": true,
+    "sandbox_grader_isolation_proven": true,
+    "contamination_checks_proven": true,
+    "cross_cutting_admission_guard_proven": true
+  },
+  "ftr_dependency": {
+    "ftr_g1_status": "not_satisfied",
+    "blocking_open_pull_request": 63,
+    "blocking_task": "FTR-102",
+    "pvrl_model_training_interpretation_authorized": false,
+    "note": "PVRL-G1 proves environment integrity only and does not satisfy or bypass FTR-G1."
+  },
+  "next_gate_scope": "PVRL-200 agent harness and exact trajectory identity"
+}

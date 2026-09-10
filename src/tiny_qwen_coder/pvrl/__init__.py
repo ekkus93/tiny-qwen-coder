@@ -15,6 +15,13 @@ from tiny_qwen_coder.pvrl.contamination import (
     contamination_report_json,
     create_environment_contamination_input,
 )
+from tiny_qwen_coder.pvrl.environment_integrity import (
+    EnvironmentIntegrityError,
+    EnvironmentIntegrityEvidence,
+    EnvironmentIntegrityStatus,
+    admit_environment_integrity,
+    environment_integrity_evidence_json,
+)
 from tiny_qwen_coder.pvrl.environment_manifest import (
     ArtifactKind,
     ArtifactVisibility,
@@ -87,6 +94,9 @@ __all__ = [
     "ContaminationTextComponent",
     "EnvironmentArtifact",
     "EnvironmentContaminationInput",
+    "EnvironmentIntegrityError",
+    "EnvironmentIntegrityEvidence",
+    "EnvironmentIntegrityStatus",
     "EnvironmentManifest",
     "EnvironmentManifestError",
     "EvidenceStatus",
@@ -128,6 +138,7 @@ __all__ = [
     "ValidationPhase",
     "ValidationTimingClass",
     "admit_environment_contamination",
+    "admit_environment_integrity",
     "attach_reference_validation",
     "check_environment_contamination",
     "contamination_report_json",
@@ -135,6 +146,7 @@ __all__ = [
     "create_environment_manifest",
     "create_oracle_provenance_assessment",
     "create_validation_execution_evidence",
+    "environment_integrity_evidence_json",
     "environment_manifest_from_json",
     "environment_manifest_json",
     "environment_manifest_sha256",
