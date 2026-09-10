@@ -47,9 +47,7 @@ class RolloutPolicyIdentity:
             raise TrajectoryAlignmentError("base_model must be BaseModelIdentity")
         if not isinstance(self.adapter, AdapterIdentity):
             raise TrajectoryAlignmentError("adapter must be AdapterIdentity")
-        if not isinstance(self.checkpoint_id, str) or not _CHECKPOINT.fullmatch(
-            self.checkpoint_id
-        ):
+        if not isinstance(self.checkpoint_id, str) or not _CHECKPOINT.fullmatch(self.checkpoint_id):
             raise TrajectoryAlignmentError("checkpoint_id must be immutable 40/64-hex")
         if self.adapter.adapter_id is None:
             if self.checkpoint_id != self.base_model.revision:
@@ -88,9 +86,7 @@ class ActionTurnBoundary:
         if self.input_end <= self.input_start or self.action_end <= self.action_start:
             raise TrajectoryAlignmentError("turn spans must be non-empty")
         if self.input_end - self.input_start != self.action_end - self.action_start:
-            raise TrajectoryAlignmentMismatchError(
-                "turn input/action span lengths differ"
-            )
+            raise TrajectoryAlignmentMismatchError("turn input/action span lengths differ")
         _sha(self.prompt_ids_sha256, "prompt_ids_sha256")
         _sha(self.output_ids_sha256, "output_ids_sha256")
 
@@ -123,9 +119,7 @@ class AlignedActionSegment:
         if self.input_end <= self.input_start or self.action_end <= self.action_start:
             raise TrajectoryAlignmentError("segment spans must be non-empty")
         if self.input_end - self.input_start != self.action_end - self.action_start:
-            raise TrajectoryAlignmentMismatchError(
-                "segment input/action span lengths differ"
-            )
+            raise TrajectoryAlignmentMismatchError("segment input/action span lengths differ")
         _sha(self.token_ids_sha256, "token_ids_sha256")
 
 
@@ -146,9 +140,7 @@ class RolloutLogProbEvidence:
             raise TrajectoryAlignmentError("log_probs must not be empty")
         for index, value in enumerate(self.log_probs):
             if not isinstance(value, float) or not math.isfinite(value) or value > 0.0:
-                raise TrajectoryAlignmentError(
-                    f"log_probs[{index}] must be a finite float <= 0"
-                )
+                raise TrajectoryAlignmentError(f"log_probs[{index}] must be a finite float <= 0")
 
     @property
     def evidence_sha256(self) -> str:
@@ -228,9 +220,7 @@ class AlignedTrainingTrajectory:
         if not isinstance(self.reward, TrajectoryRewardAttribution):
             raise TrajectoryAlignmentError("reward must be TrajectoryRewardAttribution")
         if self.reward.trajectory_id != self.alignment.trajectory_id:
-            raise TrajectoryAlignmentMismatchError(
-                "reward belongs to another trajectory"
-            )
+            raise TrajectoryAlignmentMismatchError("reward belongs to another trajectory")
 
 
 @dataclass(frozen=True, slots=True)
@@ -276,9 +266,7 @@ class TrajectoryAlignmentAuditEvidence:
             raise TrajectoryAlignmentMismatchError("action count exceeds input count")
         if self.rollout_log_probs_sha256 is None:
             if self.rollout_log_prob_count != 0:
-                raise TrajectoryAlignmentMismatchError(
-                    "log-prob count present without evidence"
-                )
+                raise TrajectoryAlignmentMismatchError("log-prob count present without evidence")
         else:
             _sha(self.rollout_log_probs_sha256, "rollout_log_probs_sha256")
             if self.rollout_log_prob_count != self.action_token_count:
@@ -395,32 +383,22 @@ def _validate_alignment(value: AlignedRolloutTrajectory) -> None:
         value.segments,
     )
     if actual != expected:
-        raise TrajectoryAlignmentMismatchError(
-            "stored training arrays differ from exact ledger"
-        )
+        raise TrajectoryAlignmentMismatchError("stored training arrays differ from exact ledger")
     masked = tuple(
         token_id
         for token_id, selected in zip(value.input_ids, value.action_mask, strict=True)
         if selected
     )
     if masked != value.action_token_ids:
-        raise TrajectoryAlignmentMismatchError(
-            "loss mask is not 1:1 with action tokens"
-        )
+        raise TrajectoryAlignmentMismatchError("loss mask is not 1:1 with action tokens")
     log_probs = value.rollout_log_probs
     if log_probs is not None:
         if log_probs.trajectory_id != value.trajectory_id:
-            raise TrajectoryAlignmentMismatchError(
-                "log-probs belong to another trajectory"
-            )
+            raise TrajectoryAlignmentMismatchError("log-probs belong to another trajectory")
         if log_probs.policy_sha256 != value.policy.policy_sha256:
             raise TrajectoryAlignmentMismatchError("log-probs belong to another policy")
-        if log_probs.action_token_ids_sha256 != token_ids_sha256(
-            value.action_token_ids
-        ):
-            raise TrajectoryAlignmentMismatchError(
-                "log-probs bind different action tokens"
-            )
+        if log_probs.action_token_ids_sha256 != token_ids_sha256(value.action_token_ids):
+            raise TrajectoryAlignmentMismatchError("log-probs bind different action tokens")
         if len(log_probs.log_probs) != len(value.action_token_ids):
             raise TrajectoryAlignmentMismatchError("log-prob/action counts differ")
 
@@ -448,17 +426,13 @@ def _derive_alignment(
     segments: list[AlignedActionSegment] = []
     action_cursor = 0
 
-    for turn_index, (prompt, output) in enumerate(
-        zip(ledger.prompts, ledger.outputs, strict=True)
-    ):
+    for turn_index, (prompt, output) in enumerate(zip(ledger.prompts, ledger.outputs, strict=True)):
         input_start = len(prompt.prompt_ids)
         input_end = input_start + len(output.output_ids)
         action_start = action_cursor
         action_end = action_start + len(output.output_ids)
         if input_end > len(input_ids) or input_ids[input_start:input_end] != output.output_ids:
-            raise TrajectoryAlignmentMismatchError(
-                "output IDs are absent at ledger turn boundary"
-            )
+            raise TrajectoryAlignmentMismatchError("output IDs are absent at ledger turn boundary")
         mask[input_start:input_end] = [True] * len(output.output_ids)
         action_ids.extend(output.output_ids)
         turns.append(
@@ -493,14 +467,10 @@ def _derive_alignment(
         raise ZeroActionTrajectoryError("trajectory has zero action tokens")
     exact_mask = tuple(mask)
     masked = tuple(
-        token_id
-        for token_id, selected in zip(input_ids, exact_mask, strict=True)
-        if selected
+        token_id for token_id, selected in zip(input_ids, exact_mask, strict=True) if selected
     )
     if masked != exact_actions:
-        raise TrajectoryAlignmentMismatchError(
-            "derived mask does not recover exact actions"
-        )
+        raise TrajectoryAlignmentMismatchError("derived mask does not recover exact actions")
     return input_ids, exact_actions, exact_mask, tuple(turns), tuple(segments)
 
 
@@ -511,16 +481,10 @@ def _validate_audit_spans(audit: TrajectoryAlignmentAuditEvidence) -> None:
     mask = [False] * audit.input_token_count
     for turn_index, turn in enumerate(audit.turns):
         if turn.turn_index != turn_index or turn.action_start != action_cursor:
-            raise TrajectoryAlignmentMismatchError(
-                "audit turn order/action spans drifted"
-            )
+            raise TrajectoryAlignmentMismatchError("audit turn order/action spans drifted")
         if turn.input_end > audit.input_token_count or turn.action_end > audit.action_token_count:
-            raise TrajectoryAlignmentMismatchError(
-                "audit turn span escapes token counts"
-            )
-        mask[turn.input_start : turn.input_end] = [True] * (
-            turn.input_end - turn.input_start
-        )
+            raise TrajectoryAlignmentMismatchError("audit turn span escapes token counts")
+        mask[turn.input_start : turn.input_end] = [True] * (turn.input_end - turn.input_start)
         action_cursor = turn.action_end
     if action_cursor != audit.action_token_count:
         raise TrajectoryAlignmentMismatchError("audit turns do not cover all actions")
@@ -533,9 +497,7 @@ def _validate_audit_spans(audit: TrajectoryAlignmentAuditEvidence) -> None:
             raise TrajectoryAlignmentMismatchError("audit segment action spans drifted")
         segment_action_cursor = segment.action_end
     if segment_action_cursor != audit.action_token_count:
-        raise TrajectoryAlignmentMismatchError(
-            "audit segments do not cover all actions"
-        )
+        raise TrajectoryAlignmentMismatchError("audit segments do not cover all actions")
 
 
 def _policy_payload(policy: RolloutPolicyIdentity) -> dict[str, object]:
@@ -559,9 +521,7 @@ def _audit_payload(audit: TrajectoryAlignmentAuditEvidence) -> dict[str, object]
         "action_token_ids_sha256": audit.action_token_ids_sha256,
         "action_mask_sha256": audit.action_mask_sha256,
         "turns": [asdict(turn) for turn in audit.turns],
-        "segments": [
-            {**asdict(segment), "kind": segment.kind.value} for segment in audit.segments
-        ],
+        "segments": [{**asdict(segment), "kind": segment.kind.value} for segment in audit.segments],
         "rollout_log_prob_count": audit.rollout_log_prob_count,
         "rollout_log_probs_sha256": audit.rollout_log_probs_sha256,
         "reward": audit.reward,
