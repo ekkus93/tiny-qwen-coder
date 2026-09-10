@@ -68,9 +68,7 @@ def test_raw_assistant_ids_are_preserved_without_text_round_trip() -> None:
 
     assert record.output_ids == output
     assert ledger.previous_output_ids == output
-    assert record.segments == (
-        AssistantTokenSegment(AssistantSegmentKind.TEXT, 0, 4),
-    )
+    assert record.segments == (AssistantTokenSegment(AssistantSegmentKind.TEXT, 0, 4),)
     assert ledger.state is TokenLedgerState.AWAITING_PROMPT_APPEND
 
 
@@ -102,6 +100,7 @@ def test_retemplated_historical_assistant_ids_are_fatal_fork() -> None:
     ledger = _ledger()
     ledger.record_assistant_output((20, 21, 22))
 
+    # Simulates a chat-template round trip that changes one historical assistant token.
     retemplated = (10, 11, 12, 20, 999, 22, 30)
     with pytest.raises(TokenLedgerForkError, match="prefix invariant"):
         ledger.adopt_verified_next_prompt(retemplated, source=PromptAppendSource.TOOL)
@@ -112,13 +111,12 @@ def test_retemplated_historical_assistant_ids_are_fatal_fork() -> None:
 
 def test_normalizing_assistant_whitespace_cannot_replace_original_ids() -> None:
     ledger = _ledger()
+    # Treat 501/502 as exact whitespace-sensitive output tokens.
     ledger.record_assistant_output((50, 501, 502, 51))
 
     normalized_history = (10, 11, 12, 50, 503, 51, 60)
     with pytest.raises(TokenLedgerForkError):
-        ledger.adopt_verified_next_prompt(
-            normalized_history, source=PromptAppendSource.USER
-        )
+        ledger.adopt_verified_next_prompt(normalized_history, source=PromptAppendSource.USER)
 
 
 def test_structured_tool_call_tokens_remain_exact_action_tokens() -> None:
@@ -209,9 +207,7 @@ def test_non_positive_or_boolean_token_ids_fail_closed() -> None:
 
 def test_empty_prompt_output_and_append_are_rejected() -> None:
     with pytest.raises(TokenLedgerError):
-        ExactQwen35TokenLedger(
-            session_id="x", identity=_identity(), initial_prompt_ids=()
-        )
+        ExactQwen35TokenLedger(session_id="x", identity=_identity(), initial_prompt_ids=())
     ledger = _ledger()
     with pytest.raises(TokenLedgerError):
         ledger.record_assistant_output(())
@@ -305,12 +301,15 @@ def test_identity_binds_template_tool_contract_and_thinking_mode() -> None:
         replace(base.identity, leaf_lite_contract_sha256="e" * 64),
         replace(base.identity, enable_thinking=False),
     )
-    assert len(
-        {
-            base.ledger_sha256,
-            *(replace(base, identity=item).ledger_sha256 for item in variants),
-        }
-    ) == 4
+    assert (
+        len(
+            {
+                base.ledger_sha256,
+                *(replace(base, identity=item).ledger_sha256 for item in variants),
+            }
+        )
+        == 4
+    )
 
 
 def test_snapshot_rejects_manual_cross_turn_fork_even_if_counts_look_valid() -> None:
@@ -337,16 +336,8 @@ def test_snapshot_rejects_manual_cross_turn_fork_even_if_counts_look_valid() -> 
         ("assistant_text", (100, 101, 102), (100, 999, 102)),
         ("tool_call", (200, 201, 202, 203), (200, 201, 998, 203)),
         ("whitespace", (300, 301, 302), (300, 997, 302)),
-        (
-            "structured_arguments",
-            (400, 401, 402, 403),
-            (400, 401, 996, 403),
-        ),
-        (
-            "reasoning_block",
-            (500, 501, 502, 503, 504),
-            (500, 501, 995, 503, 504),
-        ),
+        ("structured_arguments", (400, 401, 402, 403), (400, 401, 996, 403)),
+        ("reasoning_block", (500, 501, 502, 503, 504), (500, 501, 995, 503, 504)),
     ],
 )
 def test_regression_retemplating_drift_cases_fail_closed(
