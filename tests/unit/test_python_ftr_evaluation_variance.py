@@ -39,16 +39,22 @@ def test_bonferroni_effect_floor_scales_with_checkpoint_selection() -> None:
     assert theoretical_minimum_net_improvement(comparisons=1) == 5
     assert theoretical_minimum_net_improvement(comparisons=4) == 7
     assert theoretical_minimum_net_improvement(comparisons=25) == 9
-    assert variance_aware_minimum_passes(
-        base_passed=103,
-        total_tasks=175,
-        comparisons=4,
-    ) == 110
-    assert variance_aware_minimum_passes(
-        base_passed=103,
-        total_tasks=175,
-        comparisons=25,
-    ) == 112
+    assert (
+        variance_aware_minimum_passes(
+            base_passed=103,
+            total_tasks=175,
+            comparisons=4,
+        )
+        == 110
+    )
+    assert (
+        variance_aware_minimum_passes(
+            base_passed=103,
+            total_tasks=175,
+            comparisons=25,
+        )
+        == 112
+    )
 
 
 def test_paired_exact_gate_requires_task_level_evidence_after_selection() -> None:

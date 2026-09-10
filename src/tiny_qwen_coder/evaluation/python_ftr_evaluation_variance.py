@@ -205,9 +205,7 @@ def characterize_repeated_outcomes(
     passed = tuple(sum(run.values()) for run in items)
     rates = tuple(value / len(membership) for value in passed)
     unstable = tuple(
-        task_id
-        for task_id in sorted(membership)
-        if len({run[task_id] for run in items}) > 1
+        task_id for task_id in sorted(membership) if len({run[task_id] for run in items}) > 1
     )
     flips = sum(
         previous[task_id] != current[task_id]
@@ -272,9 +270,7 @@ def diagnostic_subset(repo_root: Path, size: int = _DIAGNOSTIC_SIZE) -> tuple[st
         raise FTREvaluationVarianceError("diagnostic subset size is invalid")
     ranked = sorted(
         task_ids,
-        key=lambda task_id: hashlib.sha256(
-            f"{_DIAGNOSTIC_SALT}:{task_id}".encode()
-        ).hexdigest(),
+        key=lambda task_id: hashlib.sha256(f"{_DIAGNOSTIC_SALT}:{task_id}".encode()).hexdigest(),
     )
     return tuple(ranked[:size])
 
