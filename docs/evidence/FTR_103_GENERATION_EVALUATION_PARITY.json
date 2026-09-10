@@ -1,0 +1,508 @@
+{
+  "audit_mode": "static_ast_observational_no_production_inference_changes",
+  "base_model": {
+    "repository": "Qwen/Qwen3.5-4B",
+    "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+    "tokenizer_repository": "Qwen/Qwen3.5-4B",
+    "tokenizer_revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
+  },
+  "checks": {
+    "chat_template_application_identical": true,
+    "code_extraction_and_execution_request_logic_shared": true,
+    "frozen_evaluation_settings_valid": true,
+    "generation_configuration_mechanically_equal": true,
+    "intentional_execution_backend_difference_declared": true,
+    "max_new_tokens_identical": true,
+    "sampling_settings_identical_or_inactive_under_greedy": true,
+    "stop_strings_and_token_ids_identical": true,
+    "tokenization_boundaries_identical": true
+  },
+  "evaluation_settings_sha256": "8660c83a561dc5d9896de2fbf5471ecec5c9763d46dcc16891b24f55e6262591",
+  "expected_runtime_contract": {
+    "chat_template": {
+      "kwargs": {
+        "add_generation_prompt": true,
+        "enable_thinking": false,
+        "return_dict": true,
+        "return_tensors": "pt",
+        "tokenize": true
+      },
+      "messages": [
+        {
+          "content": "system_prompt",
+          "role": "system"
+        },
+        {
+          "content": "user_prompt",
+          "role": "user"
+        }
+      ]
+    },
+    "completion_token_boundary": "output[0, prompt_tokens:]",
+    "decode_kwargs": {
+      "clean_up_tokenization_spaces": false,
+      "skip_special_tokens": true
+    },
+    "explicit_stop_strings": [],
+    "explicit_stop_token_ids": [],
+    "generate_call_uses_only_kwargs": true,
+    "generation_kwargs": {
+      "do_sample": false,
+      "max_new_tokens": "self._settings.generation.max_new_tokens",
+      "num_beams": 1,
+      "use_cache": true
+    },
+    "prompt_token_boundary": "inputs['input_ids'].shape[1]"
+  },
+  "expected_runtime_contract_sha256": "0c9d112ef066a195a2c1be84fd2daf6abbbc0d183a2c6a09baf08a0faebba429",
+  "frozen_settings_contract": {
+    "chat_template_version": "Qwen/Qwen3.5-4B@851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a:checkpoint",
+    "decoding_strategy": "greedy",
+    "max_new_tokens": 512,
+    "prompt_version": "canonical-evaluation-prompt-v1",
+    "sampling_parameters_effective": false,
+    "stop_policy": "eos_or_max_new_tokens",
+    "temperature": 0.0,
+    "top_k": 0,
+    "top_p": 1.0
+  },
+  "generation_paths": [
+    {
+      "base_model_load_contract_exact": true,
+      "class": "HuggingFaceBaselineGenerator",
+      "contract_differences_from_frozen_expected": [],
+      "contract_differences_from_unchanged_base": [],
+      "generate_source_sha256": "7c8465443b9580c52c905349aeb96f4a18386a822af859b8e176fab922a2255c",
+      "generation_implementation": "direct",
+      "greedy_decoding_guard_present": true,
+      "normalized_inference_contract": {
+        "chat_template": {
+          "kwargs": {
+            "add_generation_prompt": true,
+            "enable_thinking": false,
+            "return_dict": true,
+            "return_tensors": "pt",
+            "tokenize": true
+          },
+          "messages": [
+            {
+              "content": "system_prompt",
+              "role": "system"
+            },
+            {
+              "content": "user_prompt",
+              "role": "user"
+            }
+          ]
+        },
+        "completion_token_boundary": "output[0, prompt_tokens:]",
+        "decode_kwargs": {
+          "clean_up_tokenization_spaces": false,
+          "skip_special_tokens": true
+        },
+        "explicit_stop_strings": [],
+        "explicit_stop_token_ids": [],
+        "generate_call_uses_only_kwargs": true,
+        "generation_kwargs": {
+          "do_sample": false,
+          "max_new_tokens": "self._settings.generation.max_new_tokens",
+          "num_beams": 1,
+          "use_cache": true
+        },
+        "prompt_token_boundary": "inputs['input_ids'].shape[1]"
+      },
+      "parity": true,
+      "path_id": "unchanged-base",
+      "prepare_inputs_source_sha256": "b7414907774f1be1ae87fe1415fe1e3d8afb4577316fb9dd0a03bbb10f231ff4",
+      "source": "src/tiny_qwen_coder/evaluation/_baseline_generation.py",
+      "tokenizer_repository_and_revision_exact": true
+    },
+    {
+      "base_model_load_contract_exact": true,
+      "class": "HuggingFacePythonP0Generator",
+      "contract_differences_from_frozen_expected": [],
+      "contract_differences_from_unchanged_base": [],
+      "generate_source_sha256": "56089ebfeafb2f8e7d398f897c69f57f820e607c409f724093e524b5800d56b1",
+      "generation_implementation": "direct",
+      "greedy_decoding_guard_present": true,
+      "normalized_inference_contract": {
+        "chat_template": {
+          "kwargs": {
+            "add_generation_prompt": true,
+            "enable_thinking": false,
+            "return_dict": true,
+            "return_tensors": "pt",
+            "tokenize": true
+          },
+          "messages": [
+            {
+              "content": "system_prompt",
+              "role": "system"
+            },
+            {
+              "content": "user_prompt",
+              "role": "user"
+            }
+          ]
+        },
+        "completion_token_boundary": "output[0, prompt_tokens:]",
+        "decode_kwargs": {
+          "clean_up_tokenization_spaces": false,
+          "skip_special_tokens": true
+        },
+        "explicit_stop_strings": [],
+        "explicit_stop_token_ids": [],
+        "generate_call_uses_only_kwargs": true,
+        "generation_kwargs": {
+          "do_sample": false,
+          "max_new_tokens": "self._settings.generation.max_new_tokens",
+          "num_beams": 1,
+          "use_cache": true
+        },
+        "prompt_token_boundary": "inputs['input_ids'].shape[1]"
+      },
+      "parity": true,
+      "path_id": "p8-python-p0",
+      "prepare_inputs_source_sha256": "0e7ffd8242c00a0dd58c79f7190d005e618d8de769b7a5ab700e17545a60acdf",
+      "source": "src/tiny_qwen_coder/evaluation/_python_p0_generation.py",
+      "tokenizer_repository_and_revision_exact": true
+    },
+    {
+      "base_model_load_contract_exact": true,
+      "class": "RankCandidateGenerator",
+      "class_source_sha256": "ffed2c393e47f656ffde197ffd5b59b85808921c00ec418475c59d7f3844c5b9",
+      "contract_differences_from_unchanged_base": [],
+      "expected_parent_class": "HuggingFacePythonP0Generator",
+      "generation_implementation": "inherited",
+      "greedy_decoding_guard_present": true,
+      "inherited_from": "p8-python-p0",
+      "inherits_expected_parent": true,
+      "normalized_inference_contract": {
+        "chat_template": {
+          "kwargs": {
+            "add_generation_prompt": true,
+            "enable_thinking": false,
+            "return_dict": true,
+            "return_tensors": "pt",
+            "tokenize": true
+          },
+          "messages": [
+            {
+              "content": "system_prompt",
+              "role": "system"
+            },
+            {
+              "content": "user_prompt",
+              "role": "user"
+            }
+          ]
+        },
+        "completion_token_boundary": "output[0, prompt_tokens:]",
+        "decode_kwargs": {
+          "clean_up_tokenization_spaces": false,
+          "skip_special_tokens": true
+        },
+        "explicit_stop_strings": [],
+        "explicit_stop_token_ids": [],
+        "generate_call_uses_only_kwargs": true,
+        "generation_kwargs": {
+          "do_sample": false,
+          "max_new_tokens": "self._settings.generation.max_new_tokens",
+          "num_beams": 1,
+          "use_cache": true
+        },
+        "prompt_token_boundary": "inputs['input_ids'].shape[1]"
+      },
+      "parity": true,
+      "path_id": "p9-rank-sweep",
+      "source": "src/tiny_qwen_coder/evaluation/python_rank_sweep.py",
+      "tokenizer_repository_and_revision_exact": true
+    },
+    {
+      "base_model_load_contract_exact": true,
+      "class": "SnapshotTrajectoryGenerator",
+      "contract_differences_from_frozen_expected": [],
+      "contract_differences_from_unchanged_base": [],
+      "generate_source_sha256": "7f7b8b6615ce913e8b2beebc6c447220624d2453104796b7c036b7172018c8be",
+      "generation_implementation": "direct",
+      "greedy_decoding_guard_present": true,
+      "normalized_inference_contract": {
+        "chat_template": {
+          "kwargs": {
+            "add_generation_prompt": true,
+            "enable_thinking": false,
+            "return_dict": true,
+            "return_tensors": "pt",
+            "tokenize": true
+          },
+          "messages": [
+            {
+              "content": "system_prompt",
+              "role": "system"
+            },
+            {
+              "content": "user_prompt",
+              "role": "user"
+            }
+          ]
+        },
+        "completion_token_boundary": "output[0, prompt_tokens:]",
+        "decode_kwargs": {
+          "clean_up_tokenization_spaces": false,
+          "skip_special_tokens": true
+        },
+        "explicit_stop_strings": [],
+        "explicit_stop_token_ids": [],
+        "generate_call_uses_only_kwargs": true,
+        "generation_kwargs": {
+          "do_sample": false,
+          "max_new_tokens": "self._settings.generation.max_new_tokens",
+          "num_beams": 1,
+          "use_cache": true
+        },
+        "prompt_token_boundary": "inputs['input_ids'].shape[1]"
+      },
+      "parity": true,
+      "path_id": "p9-minimum-intervention",
+      "prepare_inputs_source_sha256": "35c75bb581179f29e965abd272af43a5ee62c2259f0a82af2a48ce345b111063",
+      "source": "src/tiny_qwen_coder/evaluation/python_minimum_intervention.py",
+      "tokenizer_repository_and_revision_exact": true
+    },
+    {
+      "base_model_load_contract_exact": true,
+      "class": "DistilledSnapshotGenerator",
+      "contract_differences_from_frozen_expected": [],
+      "contract_differences_from_unchanged_base": [],
+      "generate_source_sha256": "cbe7f8a2911de303685d415eaad6f12dcc411b0a178f6484a59237c735f7cd2f",
+      "generation_implementation": "direct",
+      "greedy_decoding_guard_present": true,
+      "normalized_inference_contract": {
+        "chat_template": {
+          "kwargs": {
+            "add_generation_prompt": true,
+            "enable_thinking": false,
+            "return_dict": true,
+            "return_tensors": "pt",
+            "tokenize": true
+          },
+          "messages": [
+            {
+              "content": "system_prompt",
+              "role": "system"
+            },
+            {
+              "content": "user_prompt",
+              "role": "user"
+            }
+          ]
+        },
+        "completion_token_boundary": "output[0, prompt_tokens:]",
+        "decode_kwargs": {
+          "clean_up_tokenization_spaces": false,
+          "skip_special_tokens": true
+        },
+        "explicit_stop_strings": [],
+        "explicit_stop_token_ids": [],
+        "generate_call_uses_only_kwargs": true,
+        "generation_kwargs": {
+          "do_sample": false,
+          "max_new_tokens": "self._settings.generation.max_new_tokens",
+          "num_beams": 1,
+          "use_cache": true
+        },
+        "prompt_token_boundary": "inputs['input_ids'].shape[1]"
+      },
+      "parity": true,
+      "path_id": "p9-distilled-v4-2000",
+      "prepare_inputs_source_sha256": "c5f3e4a3d4d00c4879b78a920bebf3b725917ccb523da6a615a0fb1b2dbff55c",
+      "source": "src/tiny_qwen_coder/evaluation/python_distilled_trajectory.py",
+      "tokenizer_repository_and_revision_exact": true
+    }
+  ],
+  "intentional_differences": [
+    {
+      "adapter": "DirectExecutionHarness inside the explicitly accepted containerized self-hosted runner",
+      "base": "ConstrainedExecutionHarness / OCI",
+      "field": "execution.isolation_backend",
+      "justification": "The project deliberately avoids nested Docker/Podman for these self-hosted P9 score jobs. The direct backend is explicit and reduced-isolation; it does not claim OCI-equivalent filesystem/network isolation. Candidate normalization, execution-request construction, runner source, limits, timeout semantics, and result interpretation remain the shared evaluator implementations.",
+      "paths": [
+        "p9-rank-sweep",
+        "p9-minimum-intervention",
+        "p9-distilled-development",
+        "p9-distilled-qualification"
+      ]
+    }
+  ],
+  "parity_passed": true,
+  "schema_version": 1,
+  "scoring_paths": [
+    {
+      "approved_runtime_difference": false,
+      "evaluation_logic_shared": true,
+      "evaluator_factory": "_load_generation_inputs",
+      "evaluator_factory_sha256": "13cf9765d9dd87a5f37d50dfbba003b21d3ec8c6f30da2c3a3dfc214843f923d",
+      "evaluator_factory_source": "src/tiny_qwen_coder/evaluation/_baseline_stages.py",
+      "harness": "ConstrainedExecutionHarness",
+      "harness_present": true,
+      "missing_evaluators": [],
+      "parity": true,
+      "path_id": "unchanged-base",
+      "reduced_isolation_explicit": true,
+      "required_evaluators": [
+        "HumanEvalEvaluator",
+        "MBPPEvaluator",
+        "RepositoryHoldoutEvaluator"
+      ],
+      "score_function": "score_canonical_python_base_baseline_stage",
+      "score_function_sha256": "4875b03d5dc69152839679b89b59ed76979e9d55dee97cb1e87e5b94ff32a49f",
+      "score_source": "src/tiny_qwen_coder/evaluation/_baseline_stages.py"
+    },
+    {
+      "approved_runtime_difference": false,
+      "evaluation_logic_shared": true,
+      "evaluator_factory": "_load_inputs",
+      "evaluator_factory_sha256": "f5a03e706e4d284d0a4d53fb212faa7b141297c8ac4400115cbcf2dc4d7490ac",
+      "evaluator_factory_source": "src/tiny_qwen_coder/evaluation/python_p0.py",
+      "harness": "ConstrainedExecutionHarness",
+      "harness_present": true,
+      "missing_evaluators": [],
+      "parity": true,
+      "path_id": "p8-python-p0",
+      "reduced_isolation_explicit": true,
+      "required_evaluators": [
+        "HumanEvalEvaluator",
+        "MBPPEvaluator",
+        "RepositoryHoldoutEvaluator"
+      ],
+      "score_function": "score_python_p0_stage",
+      "score_function_sha256": "8ed1178403193e8ffb659057196e26dc6617f5c55040a0ca3170edd138195f83",
+      "score_source": "src/tiny_qwen_coder/evaluation/python_p0.py"
+    },
+    {
+      "approved_runtime_difference": true,
+      "evaluation_logic_shared": true,
+      "evaluator_factory": "_load_inputs",
+      "evaluator_factory_sha256": "75ed4b2f588877a75a20b7e99a6dfe657d52efef31fad1a1527b273725ccb376",
+      "evaluator_factory_source": "src/tiny_qwen_coder/evaluation/python_rank_sweep.py",
+      "harness": "DirectExecutionHarness",
+      "harness_present": true,
+      "missing_evaluators": [],
+      "parity": true,
+      "path_id": "p9-rank-sweep",
+      "reduced_isolation_explicit": true,
+      "required_evaluators": [
+        "HumanEvalEvaluator",
+        "MBPPEvaluator",
+        "RepositoryHoldoutEvaluator"
+      ],
+      "score_function": "score_rank_stage",
+      "score_function_sha256": "7546252020ba04468f04f63fbf9f386296b2774e6cb8aecdee89caba78d1f164",
+      "score_source": "src/tiny_qwen_coder/evaluation/python_rank_sweep.py"
+    },
+    {
+      "approved_runtime_difference": true,
+      "evaluation_logic_shared": true,
+      "evaluator_factory": "_load_development_problems",
+      "evaluator_factory_sha256": "61dd0186922e56772ce0699c5e4be6cdfc2d844879c2a8ff4285f74ddffa849e",
+      "evaluator_factory_source": "src/tiny_qwen_coder/evaluation/python_minimum_intervention.py",
+      "harness": "DirectExecutionHarness",
+      "harness_present": true,
+      "missing_evaluators": [],
+      "parity": true,
+      "path_id": "p9-minimum-intervention",
+      "reduced_isolation_explicit": true,
+      "required_evaluators": [
+        "HumanEvalEvaluator",
+        "MBPPEvaluator"
+      ],
+      "score_function": "score_checkpoint",
+      "score_function_sha256": "62bdd706282428485dbdbf18756e05b97f9b89c0db7a0979443963987937ef3c",
+      "score_source": "src/tiny_qwen_coder/evaluation/python_minimum_intervention.py"
+    },
+    {
+      "approved_runtime_difference": true,
+      "evaluation_logic_shared": true,
+      "evaluator_factory": "_load_development_problems",
+      "evaluator_factory_sha256": "61dd0186922e56772ce0699c5e4be6cdfc2d844879c2a8ff4285f74ddffa849e",
+      "evaluator_factory_source": "src/tiny_qwen_coder/evaluation/python_minimum_intervention.py",
+      "harness": "DirectExecutionHarness",
+      "harness_present": true,
+      "missing_evaluators": [],
+      "parity": true,
+      "path_id": "p9-distilled-development",
+      "reduced_isolation_explicit": true,
+      "required_evaluators": [
+        "HumanEvalEvaluator",
+        "MBPPEvaluator"
+      ],
+      "score_function": "score_checkpoint",
+      "score_function_sha256": "ae2da691e5c0ecd50c42d743487ecef39ae7ecb172c1c83112c461b0527b498f",
+      "score_source": "src/tiny_qwen_coder/evaluation/python_distilled_trajectory.py"
+    },
+    {
+      "approved_runtime_difference": true,
+      "evaluation_logic_shared": true,
+      "evaluator_factory": "_qualification_context",
+      "evaluator_factory_sha256": "f2c38bcfa0c23ea90ea51abbe56c555c25b3c235001dc3e92a02327446065565",
+      "evaluator_factory_source": "src/tiny_qwen_coder/evaluation/python_distilled_qualification.py",
+      "harness": "DirectExecutionHarness",
+      "harness_present": true,
+      "missing_evaluators": [],
+      "parity": true,
+      "path_id": "p9-distilled-qualification",
+      "reduced_isolation_explicit": true,
+      "required_evaluators": [
+        "HumanEvalEvaluator",
+        "MBPPEvaluator",
+        "RepositoryHoldoutEvaluator"
+      ],
+      "score_function": "score_qualification",
+      "score_function_sha256": "4139a8ecf86c005a58abca14d789c348fe36d5f652272c2251ae8e847114f06f",
+      "score_source": "src/tiny_qwen_coder/evaluation/python_distilled_qualification.py"
+    }
+  ],
+  "shared_evaluator_logic": {
+    "humaneval": {
+      "evaluate_completion_sha256": "0e0ea65a2e8d9bace3cebe7e3265ea9d0f11d6bfd70d702b077a2a287cc0dc3f",
+      "evaluator_class": "HumanEvalEvaluator",
+      "normalization_helpers": {
+        "_candidate_source": {
+          "sha256": "8d2bddf6d2f30c861ead74373bac2212d903e560ef8769e51629b0155f742a89",
+          "source": "src/tiny_qwen_coder/evaluation/humaneval.py"
+        },
+        "normalize_humaneval_completion": {
+          "sha256": "daa0f558c73278350a8ee60c9250a10de8c6674932c180da7d769ee663fb6bf3",
+          "source": "src/tiny_qwen_coder/evaluation/humaneval.py"
+        }
+      },
+      "shared_by_base_and_adapter_paths": true,
+      "source": "src/tiny_qwen_coder/evaluation/humaneval.py"
+    },
+    "mbpp": {
+      "evaluate_completion_sha256": "66965ddaa4cbcece02f5f8a8ab72b90dc2590bf0841ce17e51e5fd7c037d53bc",
+      "evaluator_class": "MBPPEvaluator",
+      "normalization_helpers": {
+        "normalize_mbpp_completion": {
+          "sha256": "f72a998c9bb3c10caacaa5b31d77624e3b993f42624fcdfa470e27b5eafc3cd3",
+          "source": "src/tiny_qwen_coder/evaluation/_mbpp_data.py"
+        }
+      },
+      "shared_by_base_and_adapter_paths": true,
+      "source": "src/tiny_qwen_coder/evaluation/_mbpp_evaluator.py"
+    },
+    "repository_holdout": {
+      "evaluate_completion_sha256": "68ad07a8639b8e39279e44e5d2035a783e9c9475b450929e829d744cc0b3dfb6",
+      "evaluator_class": "RepositoryHoldoutEvaluator",
+      "normalization_helpers": {
+        "normalize_repository_holdout_completion": {
+          "sha256": "d234e2a523b6f0a2eebe5c3fd06d7d27eb21d228a39bf9c2778d08fa9704c38c",
+          "source": "src/tiny_qwen_coder/evaluation/_repository_holdout_runtime.py"
+        }
+      },
+      "shared_by_base_and_adapter_paths": true,
+      "source": "src/tiny_qwen_coder/evaluation/_repository_holdout_evaluator.py"
+    }
+  },
+  "source_git_sha": "9a4ae8a247d08f5b8d2882f2f258e112b4b4fc54",
+  "task_id": "FTR-103"
+}
