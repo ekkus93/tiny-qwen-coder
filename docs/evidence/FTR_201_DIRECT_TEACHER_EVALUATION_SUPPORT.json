@@ -1,0 +1,60 @@
+{
+  "base_evaluation_config": "configs/eval/python/base_baseline_v1.yaml",
+  "base_model": {
+    "repository": "Qwen/Qwen3.5-4B",
+    "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+    "tokenizer_repository": "Qwen/Qwen3.5-4B",
+    "tokenizer_revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
+  },
+  "checks": {
+    "benchmark_artifacts_outside_training_inputs": true,
+    "canonical_prompt_construction_shared": true,
+    "exact_response_checkpointing_shared": true,
+    "execution_evidence_writers_shared": true,
+    "frozen_evaluation_settings_equal": true,
+    "generation_semantics_equal_to_base": true,
+    "pinned_teacher_identity_exact": true,
+    "runtime_entrypoints_fail_closed_on_contract_drift": true,
+    "scoring_semantics_equal_to_base": true,
+    "tokenizer_identity_exact": true
+  },
+  "evaluation_semantics": {
+    "adapter_id": null,
+    "execution": {
+      "network_enabled": false,
+      "timeout_seconds": 10.0
+    },
+    "generation": {
+      "max_new_tokens": 512,
+      "prompt_version": "canonical-evaluation-prompt-v1",
+      "temperature": 0.0,
+      "top_k": 0,
+      "top_p": 1.0
+    },
+    "language": "python",
+    "seed": 1729,
+    "suites": [
+      "humaneval",
+      "mbpp",
+      "repository-holdout",
+      "general-tool-regression"
+    ]
+  },
+  "evaluation_settings_sha256": "8660c83a561dc5d9896de2fbf5471ecec5c9763d46dcc16891b24f55e6262591",
+  "schema_version": 1,
+  "shared_generation_stage": "tiny_qwen_coder.evaluation._baseline_stages.generate_canonical_python_base_baseline_stage",
+  "shared_scoring_stage": "tiny_qwen_coder.evaluation._baseline_stages.score_canonical_python_base_baseline_stage",
+  "source_git_sha": "cc4bef386fae4e9a7ea2011675153e0d537076d3",
+  "support_ready": true,
+  "task_id": "FTR-201",
+  "teacher_artifact_root": "artifacts/eval/python/ftr-201-teacher-direct-v1",
+  "teacher_distillation_config": "configs/distillation/python/qwen38_27b_v1.yaml",
+  "teacher_evaluation_config": "configs/eval/python/ftr_201_teacher_direct_v1.yaml",
+  "teacher_model": {
+    "repository": "Qwen/Qwen3.8-27B",
+    "revision": "72a217afab8029b39e4af1c7273a829995a3dbaf",
+    "tokenizer_repository": "Qwen/Qwen3.8-27B",
+    "tokenizer_revision": "72a217afab8029b39e4af1c7273a829995a3dbaf"
+  },
+  "training_input_references": []
+}
