@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "id": "python-ftr-202-teacher-benchmark-v1",
+  "task_id": "FTR-202",
+  "teacher_evaluation_config": "configs/eval/python/ftr_201_teacher_direct_v1.yaml",
+  "teacher": {
+    "repository": "Qwen/Qwen3.8-27B",
+    "revision": "72a217afab8029b39e4af1c7273a829995a3dbaf"
+  },
+  "frozen_base_reference": {
+    "workflow_run_id": 33301242379,
+    "artifact_id": 9729636096,
+    "artifact_name": "python-base-baseline-da537443ab80b1380bee0fc3c7d9d01ca0574f35",
+    "source_git_sha": "da537443ab80b1380bee0fc3c7d9d01ca0574f35",
+    "scores": {
+      "humaneval": [128, 164],
+      "mbpp": [290, 500],
+      "repository_holdout": [6, 11],
+      "public_coding": [418, 664],
+      "combined_coding": [424, 675]
+    }
+  },
+  "generation": {
+    "required_gpu_family": "NVIDIA A100",
+    "minimum_cuda_total_bytes": 80530636800,
+    "persistent_subdirectory": "tiny-qwen-coder/ftr-202",
+    "resume_from_exact_task_checkpoints": true,
+    "execute_generated_code": false
+  },
+  "scoring": {
+    "require_exact_generation_source_sha": true,
+    "require_oci_isolation": true,
+    "network_enabled": false,
+    "execute_with_drive_or_cloud_credentials_mounted": false
+  },
+  "repository_holdout_policy": {
+    "eligible": true,
+    "status": "one_shot_protected_diagnostic",
+    "rationale": "The repository holdout has remained excluded from training and configuration selection. It may be scored once for this exact precommitted teacher/configuration as a protected diagnostic, but must not be reused to tune or select a replacement teacher configuration.",
+    "may_authorize_this_precommitted_teacher": true,
+    "may_tune_after_observation": false
+  },
+  "teacher_superiority_gate": "configs/eval/python/ftr_203_teacher_superiority_gate_v1.json"
+}
