@@ -228,8 +228,7 @@ jobs:
           set -euo pipefail
           frozen_root="$(cat "${RUNNER_TEMP}/ftr-101-frozen-root.txt")"
           frozen_identity="$(cat "${RUNNER_TEMP}/ftr-101-frozen-identity.txt")"
-          uv run --frozen python -m tiny_qwen_coder.evaluation.python_ftr_noop_adapter_equivalence \
-            score-and-compare \
+          uv run --frozen python -m tiny_qwen_coder.evaluation.python_ftr_noop_adapter_scoring \
             --frozen-dir "${frozen_root}" \
             --frozen-identity "${frozen_identity}" \
             --adapter-manifest "${RUNNER_TEMP}/ftr-102-noop-adapter-manifest.json" \
