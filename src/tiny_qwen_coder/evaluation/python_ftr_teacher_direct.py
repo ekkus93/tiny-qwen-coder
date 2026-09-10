@@ -120,17 +120,11 @@ def _training_input_references(repo_root: Path, artifact_root: Path) -> tuple[st
     return tuple(references)
 
 
-def audit_teacher_direct_support(
+def _validated_support_payload(
     *,
     repo_root: Path,
-    source_git_sha: str,
-    teacher_evaluation_path: Path = _TEACHER_EVALUATION,
+    teacher_evaluation_path: Path,
 ) -> dict[str, object]:
-    """Prove that FTR-201 changes identity only, not evaluation semantics."""
-
-    if len(source_git_sha) != 40 or any(char not in "0123456789abcdef" for char in source_git_sha):
-        raise FTRTeacherDirectError("source_git_sha must be a lowercase 40-character SHA")
-
     base_eval = _load_evaluation(repo_root, _BASE_EVALUATION)
     teacher_eval = _load_evaluation(repo_root, teacher_evaluation_path)
     base_identity = _load_identity(repo_root, Path(base_eval.base_config))
@@ -186,11 +180,11 @@ def audit_teacher_direct_support(
         "exact_response_checkpointing_shared": True,
         "execution_evidence_writers_shared": True,
         "benchmark_artifacts_outside_training_inputs": True,
+        "runtime_entrypoints_fail_closed_on_contract_drift": True,
     }
     return {
         "schema_version": _SCHEMA_VERSION,
         "task_id": _TASK_ID,
-        "source_git_sha": source_git_sha,
         "base_model": asdict(base_identity),
         "teacher_model": asdict(teacher_identity),
         "base_evaluation_config": _BASE_EVALUATION.as_posix(),
@@ -210,6 +204,23 @@ def audit_teacher_direct_support(
         "checks": checks,
         "support_ready": all(checks.values()),
     }
+
+
+def audit_teacher_direct_support(
+    *,
+    repo_root: Path,
+    source_git_sha: str,
+    teacher_evaluation_path: Path = _TEACHER_EVALUATION,
+) -> dict[str, object]:
+    """Prove that FTR-201 changes identity only, not evaluation semantics."""
+
+    if len(source_git_sha) != 40 or any(char not in "0123456789abcdef" for char in source_git_sha):
+        raise FTRTeacherDirectError("source_git_sha must be a lowercase 40-character SHA")
+    report = _validated_support_payload(
+        repo_root=repo_root,
+        teacher_evaluation_path=teacher_evaluation_path,
+    )
+    return {**report, "source_git_sha": source_git_sha}
 
 
 def write_support_report(path: Path, report: Mapping[str, object]) -> Path:
@@ -251,6 +262,10 @@ def generate_teacher_stage(
 ) -> Path:
     """Generate exact teacher responses with the canonical baseline generation stage."""
 
+    _validated_support_payload(
+        repo_root=repo_root,
+        teacher_evaluation_path=config_path,
+    )
     return _canonical_generate_stage(
         config_path=config_path,
         device_index=device_index,
@@ -265,6 +280,10 @@ def score_teacher_stage(
 ) -> PythonBaselineManifest:
     """Score teacher responses with the canonical protected-benchmark execution stage."""
 
+    _validated_support_payload(
+        repo_root=repo_root,
+        teacher_evaluation_path=config_path,
+    )
     return _canonical_score_stage(config_path=config_path, repo_root=repo_root)
 
 

@@ -61,6 +61,27 @@ def test_ftr_201_rejects_semantic_drift(tmp_path: Path) -> None:
         )
 
 
+def test_ftr_201_runtime_entrypoint_rejects_semantic_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import tiny_qwen_coder.evaluation.python_ftr_teacher_direct as ftr
+
+    canonical = (_REPO_ROOT / "configs/eval/python/ftr_201_teacher_direct_v1.yaml").read_text(
+        encoding="utf-8"
+    )
+    config = tmp_path / "drifted.yaml"
+    config.write_text(canonical.replace("seed: 1729", "seed: 1730"), encoding="utf-8")
+    monkeypatch.setattr(
+        ftr,
+        "_canonical_generate_stage",
+        lambda **_: pytest.fail("generation must not run after contract drift"),
+    )
+
+    with pytest.raises(FTRTeacherDirectError, match="semantics drifted"):
+        generate_teacher_stage(repo_root=_REPO_ROOT, config_path=config)
+
+
 def test_ftr_201_generation_delegates_to_canonical_stage(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -78,13 +99,13 @@ def test_ftr_201_generation_delegates_to_canonical_stage(
 
     monkeypatch.setattr(ftr, "_canonical_generate_stage", fake_generate)
 
-    result = generate_teacher_stage(repo_root=Path("repo"), device_index=2)
+    result = generate_teacher_stage(repo_root=_REPO_ROOT, device_index=2)
 
     assert result == Path("artifact/generation-stage.json")
     assert observed == {
         "config_path": Path("configs/eval/python/ftr_201_teacher_direct_v1.yaml"),
         "device_index": 2,
-        "repo_root": Path("repo"),
+        "repo_root": _REPO_ROOT,
     }
 
 
@@ -102,10 +123,10 @@ def test_ftr_201_scoring_delegates_to_canonical_stage(
 
     monkeypatch.setattr(ftr, "_canonical_score_stage", fake_score)
 
-    result = score_teacher_stage(repo_root=Path("repo"))
+    result = score_teacher_stage(repo_root=_REPO_ROOT)
 
     assert result is sentinel
     assert observed == {
         "config_path": Path("configs/eval/python/ftr_201_teacher_direct_v1.yaml"),
-        "repo_root": Path("repo"),
+        "repo_root": _REPO_ROOT,
     }
