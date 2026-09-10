@@ -59,25 +59,15 @@ class LeafLiteToolContract:
         if self.schema_version != _SCHEMA_VERSION:
             raise LeafLiteContractError("unsupported Leaf-lite schema_version")
         if not self.contract_id or self.contract_id != self.contract_id.strip():
-            raise LeafLiteContractError(
-                "contract_id must be a non-empty trimmed string"
-            )
+            raise LeafLiteContractError("contract_id must be a non-empty trimmed string")
         if not isinstance(self.profile, LeafLiteProfile):
             raise LeafLiteContractError("profile must be a LeafLiteProfile")
         if any(not isinstance(item, LeafLiteToolName) for item in self.tool_names):
-            raise LeafLiteContractError(
-                "tool_names must contain LeafLiteToolName values"
-            )
-        names = (
-            _REPOSITORY
-            if self.profile is LeafLiteProfile.REPOSITORY
-            else _SELF_CONTAINED
-        )
+            raise LeafLiteContractError("tool_names must contain LeafLiteToolName values")
+        names = _REPOSITORY if self.profile is LeafLiteProfile.REPOSITORY else _SELF_CONTAINED
         expected = tuple(LeafLiteToolName(item) for item in names)
         if self.tool_names != expected:
-            raise LeafLiteContractError(
-                f"{self.profile.value} tools must exactly equal {names!r}"
-            )
+            raise LeafLiteContractError(f"{self.profile.value} tools must exactly equal {names!r}")
         limits = (
             self.bash_timeout_seconds,
             self.max_output_bytes,
@@ -87,21 +77,16 @@ class LeafLiteToolContract:
             self.max_write_bytes,
         )
         if any(
-            isinstance(value, bool) or not isinstance(value, int) or value <= 0
-            for value in limits
+            isinstance(value, bool) or not isinstance(value, int) or value <= 0 for value in limits
         ):
-            raise LeafLiteContractError(
-                "Leaf-lite numeric limits must be positive integers"
-            )
+            raise LeafLiteContractError("Leaf-lite numeric limits must be positive integers")
         if self.read_default_max_lines > self.read_max_lines:
             raise LeafLiteContractError("read default cannot exceed read maximum")
         if (
             not self.truncation_marker
             or len(self.truncation_marker.encode()) >= self.max_output_bytes
         ):
-            raise LeafLiteContractError(
-                "truncation marker must fit inside the output bound"
-            )
+            raise LeafLiteContractError("truncation marker must fit inside the output bound")
 
     @property
     def contract_sha256(self) -> str:
@@ -172,9 +157,7 @@ class LeafLiteToolResult:
                 LeafLiteResultStatus.TIMEOUT,
                 LeafLiteResultStatus.RESOURCE_LIMIT,
             }:
-                raise LeafLiteContractError(
-                    "timeout/resource_limit statuses are bash-only"
-                )
+                raise LeafLiteContractError("timeout/resource_limit statuses are bash-only")
             if self.exit_code is not None:
                 raise LeafLiteContractError("non-bash results cannot carry exit_code")
             return
@@ -185,13 +168,10 @@ class LeafLiteToolResult:
         ):
             raise LeafLiteContractError("bash error result requires non-zero exit_code")
         if (
-            self.status
-            in {LeafLiteResultStatus.TIMEOUT, LeafLiteResultStatus.RESOURCE_LIMIT}
+            self.status in {LeafLiteResultStatus.TIMEOUT, LeafLiteResultStatus.RESOURCE_LIMIT}
             and self.exit_code == 0
         ):
-            raise LeafLiteContractError(
-                "timed out/resource-limited bash cannot exit zero"
-            )
+            raise LeafLiteContractError("timed out/resource-limited bash cannot exit zero")
 
 
 def repository_leaf_lite_contract() -> LeafLiteToolContract:
@@ -218,9 +198,9 @@ def _contract(
 
 
 def _canonical(value: object) -> bytes:
-    return json.dumps(
-        value, ensure_ascii=True, separators=(",", ":"), sort_keys=True
-    ).encode("ascii")
+    return json.dumps(value, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode(
+        "ascii"
+    )
 
 
 def _object(value: object, context: str) -> dict[str, object]:
@@ -263,19 +243,13 @@ def _path(value: str, *, glob: bool = False) -> str:
         raise LeafLiteContractError(f"{label} must be normalized relative POSIX text")
     parsed = PurePosixPath(value)
     if parsed.is_absolute() or value != parsed.as_posix() or ".." in parsed.parts:
-        raise LeafLiteContractError(
-            f"{label} cannot be absolute, non-normalized, or traverse"
-        )
+        raise LeafLiteContractError(f"{label} cannot be absolute, non-normalized, or traverse")
     if parsed.parts[0] in _RESERVED:
-        raise LeafLiteContractError(
-            f"{label} targets a grader/reference/reserved namespace"
-        )
+        raise LeafLiteContractError(f"{label} targets a grader/reference/reserved namespace")
     return value
 
 
-def parse_leaf_lite_tool_call(
-    text: str, contract: LeafLiteToolContract
-) -> LeafLiteToolCall:
+def parse_leaf_lite_tool_call(text: str, contract: LeafLiteToolContract) -> LeafLiteToolCall:
     """Strictly parse one model-emitted JSON tool call under a frozen profile."""
 
     try:
@@ -290,9 +264,7 @@ def parse_leaf_lite_tool_call(
     except ValueError as exc:
         raise LeafLiteContractError(f"unknown policy tool {raw_tool!r}") from exc
     if tool not in contract.tool_names:
-        raise LeafLiteContractError(
-            f"tool {tool.value!r} is not enabled by this profile"
-        )
+        raise LeafLiteContractError(f"tool {tool.value!r} is not enabled by this profile")
     args = _object(payload["arguments"], f"{tool.value} arguments")
     parsed: LeafLiteArguments
     if tool is LeafLiteToolName.READ:
@@ -327,9 +299,7 @@ def parse_leaf_lite_tool_call(
         if not old:
             raise LeafLiteContractError("edit.old_text must not be empty")
         if not 1 <= count <= 100:
-            raise LeafLiteContractError(
-                "edit.expected_replacements must be between 1 and 100"
-            )
+            raise LeafLiteContractError("edit.expected_replacements must be between 1 and 100")
         parsed = EditToolArguments(
             _path(_string(args, "path", "edit")),
             old,
@@ -343,19 +313,14 @@ def parse_leaf_lite_tool_call(
         _keys(args, {"command"}, "bash arguments")
         command = _string(args, "command", "bash")
         if not command or not command.strip() or "\x00" in command:
-            raise LeafLiteContractError(
-                "bash.command must be non-empty and contain no NUL"
-            )
+            raise LeafLiteContractError("bash.command must be non-empty and contain no NUL")
         parsed = BashToolArguments(command)
     return LeafLiteToolCall(tool, parsed)
 
 
 def leaf_lite_tool_call_json(call: LeafLiteToolCall) -> str:
     return (
-        _canonical(
-            {"tool": call.tool.value, "arguments": asdict(call.arguments)}
-        ).decode()
-        + "\n"
+        _canonical({"tool": call.tool.value, "arguments": asdict(call.arguments)}).decode() + "\n"
     )
 
 
@@ -394,9 +359,7 @@ def leaf_lite_tool_result_from_json(
     except json.JSONDecodeError as exc:
         raise LeafLiteContractError("tool result is not valid JSON") from exc
     payload = _object(raw, "tool result")
-    _keys(
-        payload, {"tool", "status", "output", "exit_code", "truncated"}, "tool result"
-    )
+    _keys(payload, {"tool", "status", "output", "exit_code", "truncated"}, "tool result")
     try:
         tool = LeafLiteToolName(_string(payload, "tool", "tool result"))
         status = LeafLiteResultStatus(_string(payload, "status", "tool result"))
@@ -408,9 +371,7 @@ def leaf_lite_tool_result_from_json(
     if len(output.encode()) > contract.max_output_bytes:
         raise LeafLiteContractError("tool result output exceeds contract byte limit")
     exit_code = payload["exit_code"]
-    if exit_code is not None and (
-        isinstance(exit_code, bool) or not isinstance(exit_code, int)
-    ):
+    if exit_code is not None and (isinstance(exit_code, bool) or not isinstance(exit_code, int)):
         raise LeafLiteContractError("tool result exit_code must be integer or null")
     truncated = payload["truncated"]
     if not isinstance(truncated, bool):
@@ -517,9 +478,7 @@ def _contract_payload(contract: LeafLiteToolContract) -> dict[str, object]:
     payload["write_semantics"] = "atomic_create_or_replace_utf8_text"
     payload["edit_semantics"] = "exact_text_replacement_with_required_count"
     payload["glob_semantics"] = "candidate_visible_paths_sorted_lexically"
-    payload["result_serialization"] = (
-        "canonical_ascii_json_sorted_keys_compact_plus_newline"
-    )
+    payload["result_serialization"] = "canonical_ascii_json_sorted_keys_compact_plus_newline"
     payload["output_truncation"] = "utf8_prefix_then_frozen_marker"
     return payload
 
