@@ -76,8 +76,11 @@ def audit_teacher_benchmark_protocol(*, repo_root: Path, source_git_sha: str) ->
 
     base = strict_mapping(protocol.get("frozen_base_reference"), context="FTR-202 frozen base")
     scores = strict_mapping(base.get("scores"), context="FTR-202 frozen base scores")
-    for suite_id, expected in _EXPECTED_BASE_SCORES.items():
-        if score_pair(scores.get(suite_id), context=f"FTR-202 base score {suite_id}") != expected:
+    for suite_id, expected_score in _EXPECTED_BASE_SCORES.items():
+        if (
+            score_pair(scores.get(suite_id), context=f"FTR-202 base score {suite_id}")
+            != expected_score
+        ):
             raise FTRTeacherSuperiorityError(f"frozen base score drifted for {suite_id}")
 
     holdout = strict_mapping(
@@ -106,8 +109,8 @@ def audit_teacher_benchmark_protocol(*, repo_root: Path, source_git_sha: str) ->
     if expect_int(gate, "fixed_teacher_comparisons", context="FTR-203 gate") != 1:
         raise FTRTeacherSuperiorityError("FTR-203 must cover exactly one fixed teacher comparison")
     primary = strict_mapping(gate.get("primary_capability"), context="FTR-203 primary")
-    for key, expected in _EXPECTED_PRIMARY.items():
-        if expect_int(primary, key, context="FTR-203 primary") != expected:
+    for key, expected_value in _EXPECTED_PRIMARY.items():
+        if expect_int(primary, key, context="FTR-203 primary") != expected_value:
             raise FTRTeacherSuperiorityError(f"FTR-203 primary {key} drifted")
     if expect_number(primary, "minimum_absolute_pass_rate_gain", context="FTR-203 primary") != 0.08:
         raise FTRTeacherSuperiorityError("FTR-203 absolute gain floor drifted")
