@@ -105,7 +105,12 @@ def main() -> None:
 
     audit_teacher_benchmark_protocol(repo_root=repo_root, source_git_sha=source_sha)
     runtime = OciRuntimeSpec(kind=OciRuntime.DOCKER, executable=docker)
-    baseline_stages.discover_oci_runtime = lambda: runtime
+
+    def _discover_pinned_runtime(*, search_path: str | None = None) -> OciRuntimeSpec:
+        del search_path
+        return runtime
+
+    setattr(baseline_stages, "discover_oci_runtime", _discover_pinned_runtime)
     score_teacher_stage(repo_root=repo_root)
     report = compare_teacher_to_base(
         base_dir=args.base_dir.resolve(),
