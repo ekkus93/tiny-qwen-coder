@@ -67,9 +67,7 @@ def test_self_contained_v0_removes_edit_and_glob_without_aliases() -> None:
     )
     for disabled in ("edit", "glob"):
         with pytest.raises(LeafLiteContractError, match="not enabled"):
-            parse_leaf_lite_tool_call(
-                _call(disabled, {"path": "solution.py"}), contract
-            )
+            parse_leaf_lite_tool_call(_call(disabled, {"path": "solution.py"}), contract)
     for alias in ("shell", "run", "cat", "patch", "grade", "run_hidden"):
         with pytest.raises(LeafLiteContractError, match="unknown policy tool"):
             parse_leaf_lite_tool_call(_call(alias, {}), contract)
@@ -81,9 +79,7 @@ def test_read_call_schema_defaults_and_canonical_serialization() -> None:
     call = parse_leaf_lite_tool_call(_call("read", {"path": "src/main.py"}), contract)
 
     assert call.tool is LeafLiteToolName.READ
-    assert call.arguments == ReadToolArguments(
-        path="src/main.py", start_line=1, max_lines=200
-    )
+    assert call.arguments == ReadToolArguments(path="src/main.py", start_line=1, max_lines=200)
     assert leaf_lite_tool_call_json(call) == (
         '{"arguments":{"max_lines":200,"path":"src/main.py","start_line":1},"tool":"read"}\n'
     )
@@ -96,9 +92,7 @@ def test_write_call_schema_is_atomic_full_file_content_and_bounded() -> None:
         contract,
     )
 
-    assert call.arguments == WriteToolArguments(
-        path="solution.py", content="print('ok')\n"
-    )
+    assert call.arguments == WriteToolArguments(path="solution.py", content="print('ok')\n")
     oversized = "x" * (contract.max_write_bytes + 1)
     with pytest.raises(LeafLiteContractError, match="byte limit"):
         parse_leaf_lite_tool_call(
@@ -137,9 +131,7 @@ def test_edit_call_schema_is_exact_count_checked_replacement() -> None:
 
 def test_glob_call_schema_has_one_deterministic_pattern_surface() -> None:
     contract = repository_leaf_lite_contract()
-    call = parse_leaf_lite_tool_call(
-        _call("glob", {"pattern": "src/**/*.py"}), contract
-    )
+    call = parse_leaf_lite_tool_call(_call("glob", {"pattern": "src/**/*.py"}), contract)
 
     assert call.arguments == GlobToolArguments(pattern="src/**/*.py")
     with pytest.raises(LeafLiteContractError, match="schema"):
@@ -149,13 +141,9 @@ def test_glob_call_schema_has_one_deterministic_pattern_surface() -> None:
         )
 
 
-def test_bash_call_schema_uses_fixed_contract_timeout_and_no_per_call_override() -> (
-    None
-):
+def test_bash_call_schema_uses_fixed_contract_timeout_and_no_per_call_override() -> None:
     contract = repository_leaf_lite_contract()
-    call = parse_leaf_lite_tool_call(
-        _call("bash", {"command": "python -m pytest -q"}), contract
-    )
+    call = parse_leaf_lite_tool_call(_call("bash", {"command": "python -m pytest -q"}), contract)
 
     assert call.arguments == BashToolArguments(command="python -m pytest -q")
     assert contract.bash_timeout_seconds == 20
@@ -198,9 +186,7 @@ def test_tool_call_parser_is_strict_about_top_level_and_argument_keys() -> None:
 
     with pytest.raises(LeafLiteContractError, match="unexpected"):
         parse_leaf_lite_tool_call(
-            json.dumps(
-                {"tool": "read", "arguments": {"path": "x.py"}, "id": "surprise"}
-            ),
+            json.dumps({"tool": "read", "arguments": {"path": "x.py"}, "id": "surprise"}),
             contract,
         )
     with pytest.raises(LeafLiteContractError, match="unexpected"):
@@ -296,15 +282,10 @@ def test_output_truncation_is_deterministic_utf8_prefix_and_marker_bounded() -> 
     assert first.truncated is True
     assert first.output.endswith(contract.truncation_marker)
     assert len(first.output.encode("utf-8")) <= contract.max_output_bytes
-    assert (
-        leaf_lite_tool_result_from_json(leaf_lite_tool_result_json(first), contract)
-        == first
-    )
+    assert leaf_lite_tool_result_from_json(leaf_lite_tool_result_json(first), contract) == first
 
 
-def test_result_status_semantics_separate_bash_execution_from_structured_tools() -> (
-    None
-):
+def test_result_status_semantics_separate_bash_execution_from_structured_tools() -> None:
     contract = repository_leaf_lite_contract()
 
     with pytest.raises(LeafLiteContractError, match="exit_code 0"):
