@@ -30,6 +30,9 @@
   "scoring": {
     "require_exact_generation_source_sha": true,
     "require_oci_isolation": true,
+    "oci_runtime": "docker",
+    "execution_image": "python:3.11.14-slim@sha256:c8271b1f627d0068857dce5b53e14a9558603b527e46f1f901722f935b786a39",
+    "require_preloaded_execution_image": true,
     "network_enabled": false,
     "execute_with_drive_or_cloud_credentials_mounted": false
   },

@@ -21,6 +21,10 @@ GATE_PATH = Path("configs/eval/python/ftr_203_teacher_superiority_gate_v1.json")
 _FTR201_EVIDENCE = Path("docs/evidence/FTR_201_DIRECT_TEACHER_EVALUATION_SUPPORT.json")
 _FTR201_EVAL = Path("configs/eval/python/ftr_201_teacher_direct_v1.yaml")
 _EXPECTED_TEACHER = ("Qwen/Qwen3.8-27B", "72a217afab8029b39e4af1c7273a829995a3dbaf")
+_EXPECTED_EXECUTION_IMAGE = (
+    "python:3.11.14-slim@sha256:"
+    "c8271b1f627d0068857dce5b53e14a9558603b527e46f1f901722f935b786a39"
+)
 _EXPECTED_BASE_SCORES = {
     "humaneval": (128, 164),
     "mbpp": (290, 500),
@@ -103,6 +107,12 @@ def audit_teacher_benchmark_protocol(*, repo_root: Path, source_git_sha: str) ->
         or scoring.get("execute_with_drive_or_cloud_credentials_mounted") is not False
     ):
         raise FTRTeacherSuperiorityError("FTR-202 scoring isolation contract drifted")
+    if expect_str(scoring, "oci_runtime", context="FTR-202 scoring") != "docker":
+        raise FTRTeacherSuperiorityError("FTR-202 must reproduce the historical Docker runtime")
+    if expect_str(scoring, "execution_image", context="FTR-202 scoring") != _EXPECTED_EXECUTION_IMAGE:
+        raise FTRTeacherSuperiorityError("FTR-202 execution image drifted from the frozen baseline")
+    if scoring.get("require_preloaded_execution_image") is not True:
+        raise FTRTeacherSuperiorityError("FTR-202 must require the pinned image before scoring")
 
     if gate.get("precommitted_before_teacher_results") is not True:
         raise FTRTeacherSuperiorityError("FTR-203 gate must be precommitted")
@@ -122,6 +132,8 @@ def audit_teacher_benchmark_protocol(*, repo_root: Path, source_git_sha: str) ->
         "a100_80gb_generation_required": True,
         "generation_does_not_execute_candidates": True,
         "isolated_network_disabled_scoring_required": True,
+        "historical_docker_runtime_pinned": True,
+        "execution_image_digest_pinned": True,
         "cloud_credentials_excluded_from_candidate_execution": True,
         "repository_holdout_one_shot_status_frozen": True,
         "ftr_203_gate_precommitted": True,
