@@ -110,7 +110,7 @@ def main() -> None:
         del search_path
         return runtime
 
-    setattr(baseline_stages, "discover_oci_runtime", _discover_pinned_runtime)
+    baseline_stages.discover_oci_runtime = _discover_pinned_runtime  # type: ignore[attr-defined]
     score_teacher_stage(repo_root=repo_root)
     report = compare_teacher_to_base(
         base_dir=args.base_dir.resolve(),
