@@ -18,7 +18,17 @@ from pathlib import Path
 from typing import cast
 
 from tiny_qwen_coder.evaluation import python_ftr_noop_adapter_equivalence as ftr
-from tiny_qwen_coder.evaluation._baseline_artifacts import write_regression_baseline_artifacts
+from tiny_qwen_coder.evaluation._baseline_artifacts import (
+    file_sha256,
+    write_regression_baseline_artifacts,
+)
+from tiny_qwen_coder.evaluation._baseline_runner import (
+    _generate_items,
+    _preflight_execution_images,
+    _preflight_source_tree,
+    _regression_aggregate,
+    _regression_results,
+)
 from tiny_qwen_coder.evaluation.execution import (
     ConstrainedExecutionHarness,
     OciRuntime,
@@ -120,7 +130,7 @@ def _score_control(*, output_dir: Path, runtime: OciRuntimeSpec) -> None:
 
     humaneval_problems = humaneval.load_problems()
     mbpp_problems = mbpp.load_problems()
-    ftr._preflight_execution_images(
+    _preflight_execution_images(
         runtime,
         (
             humaneval.runner.execution_image,
@@ -129,7 +139,7 @@ def _score_control(*, output_dir: Path, runtime: OciRuntimeSpec) -> None:
         ),
     )
     checkpoint = ftr._CheckpointOnly()
-    humaneval_responses = ftr._generate_items(
+    humaneval_responses = _generate_items(
         suite_id="humaneval",
         prompts=tuple(
             (problem.task_id, humaneval.prompt_for(problem).user_content)
@@ -140,7 +150,7 @@ def _score_control(*, output_dir: Path, runtime: OciRuntimeSpec) -> None:
         generation_contract=generation_contract,
         output_dir=output_dir,
     )
-    mbpp_responses = ftr._generate_items(
+    mbpp_responses = _generate_items(
         suite_id="mbpp",
         prompts=tuple(
             (problem.task_id, mbpp.prompt_for(problem).user_content) for problem in mbpp_problems
@@ -150,7 +160,7 @@ def _score_control(*, output_dir: Path, runtime: OciRuntimeSpec) -> None:
         generation_contract=generation_contract,
         output_dir=output_dir,
     )
-    holdout_responses = ftr._generate_items(
+    holdout_responses = _generate_items(
         suite_id="repository-holdout",
         prompts=tuple(
             (task.problem_id, holdout.prompt_for(task).user_content) for task in holdout.suite.tasks
@@ -161,7 +171,7 @@ def _score_control(*, output_dir: Path, runtime: OciRuntimeSpec) -> None:
         output_dir=output_dir,
     )
     regression_suite = load_frozen_general_tool_regression_suite()
-    regression_responses = ftr._generate_items(
+    regression_responses = _generate_items(
         suite_id="general-tool-regression",
         prompts=tuple((case.id, case.prompt) for case in regression_suite.cases),
         generator=checkpoint,
@@ -208,9 +218,9 @@ def _score_control(*, output_dir: Path, runtime: OciRuntimeSpec) -> None:
     )
     holdout.write_artifacts(_rebind_holdout(holdout_result), output_dir / "repository-holdout")
 
-    regression_results = ftr._regression_results(regression_suite, regression_responses)
+    regression_results = _regression_results(regression_suite, regression_responses)
     regression_aggregate = replace(
-        ftr._regression_aggregate(
+        _regression_aggregate(
             suite=regression_suite,
             results=regression_results,
             settings=settings,
@@ -240,12 +250,12 @@ def score_and_compare(
 ) -> dict[str, object]:
     """Score FTR-102 and fail closed unless it is exactly equivalent to FTR-101."""
 
-    source_git_sha, _ = ftr._preflight_source_tree(repo_root)
+    source_git_sha, _ = _preflight_source_tree(repo_root)
     protocol = ftr._protocol_config(protocol_path)
     adapter_manifest = ftr._read_json(adapter_manifest_path, context="FTR-102 adapter manifest")
     if adapter_manifest.get("source_git_sha") != source_git_sha:
         raise ftr.FTRNoopAdapterError("FTR-102 transported adapter source SHA drift detected")
-    if adapter_manifest.get("protocol_config_sha256") != ftr.file_sha256(protocol_path):
+    if adapter_manifest.get("protocol_config_sha256") != file_sha256(protocol_path):
         raise ftr.FTRNoopAdapterError("FTR-102 transported adapter protocol drift detected")
     (
         _evaluation,
@@ -276,8 +286,8 @@ def score_and_compare(
     report.update(
         {
             "source_git_sha": source_git_sha,
-            "protocol_config_sha256": ftr.file_sha256(protocol_path),
-            "adapter_manifest_sha256": ftr.file_sha256(adapter_manifest_path),
+            "protocol_config_sha256": file_sha256(protocol_path),
+            "adapter_manifest_sha256": file_sha256(adapter_manifest_path),
             "frozen_reference": ftr._strict_mapping(
                 protocol.get("ftr_101_reference"), context="FTR-102 ftr_101_reference"
             ),
