@@ -108,7 +108,10 @@ def audit_teacher_benchmark_protocol(*, repo_root: Path, source_git_sha: str) ->
         raise FTRTeacherSuperiorityError("FTR-202 scoring isolation contract drifted")
     if expect_str(scoring, "oci_runtime", context="FTR-202 scoring") != "docker":
         raise FTRTeacherSuperiorityError("FTR-202 must reproduce the historical Docker runtime")
-    if expect_str(scoring, "execution_image", context="FTR-202 scoring") != _EXPECTED_EXECUTION_IMAGE:
+    if (
+        expect_str(scoring, "execution_image", context="FTR-202 scoring")
+        != _EXPECTED_EXECUTION_IMAGE
+    ):
         raise FTRTeacherSuperiorityError("FTR-202 execution image drifted from the frozen baseline")
     if scoring.get("require_preloaded_execution_image") is not True:
         raise FTRTeacherSuperiorityError("FTR-202 must require the pinned image before scoring")
