@@ -85,9 +85,7 @@ def _paired_p_value(*, improvements: int, regressions: int) -> float:
     discordant = improvements + regressions
     if discordant == 0:
         return 1.0
-    numerator: int = sum(
-        math.comb(discordant, k) for k in range(improvements, discordant + 1)
-    )
+    numerator: int = sum(math.comb(discordant, k) for k in range(improvements, discordant + 1))
     return float(numerator) / float(2**discordant)
 
 
