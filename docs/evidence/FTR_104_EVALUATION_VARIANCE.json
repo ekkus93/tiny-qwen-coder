@@ -1,0 +1,184 @@
+{
+  "checks": {
+    "deterministic_generation_preferred_and_enforced": true,
+    "plus_one_of_175_rejected_as_strong_evidence": true,
+    "repeated_controls_quantified": true,
+    "residual_execution_variance_explicit": true,
+    "score_and_task_variance_quantified": true,
+    "stochastic_elements_inventoried": true,
+    "variance_aware_minimum_effect_defined": true
+  },
+  "evaluation_settings_sha256": "8660c83a561dc5d9896de2fbf5471ecec5c9763d46dcc16891b24f55e6262591",
+  "historical_p9_007_reassessment": {
+    "base": [
+      103,
+      175
+    ],
+    "best_case_adjusted_p_value": 1.0,
+    "best_case_unadjusted_p_value": 0.5,
+    "checkpoint_comparisons": 4,
+    "minimum_combined_passes": 110,
+    "minimum_net_delta_tasks": 7,
+    "net_delta_tasks": 1,
+    "selected_checkpoint": [
+      104,
+      175
+    ],
+    "strong_standalone_evidence": false
+  },
+  "repeated_control_evidence": {
+    "combined_pass_counts": [
+      424,
+      424,
+      424
+    ],
+    "combined_score_population_variance_tasks": 0.0,
+    "combined_score_range_tasks": 0,
+    "diagnostic_subset": {
+      "observed_flips": 0,
+      "score_variance_tasks": 0.0,
+      "selection": "lowest SHA-256 ranks of ftr-104-diagnostic-v1:<task-id>",
+      "size": 32,
+      "task_ids": [
+        "MBPP/411",
+        "HumanEval/138",
+        "MBPP/166",
+        "HumanEval/89",
+        "MBPP/388",
+        "HumanEval/81",
+        "HumanEval/21",
+        "MBPP/280",
+        "MBPP/461",
+        "MBPP/78",
+        "MBPP/385",
+        "MBPP/263",
+        "HumanEval/135",
+        "HumanEval/1",
+        "MBPP/438",
+        "MBPP/470",
+        "MBPP/408",
+        "MBPP/75",
+        "MBPP/183",
+        "MBPP/404",
+        "MBPP/507",
+        "HumanEval/116",
+        "HumanEval/44",
+        "MBPP/250",
+        "MBPP/340",
+        "MBPP/389",
+        "HumanEval/30",
+        "MBPP/306",
+        "MBPP/208",
+        "MBPP/48",
+        "MBPP/391",
+        "MBPP/443"
+      ]
+    },
+    "observed_task_flip_rate": 0.0,
+    "observed_task_outcome_flips": 0,
+    "runs": [
+      {
+        "combined": [
+          424,
+          675
+        ],
+        "role": "frozen_base",
+        "workflow_run_id": 33301242379
+      },
+      {
+        "combined": [
+          424,
+          675
+        ],
+        "exact_task_equivalence_to_previous": true,
+        "role": "ftr_101_exact_base_reproduction",
+        "workflow_run_id": 34336465327
+      },
+      {
+        "combined": [
+          424,
+          675
+        ],
+        "exact_task_equivalence_to_previous": true,
+        "role": "ftr_102_zero_adapter_control",
+        "workflow_run_id": 34461880953
+      }
+    ],
+    "scope_limit": "zero observed control variance does not prove arbitrary candidate code is deterministic"
+  },
+  "schema_version": 1,
+  "source_git_sha": "d389fb46f79bbf0e2e793855f1247b845f137d50",
+  "stochastic_inventory": [
+    {
+      "classification": "eliminated",
+      "controlled": true,
+      "detail": "greedy decoding; do_sample=False; temperature=0; top_p=1; top_k=0",
+      "element": "model_sampling"
+    },
+    {
+      "classification": "controlled",
+      "controlled": true,
+      "detail": "canonical seed 1729; sampling is disabled",
+      "element": "generation_prng_state"
+    },
+    {
+      "classification": "fail_closed_deterministic",
+      "controlled": true,
+      "detail": "deterministic PyTorch/cuDNN plus fixed cuBLAS workspace",
+      "element": "cuda_algorithm_selection"
+    },
+    {
+      "classification": "environment_residual",
+      "controlled": false,
+      "detail": "exact GPU/runtime/model provenance is required; rerun controls after environment changes",
+      "element": "cross_hardware_numeric_drift"
+    },
+    {
+      "classification": "controlled",
+      "controlled": true,
+      "detail": "DirectExecutionHarness pins PYTHONHASHSEED=0",
+      "element": "direct_python_hash_randomization"
+    },
+    {
+      "classification": "execution_residual",
+      "controlled": false,
+      "detail": "historical OCI baseline does not pin the child hash seed; changing it requires a new baseline protocol",
+      "element": "oci_python_hash_randomization"
+    },
+    {
+      "classification": "candidate_residual",
+      "controlled": false,
+      "detail": "generated code can call random/time/secrets/os.urandom; selected candidates need repeated scoring if outcomes can vary",
+      "element": "candidate_random_time_entropy_calls"
+    },
+    {
+      "classification": "execution_residual",
+      "controlled": false,
+      "detail": "10-second execution limits bound but cannot eliminate near-timeout scheduler jitter",
+      "element": "wall_clock_timeout_and_host_scheduling"
+    },
+    {
+      "classification": "environment_residual",
+      "controlled": false,
+      "detail": "generic discovery can vary by installed runtime; FTR-101 pinned Docker for historical reproduction",
+      "element": "oci_runtime_selection"
+    },
+    {
+      "classification": "non_scoring_entropy",
+      "controlled": true,
+      "detail": "random temp/container names and performance timing are not pass@1 inputs except through timeout behavior",
+      "element": "temporary_names_latency_throughput"
+    }
+  ],
+  "task_id": "FTR-104",
+  "variance_aware_effect_policy": {
+    "familywise_alpha": 0.05,
+    "four_checkpoint_minimum_net_tasks": 7,
+    "future_development_gate_requirement": "record paired task outcomes; require adjusted p<=0.05, no suite regression, and the selection-aware minimum net effect",
+    "paired_test": "exact one-sided discordant-task sign/McNemar test",
+    "selection_adjustment": "Bonferroni",
+    "single_candidate_minimum_net_tasks": 5,
+    "twenty_five_checkpoint_minimum_net_tasks": 9
+  },
+  "variance_characterization_passed": true
+}
