@@ -238,9 +238,7 @@ def _class_node(tree: ast.Module, name: str) -> ast.ClassDef:
 
 def _function_node(container: ast.Module | ast.ClassDef, name: str) -> ast.FunctionDef:
     matches = [
-        node
-        for node in container.body
-        if isinstance(node, ast.FunctionDef) and node.name == name
+        node for node in container.body if isinstance(node, ast.FunctionDef) and node.name == name
     ]
     if len(matches) != 1:
         raise FTRGenerationEvaluationParityError(f"expected exactly one function {name!r}")
@@ -363,8 +361,7 @@ def _tokenizer_load_exact(class_node: ast.ClassDef) -> bool:
             return False
         revisions = [keyword.value for keyword in node.keywords if keyword.arg == "revision"]
         return (
-            len(revisions) == 1
-            and _attribute_name(revisions[0]) == "base_model.tokenizer_revision"
+            len(revisions) == 1 and _attribute_name(revisions[0]) == "base_model.tokenizer_revision"
         )
     return False
 
@@ -380,9 +377,7 @@ def _model_load_exact(class_node: ast.ClassDef) -> bool:
             continue
         keywords = {keyword.arg: keyword.value for keyword in node.keywords if keyword.arg}
         revision = keywords.get("revision")
-        revision_exact = (
-            revision is not None and _attribute_name(revision) == "base_model.revision"
-        )
+        revision_exact = revision is not None and _attribute_name(revision) == "base_model.revision"
         dtype = keywords.get("dtype")
         dtype_exact = dtype is not None and _attribute_name(dtype) == "torch.bfloat16"
         low_cpu_mem = keywords.get("low_cpu_mem_usage")
@@ -617,11 +612,7 @@ def _generator_report(repo_root: Path) -> tuple[list[dict[str, object]], bool]:
             contract = parent_contract
             differences = _json_diff(expected, contract)
             path_passed = (
-                inherited
-                and tokenizer_exact
-                and model_exact
-                and greedy_guard
-                and not differences
+                inherited and tokenizer_exact and model_exact and greedy_guard and not differences
             )
             rows.append(
                 {
@@ -792,9 +783,7 @@ def audit_generation_evaluation_parity(
     intentional_differences = [
         {
             "field": "execution.isolation_backend",
-            "paths": [
-                item.path_id for item in _SCORING_PATHS if item.approved_runtime_difference
-            ],
+            "paths": [item.path_id for item in _SCORING_PATHS if item.approved_runtime_difference],
             "base": "ConstrainedExecutionHarness / OCI",
             "adapter": (
                 "DirectExecutionHarness inside the explicitly accepted containerized "
