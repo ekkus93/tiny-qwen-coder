@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -25,10 +26,12 @@ def test_canonical_variance_audit_passes_and_rejects_plus_one_of_175() -> None:
     report = audit_evaluation_variance(repo_root=_REPO_ROOT, source_git_sha=_SHA)
 
     assert report["variance_characterization_passed"] is True
-    assert report["checks"]["deterministic_generation_preferred_and_enforced"] is True
-    assert report["repeated_control_evidence"]["combined_pass_counts"] == [424, 424, 424]
-    assert report["repeated_control_evidence"]["observed_task_outcome_flips"] == 0
-    reassessment = report["historical_p9_007_reassessment"]
+    checks = cast(dict[str, object], report["checks"])
+    controls = cast(dict[str, object], report["repeated_control_evidence"])
+    reassessment = cast(dict[str, object], report["historical_p9_007_reassessment"])
+    assert checks["deterministic_generation_preferred_and_enforced"] is True
+    assert controls["combined_pass_counts"] == [424, 424, 424]
+    assert controls["observed_task_outcome_flips"] == 0
     assert reassessment["net_delta_tasks"] == 1
     assert reassessment["minimum_net_delta_tasks"] == 7
     assert reassessment["minimum_combined_passes"] == 110

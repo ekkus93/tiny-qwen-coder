@@ -88,8 +88,8 @@ def exact_one_sided_discordant_p_value(*, improvements: int, regressions: int) -
     discordant = improvements + regressions
     if discordant == 0:
         return 1.0
-    numerator = sum(math.comb(discordant, k) for k in range(improvements, discordant + 1))
-    return numerator / (2**discordant)
+    numerator: int = sum(math.comb(discordant, k) for k in range(improvements, discordant + 1))
+    return float(numerator) / float(2**discordant)
 
 
 def theoretical_minimum_net_improvement(
