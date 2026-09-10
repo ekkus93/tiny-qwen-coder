@@ -9,8 +9,6 @@ task through a symlink into Drive, making interruption recovery immediate.
 from __future__ import annotations
 
 import argparse
-import hashlib
-import json
 import subprocess
 from pathlib import Path
 
@@ -57,10 +55,6 @@ def _validate_a100() -> dict[str, object]:
     }
 
 
-def _sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
 def _bind_persistent_output(*, repo_root: Path, persistent_root: Path, source_sha: str) -> Path:
     persistent_dir = persistent_root / source_sha / _OUTPUT_RELATIVE.name
     persistent_dir.mkdir(parents=True, exist_ok=True)
@@ -76,40 +70,6 @@ def _bind_persistent_output(*, repo_root: Path, persistent_root: Path, source_sh
     else:
         local.symlink_to(persistent_dir, target_is_directory=True)
     return persistent_dir
-
-
-def _handoff_payload(
-    *, persistent_dir: Path, source_sha: str, gpu: dict[str, object]
-) -> dict[str, object]:
-    stage_path = persistent_dir / "generation-stage.json"
-    stage = json.loads(stage_path.read_text(encoding="utf-8"))
-    if not isinstance(stage, dict) or stage.get("source_git_sha") != source_sha:
-        raise SystemExit("generation-stage source SHA does not match this checkout")
-    raw_artifacts = stage.get("artifacts")
-    if not isinstance(raw_artifacts, list):
-        raise SystemExit("generation-stage artifact inventory is invalid")
-    artifacts: list[dict[str, str]] = []
-    for item in raw_artifacts:
-        if not isinstance(item, dict) or not isinstance(item.get("path"), str):
-            raise SystemExit("generation-stage artifact entry is invalid")
-        relative = Path(item["path"])
-        path = persistent_dir / relative
-        digest = _sha256(path)
-        if digest != item.get("sha256"):
-            raise SystemExit(f"generation artifact digest mismatch: {relative}")
-        artifacts.append({"path": relative.as_posix(), "sha256": digest})
-    return {
-        "schema_version": 1,
-        "task_id": "FTR-202",
-        "source_git_sha": source_sha,
-        "generation_stage_sha256": _sha256(stage_path),
-        "teacher_generation_directory": persistent_dir.as_posix(),
-        "gpu": gpu,
-        "artifacts": artifacts,
-        "scoring_performed": False,
-        "candidate_execution_performed": False,
-        "resume_policy": "checkpoint files are persisted directly to the mounted durable root",
-    }
 
 
 def main() -> None:
@@ -130,6 +90,10 @@ def main() -> None:
         source_sha=source_sha,
     )
 
+    from tiny_qwen_coder.evaluation._ftr_teacher_transport import (
+        build_generation_handoff,
+        write_generation_handoff,
+    )
     from tiny_qwen_coder.evaluation.python_ftr_teacher_direct import (
         audit_teacher_direct_support,
         generate_teacher_stage,
@@ -144,9 +108,15 @@ def main() -> None:
     if stage_path.resolve() != (persistent_dir / "generation-stage.json").resolve():
         raise SystemExit("teacher generation stage wrote to an unexpected destination")
 
-    handoff = _handoff_payload(persistent_dir=persistent_dir, source_sha=source_sha, gpu=gpu)
-    handoff_path = persistent_dir.parent / "FTR_202_GENERATION_HANDOFF.json"
-    handoff_path.write_text(json.dumps(handoff, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    handoff = build_generation_handoff(
+        generation_dir=persistent_dir,
+        source_sha=source_sha,
+        gpu=gpu,
+    )
+    handoff_path = write_generation_handoff(
+        generation_dir=persistent_dir,
+        handoff=handoff,
+    )
     print(handoff_path)
 
 

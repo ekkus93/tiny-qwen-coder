@@ -36,9 +36,19 @@ def _preflight(repo_root: Path, generation_dir: Path) -> str:
     if _git(repo_root, "status", "--porcelain"):
         raise SystemExit("FTR-202 scoring requires a clean exact source checkout")
     sha = _git(repo_root, "rev-parse", "HEAD")
-    stage = json.loads((generation_dir / "generation-stage.json").read_text(encoding="utf-8"))
-    if not isinstance(stage, dict) or stage.get("source_git_sha") != sha:
-        raise SystemExit("generation evidence was not produced by this exact source SHA")
+
+    from tiny_qwen_coder.evaluation._ftr_teacher_transport import (
+        FTRTeacherTransportError,
+        verify_generation_handoff,
+    )
+
+    try:
+        verify_generation_handoff(
+            generation_dir=generation_dir,
+            expected_source_sha=sha,
+        )
+    except FTRTeacherTransportError as exc:
+        raise SystemExit(f"FTR-202 transport verification failed: {exc}") from exc
     return sha
 
 
