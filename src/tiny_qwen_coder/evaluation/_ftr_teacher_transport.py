@@ -65,7 +65,9 @@ def _relative_artifact_path(value: object, *, context: str) -> Path:
         raise FTRTeacherTransportError(f"{context} path must be a non-empty string")
     path = Path(value)
     if path.is_absolute() or path == Path(".") or ".." in path.parts:
-        raise FTRTeacherTransportError(f"{context} path must remain within the generation directory")
+        raise FTRTeacherTransportError(
+            f"{context} path must remain within the generation directory"
+        )
     return path
 
 
@@ -82,9 +84,7 @@ def _artifact_inventory(
     seen: set[str] = set()
     for index, raw_item in enumerate(raw_artifacts):
         item = _mapping(raw_item, context=f"{context} artifact[{index}]")
-        relative = _relative_artifact_path(
-            item.get("path"), context=f"{context} artifact[{index}]"
-        )
+        relative = _relative_artifact_path(item.get("path"), context=f"{context} artifact[{index}]")
         relative_text = relative.as_posix()
         if relative_text in seen:
             raise FTRTeacherTransportError(f"duplicate transport artifact: {relative_text}")
@@ -94,11 +94,15 @@ def _artifact_inventory(
         )
         candidate = generation_dir / relative
         if candidate.is_symlink():
-            raise FTRTeacherTransportError(f"transport artifact must not be a symlink: {relative_text}")
+            raise FTRTeacherTransportError(
+                f"transport artifact must not be a symlink: {relative_text}"
+            )
         try:
             resolved = candidate.resolve(strict=True)
         except OSError as exc:
-            raise FTRTeacherTransportError(f"transport artifact is missing: {relative_text}") from exc
+            raise FTRTeacherTransportError(
+                f"transport artifact is missing: {relative_text}"
+            ) from exc
         if not resolved.is_relative_to(root) or not resolved.is_file():
             raise FTRTeacherTransportError(
                 f"transport artifact escapes generation directory: {relative_text}"
@@ -142,9 +146,7 @@ def build_generation_handoff(
     }
 
 
-def write_generation_handoff(
-    *, generation_dir: Path, handoff: Mapping[str, object]
-) -> Path:
+def write_generation_handoff(*, generation_dir: Path, handoff: Mapping[str, object]) -> Path:
     """Write the FTR-202 handoff inside the transported generation directory."""
 
     path = generation_dir / HANDOFF_FILENAME
@@ -173,7 +175,9 @@ def verify_generation_handoff(
     stage_path = generation_dir / "generation-stage.json"
     stage = _read_json(stage_path, context="generation stage")
     if stage.get("source_git_sha") != expected_source_sha:
-        raise FTRTeacherTransportError("generation-stage source SHA does not match scoring checkout")
+        raise FTRTeacherTransportError(
+            "generation-stage source SHA does not match scoring checkout"
+        )
     expected_stage_digest = _validate_digest(
         handoff.get("generation_stage_sha256"), context="handoff generation_stage_sha256"
     )
