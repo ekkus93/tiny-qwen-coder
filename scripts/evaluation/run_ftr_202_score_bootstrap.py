@@ -2,6 +2,7 @@
 """Prepare and run isolated FTR-202 scoring from transported teacher evidence.
 
 This convenience wrapper is not part of the experimental execution source. It
+fully verifies transported evidence before any network/runtime preparation,
 creates a clean checkout of the immutable FTR-202 execution SHA, restores the
 frozen base artifact, preloads the pinned Docker image, strips credentials from
 the scoring subprocess, and delegates the actual benchmark execution/gate to
@@ -11,7 +12,6 @@ the scorer frozen at that execution SHA.
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import shutil
 import subprocess
@@ -19,16 +19,21 @@ import tempfile
 from pathlib import Path
 from typing import NoReturn
 
+from tiny_qwen_coder.evaluation._ftr_teacher_transport import (
+    FTRTeacherTransportError,
+    verify_generation_handoff,
+)
+
 _EXECUTION_SHA = "90d42cca541cc7a96493d5d80d95718e5930d551"
 _REPO_URL = "https://github.com/ekkus93/tiny-qwen-coder.git"
 _REPO_SLUG = "ekkus93/tiny-qwen-coder"
 _BASE_RUN_ID = "33301242379"
 _BASE_ARTIFACT = "python-base-baseline-da537443ab80b1380bee0fc3c7d9d01ca0574f35"
 _BASE_RELATIVE = Path("artifacts/eval/python/base-baseline-v1")
-_HANDOFF_FILENAME = "FTR_202_GENERATION_HANDOFF.json"
 _EXECUTION_IMAGE = (
     "python:3.11.14-slim@sha256:c8271b1f627d0068857dce5b53e14a9558603b527e46f1f901722f935b786a39"
 )
+_REQUIRED_UV_VERSION = "0.12.13"
 _STRIP_ENV = {
     "GOOGLE_APPLICATION_CREDENTIALS",
     "HF_TOKEN",
@@ -59,21 +64,26 @@ def _output(command: list[str], *, cwd: Path | None = None) -> str:
 
 
 def _validate_generation_dir(generation_dir: Path) -> None:
+    """Fully verify transported evidence before any network/runtime setup."""
+
     if not generation_dir.is_dir():
         _die(f"generation directory does not exist: {generation_dir}")
-    handoff_path = generation_dir / _HANDOFF_FILENAME
     try:
-        raw: object = json.loads(handoff_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise SystemExit(f"could not read FTR-202 generation handoff: {handoff_path}") from exc
-    if not isinstance(raw, dict):
-        _die("FTR-202 generation handoff must be a JSON object")
-    if raw.get("task_id") != "FTR-202":
-        _die("generation handoff task_id is not FTR-202")
-    if raw.get("source_git_sha") != _EXECUTION_SHA:
+        verify_generation_handoff(
+            generation_dir=generation_dir,
+            expected_source_sha=_EXECUTION_SHA,
+        )
+    except FTRTeacherTransportError as exc:
+        raise SystemExit(f"FTR-202 transport verification failed before setup: {exc}") from exc
+
+
+def _require_uv_version(uv: str) -> None:
+    observed = _output([uv, "--version"])
+    parts = observed.split()
+    if len(parts) < 2 or parts[0] != "uv" or parts[1] != _REQUIRED_UV_VERSION:
         _die(
-            "generation evidence was not produced by the immutable FTR-202 execution SHA "
-            f"{_EXECUTION_SHA}"
+            "FTR-202 scoring bootstrap requires exact uv version "
+            f"{_REQUIRED_UV_VERSION}; observed {observed!r}"
         )
 
 
@@ -174,10 +184,12 @@ def _execute(
     checkout = _prepare_checkout(workspace, git=git)
     base_dir = _download_base(workspace, gh=gh)
     _prepare_runtime(docker=docker, uv=uv, checkout=checkout)
+    print(f"transport_verified_source_sha={_EXECUTION_SHA}")
     print(f"execution_sha={_EXECUTION_SHA}")
     print(f"generation_dir={generation_dir}")
     print(f"base_dir={base_dir}")
     print(f"execution_image={_EXECUTION_IMAGE}")
+    print(f"uv_version={_REQUIRED_UV_VERSION}")
     print(f"report={report}")
     return _score(
         checkout=checkout,
@@ -190,7 +202,7 @@ def _execute(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Prepare immutable FTR-202 execution source and run isolated scoring"
+        description="Verify FTR-202 transport, prepare immutable execution source, and score"
     )
     parser.add_argument("--generation-dir", type=Path, required=True)
     parser.add_argument(
@@ -207,12 +219,17 @@ def main() -> None:
 
     generation_dir = args.generation_dir.resolve()
     report = args.report.resolve()
+
+    # Scientific ordering is intentional: verify every transported artifact and
+    # digest before cloning, downloading the base artifact, pulling an image, or
+    # executing any generated candidate code.
     _validate_generation_dir(generation_dir)
 
     git = _require_executable("git")
     gh = _require_executable("gh")
     docker = _require_executable("docker")
     uv = _require_executable("uv")
+    _require_uv_version(uv)
 
     if args.workspace is None:
         with tempfile.TemporaryDirectory(prefix="ftr202-score-") as temporary:
