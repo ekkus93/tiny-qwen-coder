@@ -1,0 +1,49 @@
+{
+  "empirical_status": {
+    "a100_generation_completed": false,
+    "decision": null,
+    "isolated_scoring_completed": false,
+    "teacher_superiority_demonstrated": null
+  },
+  "execution_source_ci_run_id": 34544502972,
+  "execution_source_git_sha": "90d42cca541cc7a96493d5d80d95718e5930d551",
+  "frozen_base": {
+    "artifact_name": "python-base-baseline-da537443ab80b1380bee0fc3c7d9d01ca0574f35",
+    "public_coding": [
+      418,
+      664
+    ],
+    "source_git_sha": "da537443ab80b1380bee0fc3c7d9d01ca0574f35",
+    "workflow_run_id": 33301242379
+  },
+  "ftr_203_gate": {
+    "general_tool_regression_maximum_pass_drop_cases": 1,
+    "humaneval_minimum_delta_tasks": 0,
+    "maximum_one_sided_p_value": 0.05,
+    "mbpp_minimum_delta_tasks": 0,
+    "minimum_absolute_pass_rate_gain": 0.08,
+    "minimum_net_improvement_tasks": 54,
+    "minimum_teacher_public_coding_passed": 472,
+    "repository_holdout_maximum_pass_drop_tasks": 1
+  },
+  "generation": {
+    "candidate_execution_performed": false,
+    "durable_checkpointing": true,
+    "minimum_cuda_total_bytes": 80530636800,
+    "required_gpu_family": "NVIDIA A100"
+  },
+  "handoff_status": "ready_for_empirical_a100_generation",
+  "schema_version": 1,
+  "scoring": {
+    "cloud_model_credentials_allowed": false,
+    "execution_image": "python:3.11.14-slim@sha256:c8271b1f627d0068857dce5b53e14a9558603b527e46f1f901722f935b786a39",
+    "network_enabled": false,
+    "oci_runtime": "docker",
+    "transport_integrity_required": true
+  },
+  "task_id": "FTR-202",
+  "teacher": {
+    "repository": "Qwen/Qwen3.8-27B",
+    "revision": "72a217afab8029b39e4af1c7273a829995a3dbaf"
+  }
+}
